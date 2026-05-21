@@ -1,0 +1,127 @@
+{
+  "project_name": "IU Digital de Antioquia - Analytics Platform",
+  "theme": "light_primary_with_dark_mode",
+  "archetype": "Archetype 4: Swiss & High-Contrast",
+  "emotional_tone": "Executive, trustworthy, modern, data-dense, academic, institutional.",
+  "typography": {
+    "headings": {
+      "font_family": "Cabinet Grotesk",
+      "weights": ["500", "700", "900"],
+      "tracking": "tracking-tight",
+      "instruction": "Used for page titles, KPI numbers, and widget headers. Never use Inter."
+    },
+    "body": {
+      "font_family": "IBM Plex Sans",
+      "weights": ["400", "500"],
+      "tracking": "tracking-normal",
+      "instruction": "Optimal for data-dense tables, lists, and analytical tooltips."
+    },
+    "scale": {
+      "h1": "text-4xl md:text-5xl",
+      "h2": "text-2xl md:text-3xl",
+      "h3": "text-lg md:text-xl",
+      "kpi_value": "text-4xl font-black tracking-tighter",
+      "body": "text-sm md:text-base",
+      "small_label": "text-xs uppercase tracking-[0.2em] font-medium"
+    }
+  },
+  "colors": {
+    "light": {
+      "background": "#F9FAFB",
+      "surface": "#FFFFFF",
+      "border": "#E5E7EB",
+      "text_primary": "#111827",
+      "text_secondary": "#4B5563",
+      "brand_primary": "#0033A0",
+      "brand_secondary": "#E3000F",
+      "brand_accent": "#FFCD00",
+      "success": "#059669",
+      "warning": "#D97706",
+      "error": "#DC2626"
+    },
+    "dark": {
+      "background": "#0A0A0A",
+      "surface": "#171717",
+      "border": "#262626",
+      "text_primary": "#F9FAFB",
+      "text_secondary": "#9CA3AF",
+      "brand_primary": "#3B82F6",
+      "brand_secondary": "#F87171",
+      "brand_accent": "#FBBF24",
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "error": "#EF4444"
+    },
+    "chart_palette": [
+      "#0033A0",
+      "#0052FF",
+      "#FFCD00",
+      "#E3000F",
+      "#059669",
+      "#8B5CF6"
+    ]
+  },
+  "layout_and_spacing": {
+    "grid_system": "MODE B: THE CONTROL ROOM GRID",
+    "columns": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 lg:grid-cols-12",
+    "gaps": "gap-4 md:gap-6",
+    "widget_padding": "p-5 md:p-6",
+    "border_radius": "rounded-none md:rounded-md",
+    "surfaces": {
+      "cards": "border border-border bg-surface shadow-sm",
+      "header": "sticky top-0 z-50 backdrop-blur-xl bg-surface/80 border-b border-border"
+    }
+  },
+  "components_strategy": {
+    "buttons": "Flat, sharp edges or max 4px radius. High contrast text on hover.",
+    "tables": "Dense. text-sm. 1px bottom border for rows. No vertical borders inside tables. sticky headers.",
+    "forms": "Shadcn UI Form, Input, Select. Floating labels or top labels (text-xs uppercase).",
+    "charts": "Shadcn/Recharts. Minimal axes. Use tooltips. Maintain brand chart_palette.",
+    "filters": "Sidebar multi-dimensional filter using Accordion + Checkboxes/Selects from Shadcn.",
+    "map": "Leaflet + react-leaflet. Use minimal tile layer (e.g., CartoDB Positron) to let data points (heatmaps/markers in brand colors) stand out."
+  },
+  "motion_and_interaction": {
+    "hover": "Subtle border color darkening. Interactive elements must change background.",
+    "transitions": "transition-colors duration-200 ease-in-out",
+    "loading": "Skeleton loaders matching widget dimensions. No generic spinners for full page."
+  },
+  "accessibility": {
+    "contrast": "APCA/WCAG AA compliant. Minimum 4.5:1 for standard text.",
+    "focus": "focus-visible:ring-2 focus-visible:ring-brand_primary focus-visible:ring-offset-2",
+    "testing_attributes": "All interactive elements MUST use data-testid (e.g., data-testid='login-submit-button')"
+  },
+  "media_and_assets": {
+    "icons": "lucide-react (Standard, sharp, consistent scaling).",
+    "images": {
+      "login_background": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/50acd41d-6371-4d12-97eb-aa998af0d717/images/a6d3a263ce8d1ae97eba0273486fcc808dcb272ea7c882bf07eeac9923aa15a2.png",
+        "description": "Abstract architectural interior of a modern university library in Colombia, warm natural lighting, minimalist.",
+        "placement": "Login page split screen right side background."
+      },
+      "data_abstract_bg": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/50acd41d-6371-4d12-97eb-aa998af0d717/images/75ff4be86550110e9ef338fe4f836a34a4b715d607ca893fe7c13e665778ae25.png",
+        "description": "Abstract data visualization background, elegant nodes and connections.",
+        "placement": "Hero banner for Executive Dashboard or PDF Cover page header."
+      },
+      "campus_students": {
+        "url": "https://images.unsplash.com/photo-1741637335289-c99652d3155f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDZ8MHwxfHNlYXJjaHwyfHx1bml2ZXJzaXR5JTIwc3R1ZGVudHMlMjBjYW1wdXN8ZW58MHx8fHwxNzc5NDA3MTU0fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Students walk by a campus building under a tree.",
+        "placement": "Optional contextual image for profile or empty states."
+      },
+      "colombia_map_concept": {
+        "url": "https://images.pexels.com/photos/8874750/pexels-photo-8874750.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Close-up of a marked map of Central America/Colombia.",
+        "placement": "Empty state or loading background for the Territorial Dashboard."
+      }
+    }
+  },
+  "instructions_to_main_agent": [
+    "Use purely Shadcn UI, customized for dense data (reduce paddings in tables and cards). Do not use generic card shadows, use flat 1px borders.",
+    "Implement a persistent left or right sidebar for the multi-dimensional global filters.",
+    "For the map, ensure react-leaflet is used with a dark/light minimalist tile set so the DIVIPOLA data points stand out.",
+    "Always apply data-testid attributes to all interactive elements for robust automated testing.",
+    "Prioritize optical alignment and the 'Control Room' dense grid logic. No excessive whitespace in the BI views.",
+    "Ensure 'Cabinet Grotesk' is applied to KPI numbers and dashboard headers to convey institutional authority.",
+    "Color palette is based on IU Digital de Antioquia's institutional identity (Blue, Red, Yellow) adapted for UI data viz."
+  ]
+}
