@@ -360,6 +360,7 @@ async def seed_students():
             "ciudad_codigo": muni["codigo"],
             "ciudad_nombre": muni["nombre"],
             "departamento": muni["departamento"],
+            "pais": "COLOMBIA" if muni["departamento"] not in ("VENEZUELA", "ECUADOR", "PANAMA", "ESTADOS UNIDOS", "ESPAÑA", "CHILE", "ARGENTINA", "MEXICO", "PERU") else muni["departamento"],
             "lat": muni["lat"],
             "lon": muni["lon"],
             "facultad": None,  # populated via catalog mapping later
@@ -380,31 +381,39 @@ async def seed_students():
 
 
 async def _seed_catalogs_from_students():
-    """Build facultades and programas catalogs from student data."""
-    # Mapeo institucional IU Digital de Antioquia (5 facultades)
+    """Build facultades y programas según la estructura institucional oficial IU Digital de Antioquia."""
+    # Mapeo OFICIAL (6 facultades) según portal institucional
     facultad_map = {
-        # Facultad de Ciencias Empresariales y Económicas
-        "ADMINISTRACIÓN DE EMPRESAS": "Facultad de Ciencias Empresariales",
-        "ADMINISTRACIÓN DE EMPRESAS TURÍSTICAS Y HOTELERAS": "Facultad de Ciencias Empresariales",
-        "ADMINISTRACIÓN EN SEGURIDAD Y SALUD EN EL TRABAJO": "Facultad de Ciencias Empresariales",
-        "TECNOLOGÍA EN GESTIÓN ADMINISTRATIVA": "Facultad de Ciencias Empresariales",
-        "TECNOLOGÍA EN GESTIÓN LOGÍSTICA PORTUARIA Y DEL TRANSPORTE": "Facultad de Ciencias Empresariales",
-        "TECNOLOGÍA EN GESTIÓN COMERCIAL AGROEMPRESARIAL": "Facultad de Ciencias Empresariales",
-        "FUNDAMENTOS DE ADMINISTRACIÓN Y EMPRENDIMIENTO PMDP GP02 TALENTO ESPECIALIZADO": "Facultad de Ciencias Empresariales",
-        # Facultad de Comunicaciones y Mercadeo
-        "PUBLICIDAD Y MERCADEO DIGITAL": "Facultad de Comunicaciones y Mercadeo",
-        # Facultad de Ciencias Sociales y Educación
-        "TRABAJO SOCIAL": "Facultad de Ciencias Sociales y Educación",
-        "LICENCIATURA EN EDUCACIÓN BÁSICA PRIMARIA": "Facultad de Ciencias Sociales y Educación",
-        "TECNOLOGÍA EN DESARROLLO COMUNITARIO": "Facultad de Ciencias Sociales y Educación",
-        # Facultad de Ingenierías
-        "INGENIERÍA DE SOFTWARE Y DATOS": "Facultad de Ingenierías",
-        "INGENIERÍA MECATRÓNICA": "Facultad de Ingenierías",
-        "INGENIERÍA EN DESARROLLO TERRITORIAL": "Facultad de Ingenierías",
-        "TECNOLOGÍA EN DESARROLLO DE SOFTWARE": "Facultad de Ingenierías",
-        "TECNOLOGIA EN GESTION CATASTRAL Y AGRIMENSURA": "Facultad de Ingenierías",
-        # Facultad de Ciencias Básicas y Ambientales
-        "CIENCIAS AMBIENTALES": "Facultad de Ciencias Básicas y Ambientales",
+        # Facultad de Ciencias Administrativas y Económicas
+        "ADMINISTRACIÓN DE EMPRESAS": "Facultad de Ciencias Administrativas y Económicas",
+        "ADMINISTRACIÓN DE EMPRESAS TURÍSTICAS Y HOTELERAS": "Facultad de Ciencias Administrativas y Económicas",
+        "ADMINISTRACIÓN EN SEGURIDAD Y SALUD EN EL TRABAJO": "Facultad de Ciencias Administrativas y Económicas",
+        "ESPECIALIZACIÓN EN FORMULACIÓN Y EVALUACIÓN DE PROYECTOS": "Facultad de Ciencias Administrativas y Económicas",
+        "ESPECIALIZACIÓN EN GERENCIA DE LA SEGURIDAD Y SALUD EN EL TRABAJO": "Facultad de Ciencias Administrativas y Económicas",
+        "PUBLICIDAD Y MERCADEO DIGITAL": "Facultad de Ciencias Administrativas y Económicas",
+        "TECNOLOGÍA EN GESTIÓN ADMINISTRATIVA": "Facultad de Ciencias Administrativas y Económicas",
+        "TECNOLOGÍA EN GESTIÓN COMERCIAL AGROEMPRESARIAL": "Facultad de Ciencias Administrativas y Económicas",
+        "TECNOLOGÍA EN GESTIÓN LOGÍSTICA PORTUARIA Y DEL TRANSPORTE": "Facultad de Ciencias Administrativas y Económicas",
+        "FUNDAMENTOS DE ADMINISTRACIÓN Y EMPRENDIMIENTO PMDP GP02 TALENTO ESPECIALIZADO": "Facultad de Ciencias Administrativas y Económicas",
+        # Facultad de Ciencias Ambientales
+        "CIENCIAS AMBIENTALES": "Facultad de Ciencias Ambientales",
+        "ESPECIALIZACIÓN EN GESTIÓN AMBIENTAL PARA EL DESARROLLO TERRITORIAL SOSTENIBLE": "Facultad de Ciencias Ambientales",
+        # Facultad de Ciencias y Tecnologías Digitales
+        "ESPECIALIZACIÓN EN ANALÍTICA Y BIG DATA": "Facultad de Ciencias y Tecnologías Digitales",
+        "ESPECIALIZACIÓN EN PROGRAMACIÓN APLICADA": "Facultad de Ciencias y Tecnologías Digitales",
+        "INGENIERÍA DE SOFTWARE Y DATOS": "Facultad de Ciencias y Tecnologías Digitales",
+        "TECNOLOGÍA EN DESARROLLO DE SOFTWARE": "Facultad de Ciencias y Tecnologías Digitales",
+        # Facultad de Ingeniería
+        "ESPECIALIZACIÓN EN INOCUIDAD AGROALIMENTARIA": "Facultad de Ingeniería",
+        "INGENIERÍA MECATRÓNICA": "Facultad de Ingeniería",
+        "INGENIERÍA EN DESARROLLO TERRITORIAL": "Facultad de Ingeniería",
+        "TECNOLOGIA EN GESTION CATASTRAL Y AGRIMENSURA": "Facultad de Ingeniería",
+        # Facultad de Educación
+        "ESPECIALIZACIÓN EN TECNOLOGÍAS DIGITALES PARA EL APRENDIZAJE": "Facultad de Educación",
+        "LICENCIATURA EN EDUCACIÓN BÁSICA PRIMARIA": "Facultad de Educación",
+        # Facultad de Ciencias Sociales y Humanas
+        "TECNOLOGÍA EN DESARROLLO COMUNITARIO": "Facultad de Ciencias Sociales y Humanas",
+        "TRABAJO SOCIAL": "Facultad de Ciencias Sociales y Humanas",
     }
     facultades = {}
     for prog, fac in facultad_map.items():
@@ -432,20 +441,20 @@ async def _seed_catalogs_from_students():
         if not fac_name:
             # Smart fallback by keyword
             p = prog.upper()
-            if any(k in p for k in ["INGENIER", "MECATRÓN", "MECATRON", "CATASTRAL"]):
-                fac_name = "Facultad de Ingenierías"
-            elif any(k in p for k in ["ADMINIST", "GESTIÓN", "GESTION", "EMPRES", "LOGÍS", "LOGIS", "AGROEMPRES", "EMPREND", "SEGURIDAD Y SALUD"]):
-                fac_name = "Facultad de Ciencias Empresariales"
-            elif any(k in p for k in ["PUBLICIDAD", "MERCADEO", "COMUNICA"]):
-                fac_name = "Facultad de Comunicaciones y Mercadeo"
-            elif any(k in p for k in ["SOCIAL", "EDUCACIÓN", "EDUCACION", "TRABAJO", "COMUNITARIO", "LICENCIATURA"]):
-                fac_name = "Facultad de Ciencias Sociales y Educación"
-            elif any(k in p for k in ["AMBIENT", "BIOLOG", "QUÍMIC", "QUIMIC", "BÁSIC", "BASIC"]):
-                fac_name = "Facultad de Ciencias Básicas y Ambientales"
-            elif any(k in p for k in ["SOFTWARE", "DESARROLLO DE SOFTWARE", "DATOS"]):
-                fac_name = "Facultad de Ingenierías"
+            if any(k in p for k in ["LICENCIATURA", "EDUCACIÓN BÁSICA", "EDUCACION BASICA", "PEDAGOG"]):
+                fac_name = "Facultad de Educación"
+            elif any(k in p for k in ["TRABAJO SOCIAL", "DESARROLLO COMUNITARIO", "CIENCIAS SOCIALES"]):
+                fac_name = "Facultad de Ciencias Sociales y Humanas"
+            elif any(k in p for k in ["AMBIENT", "BIOLOG"]):
+                fac_name = "Facultad de Ciencias Ambientales"
+            elif any(k in p for k in ["SOFTWARE", "DATOS", "PROGRAMAC", "DIGITAL"]) and "MERCADEO" not in p:
+                fac_name = "Facultad de Ciencias y Tecnologías Digitales"
+            elif any(k in p for k in ["INGENIER", "MECATRÓN", "MECATRON", "CATASTRAL", "INOCUIDAD"]):
+                fac_name = "Facultad de Ingeniería"
+            elif any(k in p for k in ["ADMINIST", "GESTIÓN", "GESTION", "EMPRES", "LOGÍS", "LOGIS", "AGROEMPRES", "EMPREND", "SEGURIDAD Y SALUD", "PUBLICIDAD", "MERCADEO", "PROYECT"]):
+                fac_name = "Facultad de Ciencias Administrativas y Económicas"
             else:
-                fac_name = "Facultad de Ciencias Empresariales"  # default razonable
+                fac_name = "Facultad de Ciencias Administrativas y Económicas"
         fac_doc = await db.facultades.find_one({"nombre": fac_name}, {"_id": 0})
         if not fac_doc:
             new_id = str(uuid.uuid4())
@@ -468,8 +477,8 @@ async def _seed_catalogs_from_students():
         # update students with facultad name
         await db.students.update_many({"programa": prog}, {"$set": {"facultad": fac_name}})
 
-    # Seed periodos
-    for p in ["2024-1", "2024-2", "2025-1", "2025-2"]:
+    # Seed periodos (incluye 2026-1)
+    for p in ["2024-1", "2024-2", "2025-1", "2025-2", "2026-1"]:
         await db.periodos.update_one(
             {"nombre": p},
             {"$setOnInsert": {
@@ -578,7 +587,7 @@ async def _create_historical_demo():
         return
     progs = await db.students.distinct("programa")
     snapshots = []
-    base_periodos = ["2024-1", "2024-2", "2025-1", "2025-2"]
+    base_periodos = ["2024-1", "2024-2", "2025-1", "2025-2", "2026-1"]
     for prog in progs:
         if not prog:
             continue

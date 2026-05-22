@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useFilters, buildQuery } from "./AppLayout";
+import { ExportButtons } from "./Executive";
 import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
   ComposedChart, Line, LineChart, Cell
@@ -40,10 +41,13 @@ export default function Academic() {
 
   return (
     <div className="space-y-6" data-testid="academic-dashboard">
-      <header>
-        <p className="label-eyebrow text-[#0033A0]">Dashboard académico</p>
-        <h1 className="font-display font-black text-3xl md:text-4xl tracking-tighter mt-1">Rendimiento y avance</h1>
-        <p className="text-sm text-muted-foreground mt-2">Análisis de promedio, distribución de notas, materias críticas y avance curricular.</p>
+      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+        <div>
+          <p className="label-eyebrow text-[#0033A0]">Dashboard académico</p>
+          <h1 className="font-display font-black text-3xl md:text-4xl tracking-tighter mt-1">Rendimiento y avance</h1>
+          <p className="text-sm text-muted-foreground mt-2">Análisis de promedio, distribución de notas, materias críticas y avance curricular.</p>
+        </div>
+        <ExportButtons scope="academico" filters={filters} />
       </header>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

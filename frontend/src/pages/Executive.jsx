@@ -1,14 +1,42 @@
 import { useEffect, useState } from "react";
-import api from "@/lib/api";
+import api, { API } from "@/lib/api";
 import { useFilters, buildQuery } from "./AppLayout";
 import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend
 } from "recharts";
-import { Users, GraduationCap, Building2, MapPin, AlertTriangle, Heart, Accessibility, TrendingUp, Trees } from "lucide-react";
+import { Users, GraduationCap, Building2, MapPin, AlertTriangle, Heart, Accessibility, TrendingUp, Trees, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const PALETTE = ["#0033A0", "#0052FF", "#FFCD00", "#E3000F", "#059669", "#8B5CF6"];
+
+export function ExportButtons({ scope, filters }) {
+  const downloadExport = (endpoint, fmt) => {
+    const token = localStorage.getItem("iud_token");
+    const q = new URLSearchParams(filters);
+    q.append("fmt", fmt);
+    fetch(`${API}/${endpoint}?${q.toString()}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.blob()).then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${scope}_${new Date().toISOString().slice(0, 10)}.${fmt}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+  };
+  return (
+    <div className="flex gap-2">
+      <Button variant="outline" size="sm" className="rounded-sm" onClick={() => downloadExport(`exports/dashboard/${scope}`, "xlsx")} data-testid={`export-${scope}-xlsx`}>
+        <Download className="w-3.5 h-3.5 mr-2" /> Dashboard Excel
+      </Button>
+      <Button variant="outline" size="sm" className="rounded-sm" onClick={() => downloadExport("exports/students", "xlsx")} data-testid={`export-${scope}-students`}>
+        <Download className="w-3.5 h-3.5 mr-2" /> Base estudiantes
+      </Button>
+    </div>
+  );
+}
 
 function KPI({ label, value, sub, icon: Icon, accent }) {
   return (
@@ -54,12 +82,15 @@ export default function Executive() {
 
   return (
     <div className="space-y-6" data-testid="executive-dashboard">
-      <header>
-        <p className="label-eyebrow text-[#0033A0]">Dashboard ejecutivo</p>
-        <h1 className="font-display font-black text-3xl md:text-4xl tracking-tighter mt-1">Panorama institucional</h1>
-        <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
-          Indicadores consolidados de la base estudiantil. Aplique filtros globales para segmentar la información.
-        </p>
+      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+        <div>
+          <p className="label-eyebrow text-[#0033A0]">Dashboard ejecutivo</p>
+          <h1 className="font-display font-black text-3xl md:text-4xl tracking-tighter mt-1">Panorama institucional</h1>
+          <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
+            Indicadores consolidados de la base estudiantil. Aplique filtros globales para segmentar la información.
+          </p>
+        </div>
+        <ExportButtons scope="ejecutivo" filters={filters} />
       </header>
 
       {loading ? (

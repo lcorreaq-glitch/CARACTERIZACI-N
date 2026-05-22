@@ -16,6 +16,8 @@ from routers.upload_router import router as upload_router  # noqa: E402
 from routers.dashboards_router import router as dashboards_router  # noqa: E402
 from routers.docente_router import router as docente_router  # noqa: E402
 from routers.caracterizacion_router import router as caracterizacion_router  # noqa: E402
+from routers.divipola_admin_router import router as divipola_admin_router  # noqa: E402
+from routers.exports_router import router as exports_router  # noqa: E402
 from routers.ai_router import router as ai_router  # noqa: E402
 from seed import seed_superadmin, seed_students  # noqa: E402
 from divipola import list_all  # noqa: E402
@@ -45,6 +47,8 @@ app.include_router(upload_router)
 app.include_router(dashboards_router)
 app.include_router(docente_router)
 app.include_router(caracterizacion_router)
+app.include_router(divipola_admin_router)
+app.include_router(exports_router)
 app.include_router(ai_router)
 
 app.add_middleware(

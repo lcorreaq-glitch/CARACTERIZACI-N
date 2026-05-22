@@ -1,0 +1,50 @@
+{
+  "summary": "Iteration 4 testing of DIVIPOLA admin module, exports, historical 2026-1, and 6-facultades alignment. Backend 10/10 pytest passing (divipola admin GET/POST, paises, all 5 exports xlsx, historical 2026-1, facultades). Frontend mixed: Territorial Nacional/Internacional/Todo tabs work, Internacional renders Madrid/Miami/Caracas markers, header Excel+CSV present, Historical shows 2026-1 on X-axis. CRITICAL: clicking Admin DIVIPOLA tab causes white-screen (component does not render content). The 'destroy is not a function' runtime overlay still appears on multiple pages — suppress-leaflet-errors.js + ErrorBoundary are NOT silencing it as intended.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/admin/divipola/paises", "issue": "Returns 'ESTADOS UNIDOS' instead of 'USA' (review spec mentioned 'USA'). Both are valid; cosmetic naming difference."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Admin → DivipolaTab", "issue": "Clicking the DIVIPOLA tab results in a blank/white page — table, search input and country filter never render. Cannot reproduce via API (GET /api/admin/divipola and /paises both return valid lists: 220 munis and 10 paises). Suggests a React render crash inside DivipolaTab (possibly Radix SelectItem rendering, or interaction with the lingering react-error-overlay 'destroy is not a function' iframe). Hard-blocks the DIVIPOLA admin feature.", "selector": "[data-testid='tab-divipola']", "priority": "CRITICAL"},
+      {"component": "ErrorBoundary / suppress-leaflet-errors.js", "issue": "The known 'destroy is not a function' runtime error overlay still appears on Territorial, Admin and other pages after navigation. Per request this is benign, but the overlay is fullscreen and blocks user interactions until manually closed (X). Suppression is not silencing it — neither the global error handler in suppress-leaflet-errors.js nor the ErrorBoundary catches the error before react-error-overlay renders. Repro: login → Territorial → Internacional tab → overlay appears; navigate to Admin → click DIVIPOLA tab → overlay appears AND content blank.", "selector": "react-error-overlay iframe", "priority": "HIGH"},
+      {"component": "Executive header exports", "issue": "Only 'Dashboard Excel' and 'Base estudiantes' (Excel) buttons present; no CSV button visible. Request asked for 'botones Export' in header — Excel is present but CSV is missing. Confirm if intentional.", "selector": "/ejecutivo top toolbar", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Admin → DIVIPOLA full CRUD", "issue": "Cannot exercise UI search, country filter, create, or delete because DIVIPOLA tab content never renders.", "affected_selectors": ["[data-testid='divipola-search']", "[data-testid='divipola-filter-pais']", "[data-testid='divipola-create-btn']", "[data-testid='divipola-export-xlsx']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration4.py",
+    "/app/test_reports/pytest/iter4_results.xml"
+  ],
+  "action_items": [
+    "Fix Admin DIVIPOLA tab white-screen. Likely RCA: Radix <SelectItem value={p.pais}/> may receive empty string for an edge case, or the lingering react-error-overlay (from a previous react-leaflet useEffect cleanup) intercepts the tab activation and unmounts the DivipolaTab subtree. Suggestion: (a) guard against empty p.pais in the select map; (b) wrap DivipolaTab in its own ErrorBoundary; (c) consider disabling react-error-overlay in production-like preview (set DISABLE_RUNTIME_ERROR_OVERLAY=true or use noErrorOverlayPlugin) so the suppress-leaflet-errors.js handler can actually silence the benign error.",
+    "Improve suppress-leaflet-errors.js: it currently relies on window.addEventListener('error', ...) but react-error-overlay subscribes earlier. Either (1) inject the handler before bundle.js runs, (2) patch React.useEffect destroy contract, or (3) set process.env.DISABLE_RUNTIME_ERROR_OVERLAY = 'true' in the CRA dev server.",
+    "Update facultades or paises labels if 'USA' is required by spec — currently backend returns 'ESTADOS UNIDOS'.",
+    "Verify whether Executive header is supposed to expose a CSV button alongside the two Excel buttons; add if missing."
+  ],
+  "critical_code_review_comments": [
+    "/app/frontend/src/pages/Admin.jsx DivipolaTab (l.310-448): no ErrorBoundary wrapper around the tab. A single child render error (e.g. Radix SelectItem with empty value) propagates up and blanks the whole route. Wrap each TabsContent in a small ErrorBoundary.",
+    "Admin.jsx DivipolaTab uses `paises.map((p) => <SelectItem value={p.pais}/>)` — Radix Select throws if any value is the empty string. Backend currently returns clean strings, but defensively filter out empty pais before mapping.",
+    "/app/backend/routers/divipola_admin_router.py: GET /admin/divipola returns a bare list[…] of 220 items while /api/divipola (public) returns {municipios:[…]}. Inconsistent envelope between admin and public endpoints — document or unify.",
+    "Backend paises uses 'ESTADOS UNIDOS' yet review spec asks for 'USA'. Decide on canonical label and update seed.",
+    "exports_router: all 5 endpoints (students, dashboard/ejecutivo|caracterizacion|territorial, divipola) return valid xlsx ≥3 KB (students ≥100 KB). Good."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration4.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10)",
+    "frontend": "~55% (Territorial+Historical+Executive partial work; DIVIPOLA admin tab broken; Facultades not verifiable after entering DIVIPOLA tab in same session due to white-screen)"
+  },
+  "test_credentials": "Superadmin lcorreaq@gmail.com — initial Chocolate1 reset performed (must_change_password=true). Password successfully changed to Chocolate2026! through /change-password UI. Use Chocolate2026! going forward.",
+  "seed_data_creation": "None new. test_iteration4.py uses TEST_ prefix for divipola create test and best-effort cleanup.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend: GET /api/admin/divipola returns list (220 items, each {codigo, nombre, departamento, pais, lat, lon, fuente, id}). GET /api/admin/divipola/paises returns list of {n, pais} — 10 países including ESTADOS UNIDOS, ESPAÑA, VENEZUELA, COLOMBIA, ECUADOR, MEXICO, PERU, CHILE, PANAMA, ARGENTINA. All 5 export endpoints return valid xlsx (PK header, size ≥3 KB; students ≥100 KB). /api/dashboards/historical includes 2026-1 in series_periodo. /api/admin/facultades returns 6 facultades matching spec. Frontend: Admin tabs use data-testid='tab-users|tab-facultades|tab-programas|tab-materias|tab-periodos|tab-docente-materia|tab-divipola'. Territorial/Excel|CSV buttons render in header. Internacional tab shows Leaflet markers for Madrid/Miami/Caracas/Ciudad de Panamá/etc. Historical X-axis includes 2026-1 (verified via recharts svg text). KNOWN ISSUE: 'destroy is not a function' react-error-overlay iframe appears after most navigations and blocks playwright interactions; clicking DIVIPOLA tab specifically results in a blank white page — likely a real DivipolaTab render crash that needs ErrorBoundary + fix.",
+  "rca of the issue": "DIVIPOLA tab white screen: backend endpoints both healthy and return well-formed data. DivipolaTab JSX is syntactically correct, but lacks defensive guards and is not wrapped in ErrorBoundary. The same overlay 'destroy is not a function' (TypeError in react useEffect cleanup) propagates from a previous Leaflet unmount and prevents the new TabsContent from mounting. Suppress-leaflet-errors.js only suppresses console output, it does NOT intercept the React dev-server's react-error-overlay iframe. Mitigation: (1) wrap each Admin TabsContent in ErrorBoundary; (2) defensively filter paises with non-empty .pais before <SelectItem value=…>; (3) set DISABLE_RUNTIME_ERROR_OVERLAY=true in dev or use webpack-dev-server overlay:false to stop the iframe from rendering."
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useFilters, buildQuery } from "./AppLayout";
+import { ExportButtons } from "./Executive";
 import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend
@@ -100,12 +101,15 @@ export default function Caracterizacion() {
 
   return (
     <div className="space-y-6" data-testid="caracterizacion-dashboard">
-      <header>
-        <p className="label-eyebrow text-[#0033A0]">Caracterización sociodemográfica</p>
-        <h1 className="font-display font-black text-3xl md:text-4xl tracking-tighter mt-1">Perfil del estudiante</h1>
-        <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
-          Vista multidimensional de la base estudiantil. Use los filtros globales para segmentar por facultad, programa, periodo y otras dimensiones.
-        </p>
+      <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+        <div>
+          <p className="label-eyebrow text-[#0033A0]">Caracterización sociodemográfica</p>
+          <h1 className="font-display font-black text-3xl md:text-4xl tracking-tighter mt-1">Perfil del estudiante</h1>
+          <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
+            Vista multidimensional de la base estudiantil. Use los filtros globales para segmentar por facultad, programa, periodo y otras dimensiones.
+          </p>
+        </div>
+        <ExportButtons scope="caracterizacion" filters={filters} />
       </header>
 
       {/* KPI summary */}
