@@ -25,4 +25,15 @@ if (typeof window !== "undefined") {
       return false;
     }
   });
+
+  // 3) Quitar el overlay del webpack-dev-server (CRA 5) que es independiente de react-error-overlay
+  const removeWebpackOverlay = () => {
+    document.querySelectorAll("#webpack-dev-server-client-overlay, #webpack-dev-server-client-overlay-div").forEach((el) => el.remove());
+  };
+  const observer = new MutationObserver(removeWebpackOverlay);
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: false });
+  } else {
+    document.addEventListener("DOMContentLoaded", () => observer.observe(document.body, { childList: true, subtree: false }));
+  }
 }

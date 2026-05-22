@@ -20,7 +20,7 @@ export default function Upload() {
     api.get("/admin/periodos").then((r) => setPeriodos(r.data || []));
     api.get("/uploads/").then((r) => setUploads(r.data || []));
   };
-  useEffect(loadAll, []);
+  useEffect(() => { loadAll(); }, []);
 
   const doPreview = async () => {
     if (!file) return toast.error("Seleccione un archivo");

@@ -52,8 +52,8 @@ function UsersTab() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", full_name: "", role: "viewer" });
 
-  const load = () => api.get("/admin/users").then((r) => setUsers(r.data));
-  useEffect(load, []);
+  const load = () => { api.get("/admin/users").then((r) => setUsers(r.data)); };
+  useEffect(() => { load(); }, []);
 
   const create = async () => {
     try {
@@ -145,7 +145,7 @@ function CatalogTab({ name, label, showFacultad, showPrograma }) {
   const [facs, setFacs] = useState([]);
   const [progs, setProgs] = useState([]);
 
-  const load = () => api.get(`/admin/${name}`).then((r) => setItems(r.data));
+  const load = () => { api.get(`/admin/${name}`).then((r) => setItems(r.data)); };
   useEffect(() => {
     load();
     if (showFacultad) api.get("/admin/facultades").then((r) => setFacs(r.data));
@@ -320,7 +320,7 @@ function DivipolaTab() {
     api.get("/admin/divipola").then((r) => setItems(r.data));
     api.get("/admin/divipola/paises").then((r) => setPaises(r.data));
   };
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const create = async () => {
     try {
