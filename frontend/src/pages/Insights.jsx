@@ -38,7 +38,7 @@ export default function Insights() {
   return (
     <div className="space-y-6" data-testid="insights-page">
       <header>
-        <p className="label-eyebrow text-[#0033A0]">Insights IA · GPT-5.4</p>
+        <p className="label-eyebrow text-[#0033A0]">Insights IA · GPT-4o</p>
         <h1 className="font-display font-black text-3xl md:text-4xl tracking-tighter mt-1">Análisis inteligente</h1>
         <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
           Resúmenes ejecutivos, hallazgos y recomendaciones generadas con IA usando los datos filtrados.

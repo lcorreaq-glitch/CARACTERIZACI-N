@@ -83,7 +83,7 @@ async def generate_insights(payload: AIInsightIn, user=Depends(get_current_user)
         return {
             "scope": payload.scope,
             "insight": "No se encontraron datos con los filtros aplicados. Cargue archivos de caracterización o relaje los filtros.",
-            "model": "gpt-5.4",
+            "model": "gpt-4o",
         }
 
     user_text = f"""Contexto JSON del dashboard '{payload.scope}':
