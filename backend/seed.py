@@ -37,6 +37,164 @@ def _b(v):
     return s in ("sí", "si", "true", "1", "yes", "y", "x")
 
 
+def _calc_edad(fecha_str):
+    """Calcula la edad a partir de fecha DD/MM/AAAA. Devuelve int o None."""
+    if not fecha_str:
+        return None
+    try:
+        from datetime import datetime as _dt
+        s = str(fecha_str).strip()
+        # try common formats
+        for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%m/%d/%Y", "%Y/%m/%d"):
+            try:
+                d = _dt.strptime(s.split(" ")[0], fmt)
+                today = _dt.now()
+                age = today.year - d.year - ((today.month, today.day) < (d.month, d.day))
+                if 10 <= age <= 100:
+                    return age
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return None
+
+
+def _rango_edad(e):
+    if e is None:
+        return "Sin dato"
+    if e < 20:
+        return "Menor de 20"
+    if e < 25:
+        return "20 a 24"
+    if e < 30:
+        return "25 a 29"
+    if e < 35:
+        return "30 a 34"
+    if e < 45:
+        return "35 a 44"
+    if e < 55:
+        return "45 a 54"
+    return "55 o más"
+
+
+def _rango_ingresos(ing):
+    if ing is None or ing <= 0:
+        return "Sin dato"
+    smmlv = 1423500  # SMMLV Colombia 2025 aproximado
+    if ing < smmlv:
+        return "< 1 SMMLV"
+    if ing < smmlv * 2:
+        return "1 a 2 SMMLV"
+    if ing < smmlv * 3:
+        return "2 a 3 SMMLV"
+    if ing < smmlv * 5:
+        return "3 a 5 SMMLV"
+    return "5+ SMMLV"
+
+
+def _cat_razon_carrera(txt):
+    """Categoriza C_strRazonCarrera (texto libre) en buckets."""
+    if not txt:
+        return "Sin respuesta"
+    s = str(txt).lower()
+    if any(k in s for k in ["vocación", "vocacion", "pasión", "pasion", "siempre", "gusto", "encanta"]):
+        return "Vocación personal"
+    if any(k in s for k in ["laboral", "trabajo", "empleo", "ingreso", "mejor", "oportunidad"]):
+        return "Mejora laboral"
+    if any(k in s for k in ["familia", "padre", "madre", "hijo", "hija"]):
+        return "Motivo familiar"
+    if any(k in s for k in ["aporte", "comunidad", "social", "ayudar", "servir", "país", "pais"]):
+        return "Aporte social"
+    if any(k in s for k in ["emprend", "negocio", "empresa", "crear"]):
+        return "Emprendimiento"
+    if any(k in s for k in ["tecnolog", "innov", "desarrollo", "futuro"]):
+        return "Tecnología/Innovación"
+    if len(s) < 5:
+        return "Sin respuesta"
+    return "Otro"
+
+
+def _cat_razon_institucion(txt):
+    """Categoriza la razón de elegir IU Digital."""
+    if not txt:
+        return "Sin respuesta"
+    s = str(txt).lower()
+    if any(k in s for k in ["virtu", "online", "remoto", "digital"]):
+        return "Virtualidad"
+    if any(k in s for k in ["flexib", "horario", "tiempo"]):
+        return "Flexibilidad"
+    if any(k in s for k in ["costo", "precio", "económ", "economic", "barato"]):
+        return "Costos"
+    if any(k in s for k in ["recomend", "amigo", "conoc"]):
+        return "Recomendación"
+    if any(k in s for k in ["calidad", "acred", "prestig"]):
+        return "Calidad/Acreditación"
+    if any(k in s for k in ["public", "estat", "gratu", "becas"]):
+        return "Pública/Becas"
+    if len(s) < 3:
+        return "Sin respuesta"
+    return "Otro"
+
+
+def _cat_hobbies(txt):
+    """Devuelve lista de categorías de hobbies detectados."""
+    if not txt:
+        return []
+    s = str(txt).lower()
+    cats = set()
+    if any(k in s for k in ["música", "musica", "cantar", "tocar", "instrumento", "guitarra", "piano"]):
+        cats.add("Música")
+    if any(k in s for k in ["leer", "lectura", "libro"]):
+        cats.add("Lectura")
+    if any(k in s for k in ["deport", "fútbol", "futbol", "ciclismo", "correr", "gimnasio", "natación", "natacion"]):
+        cats.add("Deporte")
+    if any(k in s for k in ["tecnolog", "computad", "video", "gaming", "programar"]):
+        cats.add("Tecnología")
+    if any(k in s for k in ["arte", "pintar", "dibujo", "fotograf", "baile", "danza"]):
+        cats.add("Arte")
+    if any(k in s for k in ["cocinar", "gastronom"]):
+        cats.add("Gastronomía")
+    if any(k in s for k in ["viajar", "viaje", "turismo"]):
+        cats.add("Viajar")
+    if any(k in s for k in ["familia", "compartir", "amigos"]):
+        cats.add("Familia/Social")
+    if not cats and len(s) > 3:
+        cats.add("Otro")
+    return list(cats)
+
+
+def _cat_actividades(txt):
+    """Categoriza C_strActividadesNoAcademicas."""
+    if not txt:
+        return []
+    s = str(txt).lower()
+    cats = set()
+    if any(k in s for k in ["deport", "fútbol", "futbol", "atletismo"]):
+        cats.add("Deportiva")
+    if any(k in s for k in ["cultur", "música", "musica", "teatro", "danza"]):
+        cats.add("Cultural")
+    if any(k in s for k in ["emprend", "negocio", "empresa"]):
+        cats.add("Emprendimiento")
+    if any(k in s for k in ["voluntar", "social", "comunidad", "ayuda"]):
+        cats.add("Voluntariado")
+    if any(k in s for k in ["religios", "iglesia", "espiritu"]):
+        cats.add("Religiosa")
+    if any(k in s for k in ["acadé", "acade", "investig", "estudio"]):
+        cats.add("Académica")
+    if not cats and len(s) > 3:
+        cats.add("Otra")
+    return list(cats)
+
+
+def _has_distinciones(txt):
+    if not txt:
+        return False
+    s = str(txt).lower().strip()
+    if len(s) < 3 or s in ("ninguno", "ninguna", "no", "n/a", "no aplica"):
+        return False
+    return True
+
+
 def _norm_program(p):
     if not isinstance(p, str):
         return None
@@ -132,6 +290,18 @@ async def seed_students():
         except Exception:
             avance_pct = 0.0
 
+        # Edad calculada desde fecha de nacimiento
+        edad = _calc_edad(row.get("P_strFechaNacimiento"))
+        # Rango de ingresos
+        ing = float(row.get("C_dblIngresosFlia") or 0)
+        rango_ingresos = _rango_ingresos(ing)
+        # Categorización de campos texto abierto
+        razon_carrera_cat = _cat_razon_carrera(row.get("C_strRazonCarrera"))
+        razon_institucion = _cat_razon_institucion(row.get("C_strRazonPresentacion"))
+        hobbies_cat = _cat_hobbies(row.get("C_strHobbies"))
+        actividades_cat = _cat_actividades(row.get("C_strActividadesNoAcademicas"))
+        distinciones_flag = _has_distinciones(row.get("C_strDistinciones"))
+
         docs.append({
             "id": str(uuid.uuid4()),
             "cedula": cedula,
@@ -139,6 +309,10 @@ async def seed_students():
             "apellidos": str(row.get("Apellidos") or "").strip(),
             "correo": str(row.get("Correo") or "").strip(),
             "telefono": str(row.get("Telefono") or "").strip(),
+            "tipo_documento": str(row.get("P_idTipoDocumento") or "").strip().upper(),
+            "fecha_nacimiento": str(row.get("P_strFechaNacimiento") or "").strip(),
+            "edad": edad,
+            "rango_edad": _rango_edad(edad),
             "programa": programa or "SIN PROGRAMA",
             "nivel": int(row.get("Nivel") or 0) if str(row.get("Nivel") or "").strip().isdigit() else 0,
             "estado_matricula": str(row.get("EstadoMatricula") or "").strip(),
@@ -149,21 +323,40 @@ async def seed_students():
             "reprobadas": float(row.get("Reprobadas") or 0),
             "pendientes": float(row.get("Pendientes") or 0),
             "avance_pct": round(avance_pct, 2),
+            "doble_matricula": _b(row.get("DobleMatricula")),
             "genero": str(row.get("P_idGenero") or "").strip().upper() or "NO INFORMA",
             "estrato": str(row.get("P_idEstrato") or "").strip().upper() or "SIN DATO",
-            "estado_civil": str(row.get("P_idEstadoCivil") or "").strip(),
+            "estado_civil": str(row.get("P_idEstadoCivil") or "").strip().upper() or "NO INFORMA",
             "sisben_tiene": _b(row.get("P_idSisben")),
-            "grupo_sisben": str(row.get("P_idGrupoSisben") or "").strip(),
+            "grupo_sisben": str(row.get("P_idGrupoSisben") or "").strip().upper(),
             "etnia": str(row.get("P_idEtnia") or "NO APLICA").strip().upper() or "NO APLICA",
+            "etnia_institucional": str(row.get("C_idEtnia") or "").strip().upper(),
+            "grupo_etnia": str(row.get("P_idGrupoEtnia") or "").strip(),
+            "resguardo_indigena": _b(row.get("C_blnResguardoIndigena")),
             "discapacidad_flag": _b(row.get("C_blnTieneDiscapacidad")),
-            "discapacidad_tipo": str(row.get("P_idDiscapacidad") or "").strip(),
+            "discapacidad_tipo": str(row.get("P_idDiscapacidad") or "").strip().upper() or "NINGUNA",
+            "capacidad_excepcional": str(row.get("P_idCapacidad") or "").strip().upper() or "NINGUNA",
             "grupo_vulnerable": _b(row.get("C_blnGrupoVulnerable")),
-            "tipo_grupo_vulnerable": str(row.get("C_strGrupoVulnerable") or "").strip(),
+            "tipo_grupo_vulnerable": str(row.get("C_strGrupoVulnerable") or "").strip().upper() or "NINGUNO",
             "victima_conflicto": str(row.get("C_intVictima") or "").strip().lower() in ("sí", "si"),
-            "tipo_ubicacion": str(row.get("C_idTipoUbicacion") or "").strip(),
-            "ingresos_flia": float(row.get("C_dblIngresosFlia") or 0),
-            "num_personas_flia": float(row.get("C_intNumPersonasFlia") or 0),
+            "veterano": str(row.get("C_idVeterano") or "").strip().upper() or "NO APLICA",
+            "tipo_ubicacion": str(row.get("C_idTipoUbicacion") or "").strip() or "SIN DATO",
+            "zona_frontera": str(row.get("C_strCodigoPaisFrontera") or "").strip().upper() or "NO APLICA",
+            "ingresos_flia": ing,
+            "rango_ingresos": rango_ingresos,
+            "num_personas_flia": int(float(row.get("C_intNumPersonasFlia") or 0)),
+            "num_aportantes": int(float(row.get("C_intNumAportantes") or 0)),
+            "hnos_educ_superior": int(float(row.get("C_intNumHnosEducSuperior") or 0)),
             "vivienda_propia": _b(row.get("C_intViviendaPropia")),
+            "deuda_vivienda": _b(row.get("C_intDeudaVivienda")),
+            "nivel_educ_madre": str(row.get("C_idNivel_estud_madre") or "").strip().upper() or "NO INFORMA",
+            "nivel_educ_padre": str(row.get("C_idNivel_estud_padre") or "").strip().upper() or "NO INFORMA",
+            "parentesco_emergencia": str(row.get("P_idParentesco") or "").strip().upper(),
+            "razon_carrera_cat": razon_carrera_cat,
+            "razon_institucion": razon_institucion,
+            "hobbies_cat": hobbies_cat,
+            "actividades_cat": actividades_cat,
+            "tiene_distinciones": distinciones_flag,
             "ciudad_codigo": muni["codigo"],
             "ciudad_nombre": muni["nombre"],
             "departamento": muni["departamento"],
@@ -188,23 +381,30 @@ async def seed_students():
 
 async def _seed_catalogs_from_students():
     """Build facultades and programas catalogs from student data."""
+    # Mapeo institucional IU Digital de Antioquia (5 facultades)
     facultad_map = {
-        "ADMINISTRACIÓN DE EMPRESAS": "Facultad de Ciencias Económicas y Administrativas",
-        "ADMINISTRACIÓN EN SEGURIDAD Y SALUD EN EL TRABAJO": "Facultad de Ciencias Económicas y Administrativas",
-        "ADMINISTRACIÓN DE EMPRESAS TURÍSTICAS Y HOTELERAS": "Facultad de Ciencias Económicas y Administrativas",
-        "PUBLICIDAD Y MERCADEO DIGITAL": "Facultad de Ciencias Económicas y Administrativas",
-        "TECNOLOGÍA EN GESTIÓN ADMINISTRATIVA": "Facultad de Ciencias Económicas y Administrativas",
-        "TECNOLOGÍA EN GESTIÓN LOGÍSTICA PORTUARIA Y DEL TRANSPORTE": "Facultad de Ciencias Económicas y Administrativas",
-        "TECNOLOGÍA EN GESTIÓN COMERCIAL AGROEMPRESARIAL": "Facultad de Ciencias Económicas y Administrativas",
-        "TRABAJO SOCIAL": "Facultad de Ciencias Sociales y Humanas",
-        "LICENCIATURA EN EDUCACIÓN BÁSICA PRIMARIA": "Facultad de Ciencias Sociales y Humanas",
-        "TECNOLOGÍA EN DESARROLLO COMUNITARIO": "Facultad de Ciencias Sociales y Humanas",
+        # Facultad de Ciencias Empresariales y Económicas
+        "ADMINISTRACIÓN DE EMPRESAS": "Facultad de Ciencias Empresariales",
+        "ADMINISTRACIÓN DE EMPRESAS TURÍSTICAS Y HOTELERAS": "Facultad de Ciencias Empresariales",
+        "ADMINISTRACIÓN EN SEGURIDAD Y SALUD EN EL TRABAJO": "Facultad de Ciencias Empresariales",
+        "TECNOLOGÍA EN GESTIÓN ADMINISTRATIVA": "Facultad de Ciencias Empresariales",
+        "TECNOLOGÍA EN GESTIÓN LOGÍSTICA PORTUARIA Y DEL TRANSPORTE": "Facultad de Ciencias Empresariales",
+        "TECNOLOGÍA EN GESTIÓN COMERCIAL AGROEMPRESARIAL": "Facultad de Ciencias Empresariales",
+        "FUNDAMENTOS DE ADMINISTRACIÓN Y EMPRENDIMIENTO PMDP GP02 TALENTO ESPECIALIZADO": "Facultad de Ciencias Empresariales",
+        # Facultad de Comunicaciones y Mercadeo
+        "PUBLICIDAD Y MERCADEO DIGITAL": "Facultad de Comunicaciones y Mercadeo",
+        # Facultad de Ciencias Sociales y Educación
+        "TRABAJO SOCIAL": "Facultad de Ciencias Sociales y Educación",
+        "LICENCIATURA EN EDUCACIÓN BÁSICA PRIMARIA": "Facultad de Ciencias Sociales y Educación",
+        "TECNOLOGÍA EN DESARROLLO COMUNITARIO": "Facultad de Ciencias Sociales y Educación",
+        # Facultad de Ingenierías
         "INGENIERÍA DE SOFTWARE Y DATOS": "Facultad de Ingenierías",
         "INGENIERÍA MECATRÓNICA": "Facultad de Ingenierías",
         "INGENIERÍA EN DESARROLLO TERRITORIAL": "Facultad de Ingenierías",
         "TECNOLOGÍA EN DESARROLLO DE SOFTWARE": "Facultad de Ingenierías",
         "TECNOLOGIA EN GESTION CATASTRAL Y AGRIMENSURA": "Facultad de Ingenierías",
-        "CIENCIAS AMBIENTALES": "Facultad de Ingenierías",
+        # Facultad de Ciencias Básicas y Ambientales
+        "CIENCIAS AMBIENTALES": "Facultad de Ciencias Básicas y Ambientales",
     }
     facultades = {}
     for prog, fac in facultad_map.items():
@@ -228,7 +428,24 @@ async def _seed_catalogs_from_students():
     for prog in programas:
         if not prog:
             continue
-        fac_name = facultad_map.get(prog, "Facultad General")
+        fac_name = facultad_map.get(prog)
+        if not fac_name:
+            # Smart fallback by keyword
+            p = prog.upper()
+            if any(k in p for k in ["INGENIER", "MECATRÓN", "MECATRON", "CATASTRAL"]):
+                fac_name = "Facultad de Ingenierías"
+            elif any(k in p for k in ["ADMINIST", "GESTIÓN", "GESTION", "EMPRES", "LOGÍS", "LOGIS", "AGROEMPRES", "EMPREND", "SEGURIDAD Y SALUD"]):
+                fac_name = "Facultad de Ciencias Empresariales"
+            elif any(k in p for k in ["PUBLICIDAD", "MERCADEO", "COMUNICA"]):
+                fac_name = "Facultad de Comunicaciones y Mercadeo"
+            elif any(k in p for k in ["SOCIAL", "EDUCACIÓN", "EDUCACION", "TRABAJO", "COMUNITARIO", "LICENCIATURA"]):
+                fac_name = "Facultad de Ciencias Sociales y Educación"
+            elif any(k in p for k in ["AMBIENT", "BIOLOG", "QUÍMIC", "QUIMIC", "BÁSIC", "BASIC"]):
+                fac_name = "Facultad de Ciencias Básicas y Ambientales"
+            elif any(k in p for k in ["SOFTWARE", "DESARROLLO DE SOFTWARE", "DATOS"]):
+                fac_name = "Facultad de Ingenierías"
+            else:
+                fac_name = "Facultad de Ciencias Empresariales"  # default razonable
         fac_doc = await db.facultades.find_one({"nombre": fac_name}, {"_id": 0})
         if not fac_doc:
             new_id = str(uuid.uuid4())

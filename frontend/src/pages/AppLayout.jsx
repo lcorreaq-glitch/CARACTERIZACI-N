@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 import {
   LayoutDashboard, GraduationCap, Map, History, Upload, Settings, Brain,
-  LogOut, Sun, Moon, Filter, ChevronDown, X
+  LogOut, Sun, Moon, Filter, ChevronDown, X, Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -19,6 +19,7 @@ export const useFilters = () => useContext(FilterContext);
 const NAV = [
   { to: "/", label: "Ejecutivo", icon: LayoutDashboard, hideForDocente: true },
   { to: "/mi-panel", label: "Mi panel", icon: GraduationCap, onlyDocente: true },
+  { to: "/caracterizacion", label: "Caracterización", icon: Users, hideForDocente: true },
   { to: "/academico", label: "Académico", icon: GraduationCap, hideForDocente: true },
   { to: "/territorial", label: "Territorial", icon: Map, hideForDocente: true },
   { to: "/historico", label: "Histórico", icon: History, hideForDocente: true },

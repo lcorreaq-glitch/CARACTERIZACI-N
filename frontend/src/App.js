@@ -8,6 +8,7 @@ import Executive from "@/pages/Executive";
 import Academic from "@/pages/Academic";
 import Territorial from "@/pages/Territorial";
 import Historical from "@/pages/Historical";
+import Caracterizacion from "@/pages/Caracterizacion";
 import Insights from "@/pages/Insights";
 import Docente from "@/pages/Docente";
 import Upload from "@/pages/Upload";
@@ -47,6 +48,7 @@ function App() {
           <Route path="/" element={<Protected><AppLayout /></Protected>}>
             <Route index element={<IndexByRole />} />
             <Route path="mi-panel" element={<Docente />} />
+            <Route path="caracterizacion" element={<Caracterizacion />} />
             <Route path="academico" element={<Academic />} />
             <Route path="territorial" element={<Territorial />} />
             <Route path="historico" element={<Historical />} />
