@@ -29,14 +29,20 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - ✅ Modelo Student + carga Excel del diccionario de datos
 - ✅ Dashboard Ejecutivo + Académico + Territorial (Leaflet) + Histórico + Caracterización
 - ✅ Administración usuarios + catálogos (facultades/programas/materias/periodos)
-- ✅ Relación docente-materia con carga
-- ✅ Filtros globales reactivos con **cascada** (facultad→programa→materia)
+- ✅ Relación docente-materia con carga (manual + **masiva por Excel**)
+- ✅ Filtros globales reactivos con **cascada** (facultad→programa→materia) + **Docente** y **Materia**
 - ✅ IA insights (GPT-5.4)
 - ✅ DIVIPOLA precargado: **480 municipios** (220 Colombia DANE + 260 extra/internacionales)
 - ✅ SISBEN por **niveles (A1-A5, B1-B7, C1-C18, D1-D21) y grupos (A/B/C/D)**
 - ✅ Datos demo precargados (12.927 estudiantes con datos limpios)
 - ✅ Dark/Light mode
 - ✅ Limpieza de placeholders inválidos ('SELECCIONE...', 'NO REGISTRA') en agregaciones
+- ✅ **Página `/cargas` rediseñada con 4 tabs**: Estudiantes, Notas históricas, Docente-Materia, Descargas/Backup
+- ✅ **Plantillas Excel descargables** para los 3 tipos de carga
+- ✅ **Carga masiva de notas históricas** con auto-creación de docentes/materias
+- ✅ **Carga masiva docente-materia** con auto-creación de usuarios docentes (pwd inicial IUDigital2026!)
+- ✅ **Exportaciones nuevas**: /api/exports/notas y /api/exports/docente-materia
+- ✅ **Filtro por docente/materia** resuelve cédulas vía historico_notas en dashboards/caracterizacion/exports
 
 ## Backlog
 - P1: Dashboard Docente con vista filtrada por materia/periodo
