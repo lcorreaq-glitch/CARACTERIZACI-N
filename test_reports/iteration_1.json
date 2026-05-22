@@ -1,0 +1,54 @@
+{
+  "summary": "Full backend + frontend e2e testing of IU Digital Analytics. 23 pytest tests created covering health, auth, dashboards (executive/academic/territorial/historical/filters), divipola, admin CRUD (users/catalogs/docente-materia), uploads preview, and AI insights. After fixing a MongoDB _id serialization bug in POST /api/admin/users, 22/23 backend tests pass. Frontend login + 5 of 6 dashboards work; Territorial dashboard is fully broken due to a Leaflet 'Map container is already initialized' runtime error that crashes the page on every visit.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/ai/insights",
+        "issue": "Returns 500: 'Invalid model name passed in model=gpt-5.4'. Emergent LLM key litellm does not accept 'gpt-5.4' as a valid model. The router hard-codes .with_model('openai', 'gpt-5.4') in /app/backend/routers/ai_router.py line 99. Must use a supported model id (e.g. gpt-5, gpt-4o, gpt-4.1).",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Territorial.jsx (MapContainer)",
+        "issue": "Uncaught runtime error 'Map container is already initialized.' overlays the page every time /territorial is visited. The leaflet container is mounted twice (likely due to React StrictMode double-invoke or remount after loading toggles). Map never renders. The CRA dev error overlay then blocks further interaction across the app until reload.",
+        "selector": ".leaflet-container",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Replace 'gpt-5.4' with a valid model id in /app/backend/routers/ai_router.py (line 99). The Emergent LLM key validates models via /v1/models; use gpt-5, gpt-4o or another supported id.",
+    "Fix Territorial Leaflet 'Map container is already initialized'. Options: (a) move <MapContainer> to a separately keyed wrapper so it does not get conditionally remounted alongside the Skeleton (render the map once and overlay the Skeleton on top); (b) disable React.StrictMode in index.js OR memoize the map; (c) use a key derived from filters and ensure ResizeObserver/teardown via map.remove() on unmount. The simplest fix: render <MapContainer> unconditionally and feed it [] markers while loading."
+  ],
+  "critical_code_review_comments": [
+    "admin_router.create_user did not strip Mongo _id from the returned dict, causing 500s on POST /api/admin/users. Fixed in this iteration by adding new.pop('_id', None) before return.",
+    "Other admin endpoints (catalogs, docente-materia) already pop _id correctly, but PATCH /api/admin/users returns the result of a projected find_one (good).",
+    "ai_router.py hard-codes model 'gpt-5.4' and reads EMERGENT_LLM_KEY at import time with os.environ[...] (will crash the import if env missing). Consider os.environ.get with a clear error at request time.",
+    "Territorial.jsx mounts MapContainer conditionally on !loading; this pattern is fragile with react-leaflet. Recommend rendering MapContainer once and toggling overlay state.",
+    "auth_router.login compares user['active'] truthiness but does not check must_change_password on login; the response carries the flag (good)."
+  ],
+  "updated_files": [
+    "/app/backend/routers/admin_router.py",
+    "/app/backend/tests/backend_test.py"
+  ],
+  "success_rate": {
+    "backend": "95.6% (22/23 endpoints; only AI insights failing due to bad model id)",
+    "frontend": "~83% (5/6 dashboards working; Territorial broken)"
+  },
+  "test_credentials": "Superadmin lcorreaq@gmail.com / Chocolate2026! (must_change_password=false). Verified working.",
+  "seed_data_creation": "None created; reused 12,927 pre-seeded students. Test users (test_docente_*) are created and deleted within tests.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest file lives at /app/backend/tests/backend_test.py and runs in ~28s. Run via: pytest /app/backend/tests/backend_test.py -v --junitxml=/app/test_reports/pytest/pytest_results.xml. The Territorial leaflet bug also disrupts navigation away from that page because the CRA dev error overlay (iframe) blocks clicks until dismissed; tests must use page.goto() instead of nav clicks while the bug exists. The AI insights endpoint will fail until the model id is changed.",
+  "rca of the issue": "1) Backend 500 on POST /api/admin/users (FIXED): Motor's insert_one mutates the dict in place to add _id (ObjectId). Code then returned the dict directly to FastAPI's jsonable_encoder, which cannot serialize ObjectId. Fix: pop _id before return. 2) AI Insights 500 (NOT FIXED, needs main agent): litellm's OpenAI proxy rejects 'gpt-5.4' as model name. Replace with a supported alias from the Emergent gateway. 3) Territorial map (NOT FIXED, needs main agent): react-leaflet MapContainer cannot be re-initialized on the same DOM node. The conditional render `{loading ? <Skeleton/> : <MapContainer/>}` causes the container div to be reused on each filter change / strict-mode double mount, triggering Leaflet's internal _initContainer assertion. Render MapContainer once, or wrap with a stable key + cleanup."
+}

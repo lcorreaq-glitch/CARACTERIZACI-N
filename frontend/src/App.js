@@ -1,53 +1,55 @@
-import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { Toaster } from "@/components/ui/sonner";
+import Login from "@/pages/Login";
+import ChangePassword from "@/pages/ChangePassword";
+import AppLayout from "@/pages/AppLayout";
+import Executive from "@/pages/Executive";
+import Academic from "@/pages/Academic";
+import Territorial from "@/pages/Territorial";
+import Historical from "@/pages/Historical";
+import Insights from "@/pages/Insights";
+import Upload from "@/pages/Upload";
+import Admin from "@/pages/Admin";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
-
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
+function Protected({ children, requireAdmin = false }) {
+  const { user, ready } = useAuth();
+  const location = useLocation();
+  if (!ready) return <div className="min-h-screen grid place-items-center text-sm text-muted-foreground">Cargando…</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.must_change_password && location.pathname !== "/change-password") {
+    return <Navigate to="/change-password" replace />;
+  }
+  if (requireAdmin && !["superadmin", "admin"].includes(user.role)) return <Navigate to="/" replace />;
+  return children;
+}
 
 function App() {
   return (
-    <div className="App">
+    <AuthProvider>
       <BrowserRouter>
+        <Toaster position="top-right" richColors />
         <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/change-password" element={
+            <Protected>
+              <ChangePassword />
+            </Protected>
+          } />
+          <Route path="/" element={<Protected><AppLayout /></Protected>}>
+            <Route index element={<Executive />} />
+            <Route path="academico" element={<Academic />} />
+            <Route path="territorial" element={<Territorial />} />
+            <Route path="historico" element={<Historical />} />
+            <Route path="insights" element={<Insights />} />
+            <Route path="cargas" element={<Protected requireAdmin><Upload /></Protected>} />
+            <Route path="admin" element={<Protected requireAdmin><Admin /></Protected>} />
           </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-    </div>
+    </AuthProvider>
   );
 }
 
