@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 8 — validated Excel templates, bulk uploads (notas + docente-materia), expanded /dashboards/filters (docentes/materias arrays), docente_id/materia_id filter on dashboards & caracterizacion, and exports (students/notas/docente-materia). 12/12 backend tests PASS. Frontend /cargas has the 4 tabs working with functional Plantilla buttons, Descargas/Backup shows 3 plantillas + 5 backups (8 cards), and the global Filtros drawer has DOCENTE (8) and MATERIA (56) accordions populated with real data.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration8.py",
+    "/app/test_reports/pytest/iter8_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "upload_router._ensure_docente (l.321-343) correctly auto-creates docentes with role='docente', must_change_password=True, hashed initial pwd IUDigital2026!, and auto_created flag. Idempotent by email — good.",
+    "upload_router._ensure_materia (l.303-318) builds a fallback codigo from nombre when codigo is missing — prevents duplicate rows but could collide for similar names. Acceptable for v1.",
+    "upload_router POST /notas: counts new docentes/materias by checking existence *before* calling _ensure_*; clean approach. Bulk insert in batches of 2000 — good for large files.",
+    "upload_router POST /docente-materia-bulk: skips duplicates by (docente_id, materia_id, periodo) tuple — solid.",
+    "exports_router /notas (l.200-222): excludes _id correctly; returns a placeholder {'info': ...} row when empty so the spreadsheet is never zero-width. Nice UX detail.",
+    "exports_router /docente-materia (l.225-245): N+1 query pattern (one find_one per row for both users and materias). Fine for catalog scale (~few hundred) but should be aggregated with $lookup if the relation grows to thousands.",
+    "Upload.jsx tokenizedDownload (l.17-31): authenticated fetch + blob URL works; minor — uses fetch directly instead of api.get with responseType:'blob', meaning Axios interceptors don't fire. Acceptable.",
+    "Upload.jsx Descargas/Backup tab: 5 backup items (students xlsx, students csv, notas xlsx, docente-materia xlsx, divipola xlsx). Matches request exactly.",
+    "FiltersPanel: DOCENTE and MATERIA accordions render with counts (8 and 56) — confirms /dashboards/filters payload is wired in correctly."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration8.py"
+  ],
+  "success_rate": {
+    "backend": "100% — 12/12 (3 template downloads + bulk notas + bulk docente-materia + filters w/docentes&materias + dashboards/caracterizacion filtered by docente_id + 3 export endpoints)",
+    "frontend": "100% — login OK, 4 tabs visible in /cargas, all Plantilla buttons present (tpl-estudiantes-btn, tpl-notas-btn, tpl-dm-btn), Descargas tab shows 3+5 cards, Filtros drawer shows DOCENTE (8) and MATERIA (56) accordions populated"
+  },
+  "test_credentials": "lcorreaq@gmail.com / Chocolate2026! (works, no must_change_password redirect)",
+  "seed_data_creation": "Each test run inserts a unique docente (test.docente.<uuid6>@iudigital.edu.co) and materia (TST-<uuid6>) via POST /api/uploads/notas; plus a docente-materia relation (test.dm.<uuid6>@iudigital.edu.co + DM-<uuid6>). These are persistent — over multiple iterations the docentes/materias counts will grow. Recommend a periodic cleanup of users with auto_created=true and email starting with 'test.docente.' / 'test.dm.'.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend file /app/backend/tests/test_iteration8.py reads cedulas directly from MongoDB (no /api/students endpoint exists). The Upload.jsx tab 'Docente – Materia' uses testidPrefix='dm', so the Plantilla button is data-testid='tpl-dm-btn' (NOT tpl-docente_materia-btn). FiltersPanel accordions for docente_id/materia_id are visually labelled 'DOCENTE (n)' and 'MATERIA (n)' in the global drawer. Note: token storage key is 'iud_token' (used by Upload.jsx tokenizedDownload).",
+  "rca of the issue": "N/A — no bugs found. All 14 reviewable items from the request have been verified end-to-end."
+}

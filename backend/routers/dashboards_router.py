@@ -36,7 +36,27 @@ def _build_match(args: dict) -> dict:
     return m
 
 
-def _common_params(
+async def _apply_docente_materia(match: dict, docente_id, materia_id) -> dict:
+    """If docente_id and/or materia_id are present, restrict match to cédulas
+    in historico_notas matching that docente/materia."""
+    if not docente_id and not materia_id:
+        return match
+    hn_match = {}
+    if docente_id and docente_id not in ("all", "todos", ""):
+        hn_match["docente_id"] = docente_id
+    if materia_id and materia_id not in ("all", "todos", ""):
+        hn_match["materia_id"] = materia_id
+    if not hn_match:
+        return match
+    cedulas = await db.historico_notas.distinct("cedula", hn_match)
+    if cedulas:
+        match["cedula"] = {"$in": cedulas}
+    else:
+        match["cedula"] = "__NO_MATCH__"
+    return match
+
+
+async def _common_params(
     periodo: Optional[str] = None,
     facultad: Optional[str] = None,
     programa: Optional[str] = None,
@@ -50,8 +70,11 @@ def _common_params(
     discapacidad: Optional[str] = None,
     victima: Optional[str] = None,
     grupo_vulnerable: Optional[str] = None,
+    docente_id: Optional[str] = None,
+    materia_id: Optional[str] = None,
 ):
-    return _build_match(locals())
+    match = _build_match(locals())
+    return await _apply_docente_materia(match, docente_id, materia_id)
 
 
 @router.get("/executive")
@@ -258,6 +281,16 @@ async def filter_options(user=Depends(get_current_user)):
         facultad_programa.setdefault(f, set()).add(p)
     facultad_programa = {k: sorted(v) for k, v in facultad_programa.items()}
 
+    # Docentes y materias para filtros globales
+    docentes_rows = await db.users.find({"role": "docente"}, {"_id": 0, "id": 1, "full_name": 1, "email": 1}).to_list(1000)
+    docentes = sorted([{"id": d["id"], "nombre": d.get("full_name") or d.get("email", "")} for d in docentes_rows], key=lambda x: x["nombre"])
+
+    materias_rows = await db.materias.find({}, {"_id": 0, "id": 1, "nombre": 1, "codigo": 1}).to_list(5000)
+    materias = sorted(
+        [{"id": m["id"], "nombre": m.get("nombre", ""), "codigo": m.get("codigo", "")} for m in materias_rows],
+        key=lambda x: x["nombre"],
+    )
+
     return {
         "programas": programas,
         "facultades": facultades,
@@ -268,4 +301,6 @@ async def filter_options(user=Depends(get_current_user)):
         "ubicaciones": ubicaciones,
         "estados_matricula": estados_matricula,
         "facultad_programa": facultad_programa,
+        "docentes": docentes,
+        "materias": materias,
     }

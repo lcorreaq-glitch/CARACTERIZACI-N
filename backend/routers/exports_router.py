@@ -31,6 +31,20 @@ def _build_match(args):
     return m
 
 
+async def _apply_docente_materia(match: dict, docente_id, materia_id) -> dict:
+    if not docente_id and not materia_id:
+        return match
+    hn_match = {}
+    if docente_id and docente_id not in ("all", "todos", ""):
+        hn_match["docente_id"] = docente_id
+    if materia_id and materia_id not in ("all", "todos", ""):
+        hn_match["materia_id"] = materia_id
+    if hn_match:
+        cedulas = await db.historico_notas.distinct("cedula", hn_match)
+        match["cedula"] = {"$in": cedulas} if cedulas else "__NO_MATCH__"
+    return match
+
+
 def _stream_xlsx(df: pd.DataFrame, sheet_name: str = "Datos", filename: str = "export.xlsx"):
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:
@@ -69,10 +83,13 @@ async def export_students(
     discapacidad: Optional[str] = None,
     victima: Optional[str] = None,
     grupo_vulnerable: Optional[str] = None,
+    docente_id: Optional[str] = None,
+    materia_id: Optional[str] = None,
     user=Depends(get_current_user),
 ):
     """Descarga la base completa de estudiantes según filtros aplicados."""
     match = _build_match(locals())
+    match = await _apply_docente_materia(match, docente_id, materia_id)
     cursor = db.students.find(match, {"_id": 0, "id": 0, "created_at": 0,
                                        "hobbies_cat": 0, "actividades_cat": 0,
                                        "lat": 0, "lon": 0})
@@ -177,3 +194,52 @@ async def export_divipola(fmt: str = Query("xlsx", regex="^(xlsx|csv)$"), user=D
     ts = datetime.utcnow().strftime("%Y%m%d")
     fname = f"divipola_{ts}.{fmt}"
     return _stream_xlsx(df, "DIVIPOLA", fname) if fmt == "xlsx" else _stream_csv(df, fname)
+
+
+
+@router.get("/notas")
+async def export_notas(
+    fmt: str = Query("xlsx", regex="^(xlsx|csv)$"),
+    periodo: Optional[str] = None,
+    docente_id: Optional[str] = None,
+    materia_id: Optional[str] = None,
+    user=Depends(get_current_user),
+):
+    """Descarga histórico de notas con filtros opcionales."""
+    m = {}
+    if periodo and periodo != "all":
+        m["periodo"] = periodo
+    if docente_id and docente_id != "all":
+        m["docente_id"] = docente_id
+    if materia_id and materia_id != "all":
+        m["materia_id"] = materia_id
+    docs = await db.historico_notas.find(m, {"_id": 0, "id": 0, "created_at": 0, "upload_id": 0}).to_list(100000)
+    if not docs:
+        docs = [{"info": "Sin notas registradas"}]
+    df = pd.DataFrame(docs)
+    ts = datetime.utcnow().strftime("%Y%m%d")
+    fname = f"notas_iudigital_{ts}.{fmt}"
+    return _stream_xlsx(df, "Notas", fname) if fmt == "xlsx" else _stream_csv(df, fname)
+
+
+@router.get("/docente-materia")
+async def export_docente_materia(fmt: str = Query("xlsx", regex="^(xlsx|csv)$"), user=Depends(get_current_user)):
+    """Descarga catálogo docente-materia enriquecido con nombres."""
+    rows = await db.docente_materia.find({}, {"_id": 0}).to_list(10000)
+    out = []
+    for r in rows:
+        u = await db.users.find_one({"id": r.get("docente_id")}, {"_id": 0, "full_name": 1, "email": 1}) or {}
+        mat = await db.materias.find_one({"id": r.get("materia_id")}, {"_id": 0, "nombre": 1, "codigo": 1}) or {}
+        out.append({
+            "EmailDocente": u.get("email", ""),
+            "NombreDocente": u.get("full_name", ""),
+            "CodigoMateria": mat.get("codigo", ""),
+            "NombreMateria": mat.get("nombre", ""),
+            "Periodo": r.get("periodo", ""),
+        })
+    if not out:
+        out = [{"info": "Sin relaciones registradas"}]
+    df = pd.DataFrame(out)
+    ts = datetime.utcnow().strftime("%Y%m%d")
+    fname = f"docente_materia_{ts}.{fmt}"
+    return _stream_xlsx(df, "DocenteMateria", fname) if fmt == "xlsx" else _stream_csv(df, fname)

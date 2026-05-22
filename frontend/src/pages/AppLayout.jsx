@@ -214,6 +214,11 @@ function FiltersPanel() {
     { key: "etnia", label: "Grupo étnico", list: opts.etnias || [] },
     { key: "tipo_ubicacion", label: "Ubicación", list: opts.ubicaciones || [] },
   ];
+  // Docente + Materia (estructura distinta: list de objetos {id, nombre})
+  const objectGroups = [
+    { key: "docente_id", label: `Docente${(opts.docentes || []).length ? ` (${opts.docentes.length})` : ""}`, list: opts.docentes || [] },
+    { key: "materia_id", label: `Materia${(opts.materias || []).length ? ` (${opts.materias.length})` : ""}`, list: opts.materias || [] },
+  ];
   const booleans = [
     { key: "sisben", label: "Beneficiario SISBEN" },
     { key: "discapacidad", label: "Con discapacidad" },
@@ -243,6 +248,29 @@ function FiltersPanel() {
                       className={`text-left text-xs px-2 py-1.5 rounded transition-soft hover:bg-muted ${filters[g.key] === v ? "bg-[#0033A0]/10 text-[#0033A0] font-medium" : ""}`}
                     >
                       {v}
+                    </button>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+          {objectGroups.map((g) => (
+            <AccordionItem key={g.key} value={g.key}>
+              <AccordionTrigger className="text-xs uppercase tracking-widest font-semibold py-3" data-testid={`filter-${g.key}-trigger`}>
+                {g.label} {filters[g.key] && <Badge variant="secondary" className="ml-2 h-4 text-[9px]">1</Badge>}
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="flex flex-col gap-1.5 py-1 max-h-72 overflow-y-auto pr-2">
+                  {g.list.length === 0 && <span className="text-xs text-muted-foreground italic">Aún no hay registros. Cargue datos en "Cargas Excel".</span>}
+                  {g.list.map((v) => (
+                    <button
+                      key={v.id}
+                      onClick={() => setFilter(g.key, filters[g.key] === v.id ? null : v.id)}
+                      data-testid={`filter-${g.key}-${(v.codigo || v.id).toString().slice(0, 14)}`}
+                      className={`text-left text-xs px-2 py-1.5 rounded transition-soft hover:bg-muted ${filters[g.key] === v.id ? "bg-[#0033A0]/10 text-[#0033A0] font-medium" : ""}`}
+                    >
+                      {v.codigo ? <span className="mono text-[10px] mr-2 text-muted-foreground">{v.codigo}</span> : null}
+                      {v.nombre}
                     </button>
                   ))}
                 </div>

@@ -38,7 +38,7 @@ def _build_match(args: dict) -> dict:
     return m
 
 
-def _params(
+async def _params(
     periodo: Optional[str] = None,
     facultad: Optional[str] = None,
     programa: Optional[str] = None,
@@ -57,8 +57,21 @@ def _params(
     grupo_vulnerable: Optional[str] = None,
     vivienda_propia: Optional[str] = None,
     resguardo_indigena: Optional[str] = None,
+    docente_id: Optional[str] = None,
+    materia_id: Optional[str] = None,
 ):
-    return _build_match(locals())
+    match = _build_match(locals())
+    # docente/materia: restrict by cédulas con notas en historico_notas
+    if docente_id or materia_id:
+        hn_match = {}
+        if docente_id and docente_id not in ("all", "todos", ""):
+            hn_match["docente_id"] = docente_id
+        if materia_id and materia_id not in ("all", "todos", ""):
+            hn_match["materia_id"] = materia_id
+        if hn_match:
+            cedulas = await db.historico_notas.distinct("cedula", hn_match)
+            match["cedula"] = {"$in": cedulas} if cedulas else "__NO_MATCH__"
+    return match
 
 
 async def _group(match, field, limit=20, sort_alpha=False):
