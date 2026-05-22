@@ -43,16 +43,15 @@ export default function Territorial() {
             <p className="label-eyebrow">Mapa de calor</p>
             <h3 className="font-display font-bold text-lg tracking-tight">Concentración por municipio</h3>
           </div>
-          <div className="h-[540px]">
-            {loading ? <Skeleton className="h-full w-full" /> :
-              <MapContainer center={[6.6, -75.6]} zoom={7} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
+          <div className="h-[540px] relative">
+            <MapContainer center={[6.6, -75.6]} zoom={7} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
                 <TileLayer
                   attribution='&copy; <a href="https://carto.com/">CARTO</a>'
                   url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
                 />
                 {munis.map((m, i) => (
                   <CircleMarker
-                    key={i}
+                    key={`${m.codigo}-${i}`}
                     center={[m.lat, m.lon]}
                     radius={Math.max(4, Math.min(24, Math.sqrt(m.n) * 1.3))}
                     pathOptions={{ color: colorFor(m.n), fillColor: colorFor(m.n), fillOpacity: 0.55, weight: 1 }}
@@ -70,7 +69,11 @@ export default function Territorial() {
                   </CircleMarker>
                 ))}
               </MapContainer>
-            }
+            {loading && (
+              <div className="absolute inset-0 bg-card/40 backdrop-blur-sm grid place-items-center pointer-events-none">
+                <span className="text-xs text-muted-foreground mono">Cargando datos…</span>
+              </div>
+            )}
           </div>
         </div>
 

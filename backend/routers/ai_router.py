@@ -96,10 +96,10 @@ async def generate_insights(payload: AIInsightIn, user=Depends(get_current_user)
             api_key=EMERGENT_LLM_KEY,
             session_id=f"insights-{user['id']}",
             system_message=SYSTEM_PROMPT,
-        ).with_model("openai", "gpt-5.4")
+        ).with_model("openai", "gpt-4o")
         msg = UserMessage(text=user_text)
         resp = await chat.send_message(msg)
     except Exception as e:
         raise HTTPException(500, f"Error generando insight: {e}")
 
-    return {"scope": payload.scope, "insight": resp, "model": "gpt-5.4", "context_summary": ctx}
+    return {"scope": payload.scope, "insight": resp, "model": "gpt-4o", "context_summary": ctx}
