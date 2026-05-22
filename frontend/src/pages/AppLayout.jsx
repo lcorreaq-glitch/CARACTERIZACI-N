@@ -17,11 +17,12 @@ const FilterContext = createContext({ filters: {}, setFilter: () => {}, clear: (
 export const useFilters = () => useContext(FilterContext);
 
 const NAV = [
-  { to: "/", label: "Ejecutivo", icon: LayoutDashboard },
-  { to: "/academico", label: "Académico", icon: GraduationCap },
-  { to: "/territorial", label: "Territorial", icon: Map },
-  { to: "/historico", label: "Histórico", icon: History },
-  { to: "/insights", label: "Insights IA", icon: Brain },
+  { to: "/", label: "Ejecutivo", icon: LayoutDashboard, hideForDocente: true },
+  { to: "/mi-panel", label: "Mi panel", icon: GraduationCap, onlyDocente: true },
+  { to: "/academico", label: "Académico", icon: GraduationCap, hideForDocente: true },
+  { to: "/territorial", label: "Territorial", icon: Map, hideForDocente: true },
+  { to: "/historico", label: "Histórico", icon: History, hideForDocente: true },
+  { to: "/insights", label: "Insights IA", icon: Brain, hideForDocente: true },
   { to: "/cargas", label: "Cargas Excel", icon: Upload, admin: true },
   { to: "/admin", label: "Administración", icon: Settings, admin: true },
 ];
@@ -54,6 +55,14 @@ export default function AppLayout() {
 
   const activeCount = Object.keys(filters).length;
   const isAdmin = user?.role === "superadmin" || user?.role === "admin";
+  const isDocente = user?.role === "docente";
+
+  const visibleNav = NAV.filter((n) => {
+    if (n.admin && !isAdmin) return false;
+    if (n.onlyDocente && !isDocente && user?.role !== "superadmin") return false;
+    if (n.hideForDocente && isDocente) return false;
+    return true;
+  });
 
   return (
     <FilterContext.Provider value={{ filters, setFilter, clear, opts }}>
@@ -70,7 +79,7 @@ export default function AppLayout() {
             </div>
           </div>
           <nav className="flex-1 py-3 overflow-y-auto">
-            {NAV.filter(n => !n.admin || isAdmin).map((n) => (
+            {visibleNav.map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}

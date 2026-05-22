@@ -265,6 +265,93 @@ async def _seed_catalogs_from_students():
         )
 
     print("[seed] Catálogos generados (facultades, programas, periodos).")
+    await _seed_materias_and_docente_demo()
+
+
+# Materias demo por programa (3 materias por programa)
+MATERIAS_POR_PROGRAMA = {
+    "default": ["Cátedra Institucional", "Metodología de la Investigación", "Comunicación y Lectoescritura"],
+    "INGENIERÍA DE SOFTWARE Y DATOS": ["Programación I", "Estructuras de Datos", "Bases de Datos"],
+    "INGENIERÍA MECATRÓNICA": ["Cálculo I", "Electrónica Básica", "Sistemas de Control"],
+    "TECNOLOGÍA EN DESARROLLO DE SOFTWARE": ["Programación Web", "Algoritmos", "Ingeniería de Software"],
+    "ADMINISTRACIÓN DE EMPRESAS": ["Contabilidad General", "Microeconomía", "Gestión Estratégica"],
+    "TRABAJO SOCIAL": ["Fundamentos del Trabajo Social", "Política Social", "Intervención Comunitaria"],
+    "PUBLICIDAD Y MERCADEO DIGITAL": ["Estrategia Digital", "Branding", "Analítica de Audiencias"],
+    "CIENCIAS AMBIENTALES": ["Ecología General", "Gestión Ambiental", "Cambio Climático"],
+    "LICENCIATURA EN EDUCACIÓN BÁSICA PRIMARIA": ["Didáctica General", "Psicología Educativa", "Pedagogía Crítica"],
+    "ADMINISTRACIÓN EN SEGURIDAD Y SALUD EN EL TRABAJO": ["SG-SST", "Higiene Industrial", "Ergonomía"],
+}
+
+
+async def _seed_materias_and_docente_demo():
+    """Create one materia per program and a demo docente user with assignments."""
+    progs = await db.programas.find({}, {"_id": 0}).to_list(100)
+    materias_created = 0
+    for p in progs:
+        nombres = MATERIAS_POR_PROGRAMA.get(p["nombre"], MATERIAS_POR_PROGRAMA["default"])
+        for i, mat_nombre in enumerate(nombres):
+            existing = await db.materias.find_one({"nombre": mat_nombre, "programa_id": p["id"]})
+            if existing:
+                continue
+            await db.materias.insert_one({
+                "id": str(uuid.uuid4()),
+                "nombre": mat_nombre,
+                "codigo": f"{p.get('codigo') or 'PRG'}-{i+1:02d}",
+                "programa_id": p["id"],
+                "facultad_id": p.get("facultad_id"),
+                "created_at": datetime.utcnow().isoformat(),
+            })
+            materias_created += 1
+    if materias_created:
+        print(f"[seed] {materias_created} materias creadas.")
+
+    # Create demo docente if not exists
+    docente_email = "docente.demo@iudigital.edu.co"
+    existing = await db.users.find_one({"email": docente_email})
+    if not existing:
+        from auth import hash_password as _hp
+        docente_id = str(uuid.uuid4())
+        await db.users.insert_one({
+            "id": docente_id,
+            "email": docente_email,
+            "password": _hp("Docente2026!"),
+            "full_name": "Prof. Ana María Restrepo",
+            "role": "docente",
+            "active": True,
+            "must_change_password": False,
+            "created_at": datetime.utcnow().isoformat(),
+        })
+        print(f"[seed] Docente demo creado: {docente_email} / Docente2026!")
+    else:
+        docente_id = existing["id"]
+
+    # Assign 4 materias spread across programs (Ingeniería Software, Admin, Trabajo Social, Publicidad)
+    rel_count = await db.docente_materia.count_documents({"docente_id": docente_id})
+    if rel_count == 0:
+        target_progs = [
+            "INGENIERÍA DE SOFTWARE Y DATOS",
+            "ADMINISTRACIÓN DE EMPRESAS",
+            "TRABAJO SOCIAL",
+            "PUBLICIDAD Y MERCADEO DIGITAL",
+        ]
+        for prog_name in target_progs:
+            prog = await db.programas.find_one({"nombre": prog_name}, {"_id": 0})
+            if not prog:
+                continue
+            # Pick first materia of this program
+            mat = await db.materias.find_one({"programa_id": prog["id"]}, {"_id": 0})
+            if not mat:
+                continue
+            await db.docente_materia.insert_one({
+                "id": str(uuid.uuid4()),
+                "docente_id": docente_id,
+                "facultad_id": prog.get("facultad_id"),
+                "programa_id": prog["id"],
+                "materia_id": mat["id"],
+                "periodo": "2025-2",
+                "created_at": datetime.utcnow().isoformat(),
+            })
+        print("[seed] 4 asignaciones docente-materia creadas para docente demo.")
 
 
 async def _create_historical_demo():

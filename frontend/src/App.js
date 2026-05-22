@@ -9,6 +9,7 @@ import Academic from "@/pages/Academic";
 import Territorial from "@/pages/Territorial";
 import Historical from "@/pages/Historical";
 import Insights from "@/pages/Insights";
+import Docente from "@/pages/Docente";
 import Upload from "@/pages/Upload";
 import Admin from "@/pages/Admin";
 import "@/App.css";
@@ -25,6 +26,12 @@ function Protected({ children, requireAdmin = false }) {
   return children;
 }
 
+function IndexByRole() {
+  const { user } = useAuth();
+  if (user?.role === "docente") return <Navigate to="/mi-panel" replace />;
+  return <Executive />;
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -38,7 +45,8 @@ function App() {
             </Protected>
           } />
           <Route path="/" element={<Protected><AppLayout /></Protected>}>
-            <Route index element={<Executive />} />
+            <Route index element={<IndexByRole />} />
+            <Route path="mi-panel" element={<Docente />} />
             <Route path="academico" element={<Academic />} />
             <Route path="territorial" element={<Territorial />} />
             <Route path="historico" element={<Historical />} />
