@@ -121,7 +121,7 @@ export default function AppLayout() {
           {/* Top bar with filters */}
           <header className="sticky top-0 z-30 bg-card/85 backdrop-blur-xl border-b border-border">
             <div className="flex items-center justify-between px-5 py-3 gap-3">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <Sheet>
                   <SheetTrigger asChild>
                     <Button variant="outline" size="sm" className="rounded-sm" data-testid="open-filters-btn">
@@ -135,9 +135,14 @@ export default function AppLayout() {
                   </SheetContent>
                 </Sheet>
                 {activeCount > 0 && (
-                  <Button variant="ghost" size="sm" onClick={clear} className="text-xs" data-testid="clear-filters-btn">
-                    <X className="w-3 h-3 mr-1" /> Limpiar ({activeCount})
-                  </Button>
+                  <>
+                    <Button variant="destructive" size="sm" onClick={clear} className="text-xs rounded-sm h-8" data-testid="clear-filters-btn">
+                      <X className="w-3 h-3 mr-1" /> Limpiar filtros ({activeCount})
+                    </Button>
+                    <span className="text-[10px] text-muted-foreground tracking-widest uppercase hidden md:inline">
+                      Los filtros aplican a TODOS los dashboards
+                    </span>
+                  </>
                 )}
               </div>
               <div className="flex items-center gap-2">

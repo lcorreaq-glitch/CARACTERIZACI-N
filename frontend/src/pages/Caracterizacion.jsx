@@ -159,8 +159,9 @@ export default function Caracterizacion() {
             <TabsContent value="socioeconomico" className="mt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Block eyebrow="Vivienda" title="Estrato"><HBar data={b.socioeconomico?.estrato} color="#FFCD00" /></Block>
-                <Block eyebrow="Ingresos" title="Rango ingresos familiares"><HBar data={b.socioeconomico?.rango_ingresos} color="#059669" /></Block>
-                <Block eyebrow="SISBEN" title="Grupo SISBEN"><HBar data={b.socioeconomico?.grupo_sisben} color="#0033A0" /></Block>
+                <Block eyebrow="Ingresos" title="Rango ingresos familiares (SMMLV)"><HBar data={b.socioeconomico?.rango_ingresos} color="#059669" /></Block>
+                <Block eyebrow="SISBEN" title="Grupo SISBEN (A–D)"><HBar data={b.socioeconomico?.grupo_sisben} color="#0033A0" /></Block>
+                <Block eyebrow="SISBEN detalle" title="Nivel SISBEN (A1–D21)" span="lg:col-span-3"><HBar data={b.socioeconomico?.sisben_nivel} color="#E3000F" height={320} /></Block>
                 <Block eyebrow="Tenencia" title="Vivienda propia"><Donut data={b.socioeconomico?.vivienda_propia} /></Block>
                 <Block eyebrow="Financiera" title="Tiene deuda vivienda"><Donut data={b.socioeconomico?.deuda_vivienda} /></Block>
                 <Block eyebrow="Hogar" title="Personas en el hogar"><HBar data={b.socioeconomico?.num_personas_flia?.slice(0, 10)} color="#8B5CF6" /></Block>

@@ -248,6 +248,13 @@ MUNICIPIOS = [
     {"codigo": "PER01", "nombre": "LIMA", "departamento": "PERU", "lat": -12.0464, "lon": -77.0428},
 ]
 
+# Cargar municipios extra DANE + ciudades internacionales adicionales
+try:
+    from divipola_extra import EXTRA_MUNICIPIOS as _EXTRA
+    MUNICIPIOS.extend(_EXTRA)
+except Exception:
+    pass
+
 
 def _normalize(s: str) -> str:
     import unicodedata

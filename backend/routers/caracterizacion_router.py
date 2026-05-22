@@ -115,6 +115,7 @@ async def overview(match: dict = Depends(_params), user=Depends(get_current_user
         "socioeconomico": {
             "estrato": await _group(match, "estrato", 10, sort_alpha=True),
             "rango_ingresos": await _group(match, "rango_ingresos", 10),
+            "sisben_nivel": await _group(match, "sisben_nivel", 30, sort_alpha=True),
             "grupo_sisben": await _group(match, "grupo_sisben", 10, sort_alpha=True),
             "vivienda_propia": await _group(match, "vivienda_propia", 5),
             "deuda_vivienda": await _group(match, "deuda_vivienda", 5),
