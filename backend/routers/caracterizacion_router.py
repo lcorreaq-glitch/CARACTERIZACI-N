@@ -72,17 +72,23 @@ async def _group(match, field, limit=20, sort_alpha=False):
         pipe.append({"$sort": {"n": -1}})
     pipe += [{"$limit": limit}, {"$project": {"_id": 0, "label": "$_id", "n": 1}}]
     res = await db.students.aggregate(pipe).to_list(limit)
-    # Convert booleans to legible
+    invalid_labels = {"SELECCIONE...", "SELECCIONE", "NO REGISTRA"}
+    out = []
     for r in res:
-        if r.get("label") is True:
+        lbl = r.get("label")
+        if lbl is True:
             r["label"] = "Sí"
-        elif r.get("label") is False:
+        elif lbl is False:
             r["label"] = "No"
-        elif r.get("label") is None or r.get("label") == "":
+        elif lbl is None or lbl == "":
             r["label"] = "Sin dato"
         else:
-            r["label"] = str(r["label"])
-    return res
+            s = str(lbl).strip()
+            if s.upper() in invalid_labels:
+                continue
+            r["label"] = s
+        out.append(r)
+    return out
 
 
 async def _group_array(match, field, limit=15):

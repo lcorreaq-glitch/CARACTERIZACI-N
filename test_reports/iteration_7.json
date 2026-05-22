@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 7 — full validation of the three reported issues: (1) SISBEN now shown by GROUPS (A-D) and LEVELS (A1-D21), (2) cascading filters with cross-clear (facultad→programa→materia), (3) DIVIPOLA includes international cities. ALL 10 backend tests and ALL 3 frontend scenarios PASS. The implementation matches the spec perfectly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7.py",
+    "/app/test_reports/pytest/iter7_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "caracterizacion_router._group correctly filters out 'SELECCIONE...', 'SELECCIONE', 'NO REGISTRA' (line 75). Good defensive normalisation.",
+    "dashboards_router /filters builds facultad_programa via aggregation pipeline; values are sorted alphabetically and pulled from real student data (single source of truth). Solid.",
+    "AppLayout.setFilter (l.49-65) correctly cascade-clears `programa` if it is no longer present in the new facultad's program list, AND clears `materia` if `programa` changes. This logic uses the freshly fetched `opts.facultad_programa` map — works end-to-end.",
+    "FiltersPanel.programasFiltrados (l.205-207) gates the visible programa list on the selected facultad, so the UI cannot offer impossible combinations. Verified: selecting 'Ciencias Administrativas y Económicas' yielded exactly 8 programas in the dropdown.",
+    "Caracterizacion.jsx Socioeconómico tab (l.159-169) renders BOTH 'Grupo SISBEN (A–D)' and 'Nivel SISBEN (A1–D21)' charts as separate Blocks. Levels chart spans full row (lg:col-span-3) and uses height=320 for readability — good UX choice for ~30 categories.",
+    "Minor (non-blocking): /api/caracterizacion/overview latency is acceptable but could be cached at the (filters→result) layer if usage grows; currently re-runs ~30 aggregations per request."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration7.py"
+  ],
+  "success_rate": {
+    "backend": "100% — 10/10 (login Chocolate2026!, filters facultad_programa map, no SELECCIONE leaks, grupo_sisben GRUPO A-D, nivel_sisben A1..D21, facultad filter reduces total, territorial with coords, divipola international cities incl. CARACAS/QUITO/MADRID, divipola 400+)",
+    "frontend": "100% — 3/3 (login w/o must_change redirect; Socioeconómico tab shows both SISBEN charts; cascade clear confirmed — after changing facultad from 'Administrativas' to 'Ambientales' the previously selected programa 'ADMINISTRACIÓN DE EMPRESAS' was removed automatically, leaving only the facultad badge)"
+  },
+  "test_credentials": "lcorreaq@gmail.com / Chocolate2026! (no must_change_password). /app/memory/test_credentials.md still shows Chocolate1 — recommend main agent update this doc so future iterations don't fall back to the old password.",
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Verified evidence (capture references): (1) /caracterizacion → Socioeconómico tab body shows 'Grupo SISBEN (A-D)' bars [GRUPO A, GRUPO B, GRUPO C, GRUPO D, NO APLICA] and 'Nivel SISBEN (A1-D21)' bars [A3, B1, ...] — both charts render with real data; (2) cascade clear: selected facultad='Ciencias Administrativas y Económicas' (programa accordion title became 'PROGRAMA (8)') → picked 'ADMINISTRACIÓN DE EMPRESAS' → switched facultad to 'Ciencias Ambientales' → only ['remove-filter-facultad'] badge remained, programa badge gone — cascade clear WORKS; (3) /api/dashboards/filters returns facultad_programa dict with 6 facultades; (4) /api/divipola returns 400+ municipios incl. CARACAS/QUITO/MADRID. Zero console errors during the entire frontend flow. Update /app/memory/test_credentials.md password to Chocolate2026!.",
+  "rca of the issue": "N/A — no bugs found. All three originally reported issues have been definitively resolved by the main agent's changes: (a) sisben grouping/leveling in seed data + new chart blocks in Caracterizacion.jsx; (b) cascade clear in AppLayout.setFilter using opts.facultad_programa; (c) DIVIPOLA expanded with international entries in divipola_extra.py."
+}

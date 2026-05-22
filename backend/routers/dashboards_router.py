@@ -231,15 +231,33 @@ async def historical(programa: Optional[str] = None, user=Depends(get_current_us
 
 @router.get("/filters")
 async def filter_options(user=Depends(get_current_user)):
-    """Return available filter values from the data."""
-    programas = sorted([p for p in await db.students.distinct("programa") if p])
-    facultades = sorted([f for f in await db.students.distinct("facultad") if f])
+    """Return available filter values from the data. Includes facultad→programa map for cascading filters."""
+    def _clean(values, invalid=None):
+        invalid = invalid or {"SELECCIONE...", "SELECCIONE", "NO REGISTRA", ""}
+        return sorted([v for v in values if v and str(v).strip().upper() not in invalid])
+
+    programas = _clean(await db.students.distinct("programa"))
+    facultades = _clean(await db.students.distinct("facultad"))
     periodos = sorted([p for p in await db.students.distinct("periodo") if p])
-    generos = sorted([g for g in await db.students.distinct("genero") if g])
-    estratos = sorted([e for e in await db.students.distinct("estrato") if e])
-    etnias = sorted([e for e in await db.students.distinct("etnia") if e])
-    ubicaciones = sorted([u for u in await db.students.distinct("tipo_ubicacion") if u])
-    estados_matricula = sorted([e for e in await db.students.distinct("estado_matricula") if e])
+    generos = _clean(await db.students.distinct("genero"))
+    estratos = _clean(await db.students.distinct("estrato"))
+    etnias = _clean(await db.students.distinct("etnia"))
+    ubicaciones = _clean(await db.students.distinct("tipo_ubicacion"))
+    estados_matricula = _clean(await db.students.distinct("estado_matricula"))
+
+    # facultad -> [programas] mapping for cascading filters
+    pipe = [
+        {"$match": {"facultad": {"$ne": None}, "programa": {"$ne": None}}},
+        {"$group": {"_id": {"f": "$facultad", "p": "$programa"}}},
+    ]
+    facultad_programa = {}
+    async for r in db.students.aggregate(pipe):
+        f = r["_id"].get("f"); p = r["_id"].get("p")
+        if not f or not p:
+            continue
+        facultad_programa.setdefault(f, set()).add(p)
+    facultad_programa = {k: sorted(v) for k, v in facultad_programa.items()}
+
     return {
         "programas": programas,
         "facultades": facultades,
@@ -249,4 +267,5 @@ async def filter_options(user=Depends(get_current_user)):
         "etnias": etnias,
         "ubicaciones": ubicaciones,
         "estados_matricula": estados_matricula,
+        "facultad_programa": facultad_programa,
     }

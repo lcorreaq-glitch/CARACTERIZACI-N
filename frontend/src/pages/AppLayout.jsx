@@ -50,6 +50,17 @@ export default function AppLayout() {
     const next = { ...prev };
     if (v === undefined || v === null || v === "" || v === "all") delete next[k];
     else next[k] = v;
+    // Cascade clear: when facultad changes/clears, drop programa & materia.
+    // When programa changes/clears, drop materia.
+    if (k === "facultad") {
+      if (prev.programa && (!v || !((opts.facultad_programa || {})[v] || []).includes(prev.programa))) {
+        delete next.programa;
+        delete next.materia;
+      }
+    }
+    if (k === "programa") {
+      if (prev.materia && prev.programa !== v) delete next.materia;
+    }
     return next;
   });
   const clear = () => setFilters({});
@@ -190,9 +201,13 @@ function PeriodSelector() {
 
 function FiltersPanel() {
   const { filters, setFilter, opts, clear } = useFilters();
+  // Cascade: if facultad is selected, restrict programas list to that facultad's programs
+  const programasFiltrados = filters.facultad && opts.facultad_programa?.[filters.facultad]
+    ? opts.facultad_programa[filters.facultad]
+    : (opts.programas || []);
   const groups = [
     { key: "facultad", label: "Facultad", list: opts.facultades || [] },
-    { key: "programa", label: "Programa", list: opts.programas || [] },
+    { key: "programa", label: `Programa${filters.facultad ? ` (${programasFiltrados.length})` : ""}`, list: programasFiltrados },
     { key: "estado_matricula", label: "Estado Matrícula", list: opts.estados_matricula || [] },
     { key: "genero", label: "Género", list: opts.generos || [] },
     { key: "estrato", label: "Estrato", list: opts.estratos || [] },
