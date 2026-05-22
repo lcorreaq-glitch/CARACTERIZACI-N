@@ -29,7 +29,10 @@ export function ExportButtons({ scope, filters }) {
   return (
     <div className="flex gap-2">
       <Button variant="outline" size="sm" className="rounded-sm" onClick={() => downloadExport(`exports/dashboard/${scope}`, "xlsx")} data-testid={`export-${scope}-xlsx`}>
-        <Download className="w-3.5 h-3.5 mr-2" /> Dashboard Excel
+        <Download className="w-3.5 h-3.5 mr-2" /> Excel
+      </Button>
+      <Button variant="outline" size="sm" className="rounded-sm" onClick={() => downloadExport(`exports/dashboard/${scope}`, "csv")} data-testid={`export-${scope}-csv`}>
+        <Download className="w-3.5 h-3.5 mr-2" /> CSV
       </Button>
       <Button variant="outline" size="sm" className="rounded-sm" onClick={() => downloadExport("exports/students", "xlsx")} data-testid={`export-${scope}-students`}>
         <Download className="w-3.5 h-3.5 mr-2" /> Base estudiantes

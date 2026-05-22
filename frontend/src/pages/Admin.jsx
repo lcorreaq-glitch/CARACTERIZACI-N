@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Trash2, UserPlus, Globe, Download } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const ROLES = ["superadmin", "admin", "docente", "viewer"];
 
@@ -33,13 +34,13 @@ export default function Admin() {
           <TabsTrigger value="docente-materia" data-testid="tab-docente-materia">Docente–Materia</TabsTrigger>
           <TabsTrigger value="divipola" data-testid="tab-divipola">DIVIPOLA</TabsTrigger>
         </TabsList>
-        <TabsContent value="users"><UsersTab /></TabsContent>
-        <TabsContent value="facultades"><CatalogTab name="facultades" label="Facultad" /></TabsContent>
-        <TabsContent value="programas"><CatalogTab name="programas" label="Programa" showFacultad /></TabsContent>
-        <TabsContent value="materias"><CatalogTab name="materias" label="Materia" showPrograma /></TabsContent>
-        <TabsContent value="periodos"><CatalogTab name="periodos" label="Periodo" /></TabsContent>
-        <TabsContent value="docente-materia"><DocenteMateriaTab /></TabsContent>
-        <TabsContent value="divipola"><DivipolaTab /></TabsContent>
+        <TabsContent value="users"><ErrorBoundary><UsersTab /></ErrorBoundary></TabsContent>
+        <TabsContent value="facultades"><ErrorBoundary><CatalogTab name="facultades" label="Facultad" /></ErrorBoundary></TabsContent>
+        <TabsContent value="programas"><ErrorBoundary><CatalogTab name="programas" label="Programa" showFacultad /></ErrorBoundary></TabsContent>
+        <TabsContent value="materias"><ErrorBoundary><CatalogTab name="materias" label="Materia" showPrograma /></ErrorBoundary></TabsContent>
+        <TabsContent value="periodos"><ErrorBoundary><CatalogTab name="periodos" label="Periodo" /></ErrorBoundary></TabsContent>
+        <TabsContent value="docente-materia"><ErrorBoundary><DocenteMateriaTab /></ErrorBoundary></TabsContent>
+        <TabsContent value="divipola"><ErrorBoundary><DivipolaTab /></ErrorBoundary></TabsContent>
       </Tabs>
     </div>
   );
@@ -407,7 +408,7 @@ function DivipolaTab() {
           <SelectTrigger className="w-48 h-9 rounded-sm" data-testid="divipola-filter-pais"><SelectValue placeholder="País" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los países</SelectItem>
-            {paises.map((p) => <SelectItem key={p.pais} value={p.pais}>{p.pais} ({p.n})</SelectItem>)}
+            {paises.filter((p) => p?.pais && p.pais.trim() !== "").map((p) => <SelectItem key={p.pais} value={p.pais}>{p.pais} ({p.n})</SelectItem>)}
           </SelectContent>
         </Select>
       </div>

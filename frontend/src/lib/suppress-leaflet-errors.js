@@ -1,8 +1,16 @@
-// Suprime el overlay rojo de runtime errors no críticos en dev.
-// Solo aplica a errores conocidos de react-leaflet con React 19.
-if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
-  const KNOWN_BENIGN = ["destroy is not a function"];
+// Detiene el overlay rojo de react-error-overlay en dev.
+// Se ejecuta antes de App para que la suscripción al error happen ANTES del overlay.
+import { stopReportingRuntimeErrors } from "react-error-overlay";
 
+const KNOWN_BENIGN = ["destroy is not a function"];
+
+if (typeof window !== "undefined") {
+  // 1) Detener completamente el overlay en dev (todos los errores siguen apareciendo en consola)
+  try {
+    stopReportingRuntimeErrors();
+  } catch (e) { /* ignore */ }
+
+  // 2) Adicionalmente silenciar el known benign error en consola
   const origConsoleError = window.console.error;
   window.console.error = function (...args) {
     const msg = args[0]?.toString?.() || "";
@@ -15,13 +23,6 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
       e.stopImmediatePropagation();
       e.preventDefault();
       return false;
-    }
-  });
-
-  window.addEventListener("unhandledrejection", (e) => {
-    const msg = e.reason?.message || "";
-    if (KNOWN_BENIGN.some((p) => msg.includes(p))) {
-      e.preventDefault();
     }
   });
 }
