@@ -27,14 +27,16 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 ## Implemented (2026-02)
 - ✅ JWT auth con superadmin seed (lcorreaq@gmail.com)
 - ✅ Modelo Student + carga Excel del diccionario de datos
-- ✅ Dashboard Ejecutivo + Académico + Territorial (Leaflet) + Histórico
+- ✅ Dashboard Ejecutivo + Académico + Territorial (Leaflet) + Histórico + Caracterización
 - ✅ Administración usuarios + catálogos (facultades/programas/materias/periodos)
 - ✅ Relación docente-materia con carga
-- ✅ Filtros globales reactivos
+- ✅ Filtros globales reactivos con **cascada** (facultad→programa→materia)
 - ✅ IA insights (GPT-5.4)
-- ✅ DIVIPOLA Antioquia + principales Colombia
-- ✅ Datos demo precargados (12.927 estudiantes)
+- ✅ DIVIPOLA precargado: **480 municipios** (220 Colombia DANE + 260 extra/internacionales)
+- ✅ SISBEN por **niveles (A1-A5, B1-B7, C1-C18, D1-D21) y grupos (A/B/C/D)**
+- ✅ Datos demo precargados (12.927 estudiantes con datos limpios)
 - ✅ Dark/Light mode
+- ✅ Limpieza de placeholders inválidos ('SELECCIONE...', 'NO REGISTRA') en agregaciones
 
 ## Backlog
 - P1: Dashboard Docente con vista filtrada por materia/periodo
