@@ -44,7 +44,7 @@ export default function Territorial() {
             <h3 className="font-display font-bold text-lg tracking-tight">Concentración por municipio</h3>
           </div>
           <div className="h-[540px] relative">
-            <MapContainer center={[6.6, -75.6]} zoom={7} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
+            <MapContainer center={[8.0, -75.0]} zoom={4} style={{ height: "100%", width: "100%" }} scrollWheelZoom worldCopyJump>
                 <TileLayer
                   attribution='&copy; <a href="https://carto.com/">CARTO</a>'
                   url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"

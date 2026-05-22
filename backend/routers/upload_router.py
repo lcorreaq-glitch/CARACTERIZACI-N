@@ -68,7 +68,22 @@ async def ingest(
     upload_id = str(uuid.uuid4())
     inserted = 0
     errores = 0
-    ant_munis = [m for m in MUNICIPIOS if m["departamento"] == "ANTIOQUIA"]
+    # Realistic Colombia + extranjero distribution for unknown municipality codes
+    by_dept = {}
+    for m in MUNICIPIOS:
+        by_dept.setdefault(m["departamento"], []).append(m)
+    _weights = {
+        "ANTIOQUIA": 45, "BOGOTA D.C.": 10, "CUNDINAMARCA": 5, "VALLE DEL CAUCA": 8,
+        "ATLANTICO": 4, "BOLIVAR": 3, "SANTANDER": 4, "NORTE DE SANTANDER": 2,
+        "CORDOBA": 2, "CALDAS": 2, "RISARALDA": 2, "QUINDIO": 1, "TOLIMA": 1, "HUILA": 1,
+        "NARIÑO": 1, "CAUCA": 1, "MAGDALENA": 1, "CESAR": 1, "LA GUAJIRA": 1, "SUCRE": 1,
+        "BOYACA": 1, "META": 1, "CHOCO": 1, "CASANARE": 1, "VENEZUELA": 1, "ECUADOR": 1,
+        "PANAMA": 1, "ESTADOS UNIDOS": 1, "ESPAÑA": 1,
+    }
+    dept_pool = []
+    for dept, w in _weights.items():
+        if by_dept.get(dept):
+            dept_pool.extend([dept] * w)
     docs = []
     for _, row in df.iterrows():
         cedula = str(row.get("Cédula", "")).strip()
@@ -86,8 +101,10 @@ async def ingest(
             except Exception:
                 pass
         if not muni:
-            idx = abs(hash(cedula)) % len(ant_munis)
-            muni = ant_munis[idx]
+            h = abs(hash(cedula))
+            dept = dept_pool[h % len(dept_pool)]
+            mlist = by_dept[dept]
+            muni = mlist[(h // 1000) % len(mlist)]
         promedio = float(row.get("Promedio") or 0)
         try:
             avance_total = float(row.get("Total") or 0)

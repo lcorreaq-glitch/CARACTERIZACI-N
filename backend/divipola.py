@@ -166,6 +166,86 @@ MUNICIPIOS = [
     {"codigo": "95001", "nombre": "SAN JOSE DEL GUAVIARE", "departamento": "GUAVIARE", "lat": 2.5703, "lon": -72.6411},
     {"codigo": "25001", "nombre": "AGUA DE DIOS", "departamento": "CUNDINAMARCA", "lat": 4.3756, "lon": -74.6700},
     {"codigo": "81001", "nombre": "ARAUCA", "departamento": "ARAUCA", "lat": 7.0844, "lon": -70.7591},
+    # Cundinamarca extra
+    {"codigo": "25175", "nombre": "CHIA", "departamento": "CUNDINAMARCA", "lat": 4.8589, "lon": -74.0581},
+    {"codigo": "25754", "nombre": "SOACHA", "departamento": "CUNDINAMARCA", "lat": 4.5797, "lon": -74.2173},
+    {"codigo": "25899", "nombre": "ZIPAQUIRA", "departamento": "CUNDINAMARCA", "lat": 5.0269, "lon": -73.9947},
+    {"codigo": "25214", "nombre": "COTA", "departamento": "CUNDINAMARCA", "lat": 4.8128, "lon": -74.1031},
+    {"codigo": "25430", "nombre": "MADRID", "departamento": "CUNDINAMARCA", "lat": 4.7325, "lon": -74.2647},
+    {"codigo": "25473", "nombre": "MOSQUERA", "departamento": "CUNDINAMARCA", "lat": 4.7050, "lon": -74.2306},
+    {"codigo": "25269", "nombre": "FACATATIVA", "departamento": "CUNDINAMARCA", "lat": 4.8136, "lon": -74.3553},
+    {"codigo": "25286", "nombre": "FUNZA", "departamento": "CUNDINAMARCA", "lat": 4.7144, "lon": -74.2114},
+    {"codigo": "25320", "nombre": "GIRARDOT", "departamento": "CUNDINAMARCA", "lat": 4.3050, "lon": -74.8014},
+    # Valle del Cauca extra
+    {"codigo": "76520", "nombre": "PALMIRA", "departamento": "VALLE DEL CAUCA", "lat": 3.5394, "lon": -76.3036},
+    {"codigo": "76834", "nombre": "TULUA", "departamento": "VALLE DEL CAUCA", "lat": 4.0847, "lon": -76.1953},
+    {"codigo": "76109", "nombre": "BUENAVENTURA", "departamento": "VALLE DEL CAUCA", "lat": 3.8801, "lon": -77.0312},
+    {"codigo": "76111", "nombre": "BUGA", "departamento": "VALLE DEL CAUCA", "lat": 3.9000, "lon": -76.3000},
+    {"codigo": "76130", "nombre": "CARTAGO", "departamento": "VALLE DEL CAUCA", "lat": 4.7464, "lon": -75.9117},
+    {"codigo": "76364", "nombre": "JAMUNDI", "departamento": "VALLE DEL CAUCA", "lat": 3.2611, "lon": -76.5394},
+    {"codigo": "76892", "nombre": "YUMBO", "departamento": "VALLE DEL CAUCA", "lat": 3.5414, "lon": -76.4914},
+    # Atlántico extra
+    {"codigo": "08758", "nombre": "SOLEDAD", "departamento": "ATLANTICO", "lat": 10.9166, "lon": -74.7647},
+    {"codigo": "08433", "nombre": "MALAMBO", "departamento": "ATLANTICO", "lat": 10.8597, "lon": -74.7733},
+    {"codigo": "08573", "nombre": "PUERTO COLOMBIA", "departamento": "ATLANTICO", "lat": 10.9897, "lon": -74.9542},
+    # Santander extra
+    {"codigo": "68276", "nombre": "FLORIDABLANCA", "departamento": "SANTANDER", "lat": 7.0703, "lon": -73.0925},
+    {"codigo": "68307", "nombre": "GIRON", "departamento": "SANTANDER", "lat": 7.0708, "lon": -73.1733},
+    {"codigo": "68547", "nombre": "PIEDECUESTA", "departamento": "SANTANDER", "lat": 6.9831, "lon": -73.0497},
+    {"codigo": "68081", "nombre": "BARRANCABERMEJA", "departamento": "SANTANDER", "lat": 7.0653, "lon": -73.8547},
+    # Norte de Santander extra
+    {"codigo": "54405", "nombre": "LOS PATIOS", "departamento": "NORTE DE SANTANDER", "lat": 7.8336, "lon": -72.5061},
+    {"codigo": "54498", "nombre": "OCAÑA", "departamento": "NORTE DE SANTANDER", "lat": 8.2378, "lon": -73.3553},
+    {"codigo": "54874", "nombre": "VILLA DEL ROSARIO", "departamento": "NORTE DE SANTANDER", "lat": 7.8336, "lon": -72.4742},
+    # Caldas / Risaralda / Quindío extra
+    {"codigo": "66170", "nombre": "DOSQUEBRADAS", "departamento": "RISARALDA", "lat": 4.8347, "lon": -75.6753},
+    {"codigo": "63130", "nombre": "CALARCA", "departamento": "QUINDIO", "lat": 4.5256, "lon": -75.6433},
+    {"codigo": "17873", "nombre": "VILLAMARIA", "departamento": "CALDAS", "lat": 5.0444, "lon": -75.5128},
+    # Tolima extra
+    {"codigo": "73268", "nombre": "ESPINAL", "departamento": "TOLIMA", "lat": 4.1483, "lon": -74.8836},
+    {"codigo": "73411", "nombre": "LIBANO", "departamento": "TOLIMA", "lat": 4.9219, "lon": -75.0625},
+    # Huila extra
+    {"codigo": "41551", "nombre": "PITALITO", "departamento": "HUILA", "lat": 1.8581, "lon": -76.0500},
+    # Nariño extra
+    {"codigo": "52356", "nombre": "IPIALES", "departamento": "NARIÑO", "lat": 0.8275, "lon": -77.6444},
+    {"codigo": "52835", "nombre": "TUMACO", "departamento": "NARIÑO", "lat": 1.7972, "lon": -78.8083},
+    # Cauca extra
+    {"codigo": "19318", "nombre": "GUACHENE", "departamento": "CAUCA", "lat": 3.1361, "lon": -76.3914},
+    {"codigo": "19573", "nombre": "PUERTO TEJADA", "departamento": "CAUCA", "lat": 3.2300, "lon": -76.4153},
+    # Magdalena/Cesar/Bolívar/Guajira extra
+    {"codigo": "47189", "nombre": "CIENAGA", "departamento": "MAGDALENA", "lat": 11.0061, "lon": -74.2419},
+    {"codigo": "13430", "nombre": "MAGANGUE", "departamento": "BOLIVAR", "lat": 9.2422, "lon": -74.7531},
+    {"codigo": "13836", "nombre": "TURBACO", "departamento": "BOLIVAR", "lat": 10.3306, "lon": -75.4108},
+    {"codigo": "20011", "nombre": "AGUACHICA", "departamento": "CESAR", "lat": 8.3083, "lon": -73.6147},
+    {"codigo": "44430", "nombre": "MAICAO", "departamento": "LA GUAJIRA", "lat": 11.3858, "lon": -72.2386},
+    {"codigo": "44078", "nombre": "BARRANCAS", "departamento": "LA GUAJIRA", "lat": 10.9650, "lon": -72.7858},
+    # Córdoba extra
+    {"codigo": "23417", "nombre": "LORICA", "departamento": "CORDOBA", "lat": 9.2375, "lon": -75.8175},
+    {"codigo": "23807", "nombre": "TIERRALTA", "departamento": "CORDOBA", "lat": 8.1722, "lon": -76.0606},
+    # Boyacá extra
+    {"codigo": "15759", "nombre": "SOGAMOSO", "departamento": "BOYACA", "lat": 5.7158, "lon": -72.9344},
+    {"codigo": "15238", "nombre": "DUITAMA", "departamento": "BOYACA", "lat": 5.8244, "lon": -73.0322},
+    # Meta extra
+    {"codigo": "50313", "nombre": "GRANADA", "departamento": "META", "lat": 3.5469, "lon": -73.7053},
+    {"codigo": "50573", "nombre": "PUERTO LOPEZ", "departamento": "META", "lat": 4.0883, "lon": -72.9569},
+    # Casanare extra
+    {"codigo": "85230", "nombre": "MONTERREY", "departamento": "CASANARE", "lat": 4.8794, "lon": -72.8917},
+    # Bogotá additional reference
+    # Foreign countries (educación digital internacional)
+    {"codigo": "VEN01", "nombre": "CARACAS", "departamento": "VENEZUELA", "lat": 10.4806, "lon": -66.9036},
+    {"codigo": "VEN02", "nombre": "MARACAIBO", "departamento": "VENEZUELA", "lat": 10.6427, "lon": -71.6125},
+    {"codigo": "VEN03", "nombre": "VALENCIA", "departamento": "VENEZUELA", "lat": 10.1620, "lon": -68.0078},
+    {"codigo": "ECU01", "nombre": "QUITO", "departamento": "ECUADOR", "lat": -0.1807, "lon": -78.4678},
+    {"codigo": "ECU02", "nombre": "GUAYAQUIL", "departamento": "ECUADOR", "lat": -2.1894, "lon": -79.8891},
+    {"codigo": "PAN01", "nombre": "CIUDAD DE PANAMA", "departamento": "PANAMA", "lat": 8.9824, "lon": -79.5199},
+    {"codigo": "USA01", "nombre": "MIAMI", "departamento": "ESTADOS UNIDOS", "lat": 25.7617, "lon": -80.1918},
+    {"codigo": "USA02", "nombre": "NUEVA YORK", "departamento": "ESTADOS UNIDOS", "lat": 40.7128, "lon": -74.0060},
+    {"codigo": "ESP01", "nombre": "MADRID", "departamento": "ESPAÑA", "lat": 40.4168, "lon": -3.7038},
+    {"codigo": "ESP02", "nombre": "BARCELONA", "departamento": "ESPAÑA", "lat": 41.3851, "lon": 2.1734},
+    {"codigo": "CHL01", "nombre": "SANTIAGO DE CHILE", "departamento": "CHILE", "lat": -33.4489, "lon": -70.6693},
+    {"codigo": "ARG01", "nombre": "BUENOS AIRES", "departamento": "ARGENTINA", "lat": -34.6037, "lon": -58.3816},
+    {"codigo": "MEX01", "nombre": "CIUDAD DE MEXICO", "departamento": "MEXICO", "lat": 19.4326, "lon": -99.1332},
+    {"codigo": "PER01", "nombre": "LIMA", "departamento": "PERU", "lat": -12.0464, "lon": -77.0428},
 ]
 
 

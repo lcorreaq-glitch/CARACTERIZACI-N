@@ -55,9 +55,49 @@ async def seed_students():
     df = pd.read_excel(EXCEL_PATH)
     df = df.fillna("")
 
-    # Distribute unknown (0.0) city codes pseudo-randomly across Antioquia municipalities
-    # for a richer demo map — based on cedula hash so it's deterministic.
-    ant_munis = [m for m in MUNICIPIOS if m["departamento"] == "ANTIOQUIA"]
+    # Realistic Colombia-wide distribution for IU Digital (educación digital)
+    # Two-step: pick department by weight, then pick municipality within department
+    by_dept = {}
+    for m in MUNICIPIOS:
+        by_dept.setdefault(m["departamento"], []).append(m)
+
+    weights = {
+        "ANTIOQUIA": 45,
+        "BOGOTA D.C.": 10,
+        "CUNDINAMARCA": 5,
+        "VALLE DEL CAUCA": 8,
+        "ATLANTICO": 4,
+        "BOLIVAR": 3,
+        "SANTANDER": 4,
+        "NORTE DE SANTANDER": 2,
+        "CORDOBA": 2,
+        "CALDAS": 2,
+        "RISARALDA": 2,
+        "QUINDIO": 1,
+        "TOLIMA": 1,
+        "HUILA": 1,
+        "NARIÑO": 1,
+        "CAUCA": 1,
+        "MAGDALENA": 1,
+        "CESAR": 1,
+        "LA GUAJIRA": 1,
+        "SUCRE": 1,
+        "BOYACA": 1,
+        "META": 1,
+        "CHOCO": 1,
+        "CASANARE": 1,
+        "VENEZUELA": 1,
+        "ECUADOR": 1,
+        "PANAMA": 1,
+        "ESTADOS UNIDOS": 1,
+        "ESPAÑA": 1,
+    }
+    # Build a flat list where each entry is a department picked once per weight unit
+    dept_pool = []
+    for dept, w in weights.items():
+        if by_dept.get(dept):
+            dept_pool.extend([dept] * w)
+
     random.seed(42)
 
     docs = []
@@ -78,9 +118,11 @@ async def seed_students():
             except Exception:
                 pass
         if not muni:
-            # deterministic pseudo assignment for demo georeferenciación
-            idx = abs(hash(cedula)) % len(ant_munis)
-            muni = ant_munis[idx]
+            # Two-step: department by weight, then municipality within
+            h = abs(hash(cedula))
+            dept = dept_pool[h % len(dept_pool)]
+            munis_in_dept = by_dept[dept]
+            muni = munis_in_dept[(h // 1000) % len(munis_in_dept)]
 
         promedio = float(row.get("Promedio") or 0) or 0.0
         try:
