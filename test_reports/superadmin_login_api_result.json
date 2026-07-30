@@ -1,0 +1,29 @@
+{
+  "base_url": "https://university-insights.preview.emergentagent.com",
+  "checks": {
+    "new_password_login_200": true,
+    "access_token_present": true,
+    "role_superadmin": true,
+    "must_change_password_false": true,
+    "old_password_login_401": true,
+    "me_with_token_200": true,
+    "me_same_user": true
+  },
+  "details": {
+    "new_password_status": 200,
+    "new_password_user": {
+      "email": "lcorreaq@gmail.com",
+      "role": "superadmin",
+      "must_change_password": false
+    },
+    "old_password_status": 401,
+    "old_password_detail": "Credenciales inválidas",
+    "me_status": 200,
+    "me_user": {
+      "email": "lcorreaq@gmail.com",
+      "role": "superadmin",
+      "must_change_password": false
+    }
+  },
+  "passed": true
+}

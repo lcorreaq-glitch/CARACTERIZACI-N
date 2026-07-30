@@ -1,0 +1,46 @@
+{
+  "verdict": "fixed",
+  "user_reported_bug": "no me inicia con Chocolate2026!",
+  "summary": "Focused auth verification completed. No relevant testing skill found. Confirmed lcorreaq@gmail.com now logs in with IUDigital2026 via API and UI, old password Chocolate2026! is rejected, and UI redirects to / without visiting /change-password.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/verify_superadmin_db_password.py",
+    "/app/tests/verify_superadmin_login_api.py",
+    "/app/tests/verify_superadmin_login_ui.py",
+    "/app/test_reports/superadmin_db_password_result.json",
+    "/app/test_reports/superadmin_login_api_result.json"
+  ],
+  "action_items": [
+    "Optional hardening: update backend/seed.py and stale backend test constants that still reference Chocolate1/Chocolate2026!/Docente2026! so a fresh DB does not recreate outdated documented credentials. This did not block the current preview login fix."
+  ],
+  "critical_code_review_comments": [
+    "Current runtime DB record for lcorreaq@gmail.com is fixed, but seed_superadmin still creates lcorreaq@gmail.com with Chocolate1 and must_change_password=true only when the user is absent; this is a future environment reset risk, not a current failing runtime symptom."
+  ],
+  "updated_files": [
+    "/app/auth_testing.md",
+    "/app/tests/verify_superadmin_db_password.py",
+    "/app/tests/verify_superadmin_login_api.py",
+    "/app/tests/verify_superadmin_login_ui.py",
+    "/app/test_reports/superadmin_db_password_result.json",
+    "/app/test_reports/superadmin_login_api_result.json",
+    "/app/test_reports/bug_verification_9.json",
+    "/app/test_reports/iteration_9.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "No seed data created. Read existing MongoDB user record and used existing documented superadmin account.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use /app/memory/test_credentials.md. Backend script verified DB bcrypt hash accepts IUDigital2026 and rejects Chocolate2026!, user active=true, role=superadmin, must_change_password=false. API script verified POST /api/auth/login 200 for IUDigital2026, 401 for Chocolate2026!, and GET /api/auth/me 200 with returned token. Playwright verified /login redirects to / and localStorage has superadmin user with must_change_password=false.",
+  "rca_of_the_issue": "The current fix appears to be a direct MongoDB password reset for lcorreaq@gmail.com to IUDigital2026 without special characters. Runtime evidence confirms the old Chocolate2026! password no longer authenticates and the new password completes the full login flow."
+}
