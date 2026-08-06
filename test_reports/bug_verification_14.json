@@ -1,0 +1,76 @@
+{
+  "verdict": "not_fixed",
+  "user_reported_bug": "EN LAS NOTAS Y PROMEDIOS NO PUEDEN CONSIDERARSE LOS CURSOS DE EXTENSIÓN, O INGLES FUERA DE LA MALLA, RECALCULA Y VALIDA EXCEPTUA ESOS DATOS PARA PROMEDIOS, POR CARRERA O FACULTAD REVISA EN TODOS LOS TABLEROS ESE CALCULO",
+  "summary": "No relevant testing skill found. Pruebas backend enfocadas confirman que Ejecutivo, Académico, Grupos y recompute de students.promedio ya excluyen extensión/inglés fuera de malla; sin embargo, no está corregido en todos los tableros: /api/dashboards/historical sigue devolviendo promedios/conteos raw con extensión y /api/dashboards/docente/estudiante/{cedula}/historico sigue devolviendo notas de Inglés Fuera de la Malla en Mi Panel.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/dashboards/historical",
+        "issue": "Sigue calculando series_periodo con todas las notas. API devolvió 2025-2 n=84871 promedio=3.45 y 2026-1 n=84505 promedio=3.12, iguales al raw; esperado académico-only: 2025-2 n=82155 promedio=3.48 y 2026-1 n=82036 promedio=3.17.",
+        "priority": "HIGH"
+      },
+      {
+        "endpoint": "GET /api/dashboards/docente/estudiante/{cedula}/historico",
+        "issue": "Mi Panel aún muestra notas no académicas. Para cedula 1000063303 devolvió Nivel III Inglés programa 'INGLÉS 3 (INGLÉS FUERA DE LA MALLA 2026-1 B2)' y Nivel II Inglés programa 'INGLÉS 2 (INGLÉS FUERA DE LA MALLA X4)'.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "startup recompute students.promedio",
+        "issue": "El log indica 13194 cedulas académicas procesadas, pero 2422 cedulas de historico_notas no existen en students; para los 10772 estudiantes existentes revisados no hubo diferencias contra el promedio académico esperado. Esto parece dato/cobertura, no fallo directo del cálculo visible."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Tablero Histórico (frontend/src/pages/Historical.jsx)",
+        "issue": "Consume /api/dashboards/historical, que aún incluye extensión/inglés fuera de malla en promedios y conteos.",
+        "affected_selectors": []
+      },
+      {
+        "flow": "Mi Panel docente > histórico de estudiante (frontend/src/pages/Docente.jsx)",
+        "issue": "Consume /api/dashboards/docente/estudiante/{cedula}/historico, que aún retorna notas de Inglés Fuera de la Malla.",
+        "affected_selectors": []
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/verify_academic_filter_bug.py",
+    "/app/test_reports/academic_filter_evidence.json",
+    "/app/test_reports/verify_dashboard_gap_endpoints.py",
+    "/app/test_reports/academic_filter_gap_evidence.json",
+    "/app/test_reports/bug_verification_14.json",
+    "/app/test_reports/iteration_14.json"
+  ],
+  "action_items": [
+    "Aplicar academic_notes_match() en GET /api/dashboards/historical para series_periodo y by_program, preservando filtros como programa sin reintroducir extensión/inglés fuera de malla.",
+    "Aplicar academic_notes_match() en GET /api/dashboards/docente/estudiante/{cedula}/historico para que las notas y promedios por periodo excluyan EXT*, Extensión Académica e Inglés Fuera de la Malla.",
+    "Retestar Ejecutivo, Académico, Grupos, Histórico y Mi Panel con comparación DB raw vs academic-only."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/routers/dashboards_router.py líneas ~581-610: historical usa hn_match directo en historico_notas y no llama academic_notes_match().",
+    "/app/backend/routers/docente_router.py líneas ~288-312: estudiante_historico hace find({cedula}) y agrupa todas las notas, sin academic_notes_match().",
+    "La corrección es parcial: los endpoints solicitados de Ejecutivo/Académico/Grupos pasan, pero el contrato del usuario dice 'todos los tableros' y estos tableros/flows siguen incluyendo notas no académicas."
+  ],
+  "updated_files": [
+    "/app/test_reports/verify_academic_filter_bug.py",
+    "/app/test_reports/academic_filter_evidence.json",
+    "/app/test_reports/verify_dashboard_gap_endpoints.py",
+    "/app/test_reports/academic_filter_gap_evidence.json",
+    "/app/test_reports/bug_verification_14.json",
+    "/app/test_reports/iteration_14.json"
+  ],
+  "success_rate": {
+    "backend": "75%",
+    "frontend": "N/A - backend only"
+  },
+  "seed_data_creation": "No se creó seed data; se usaron datos reales existentes en MongoDB iudigital y credenciales superadmin provistas.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend base usado: https://university-insights.preview.emergentagent.com con /api. Login superadmin OK. Evidencia positiva: raw historico_notas=169376 promedio=3.2863; academic-only=164191 promedio=3.3246; Ejecutivo devuelve promedio=3.32, notas 2025-2=82155, notas 2026-1=82036; Académico default=164191 vs include_extension=169376; grupo EXTEXT2602000_20001 devuelve notas_historico=0 y detail notas_por_periodo=[]. Evidencia negativa: /dashboards/historical devuelve raw; /dashboards/docente/estudiante/1000063303/historico devuelve Inglés Fuera de la Malla.",
+  "rca_of_the_issue": "La implementación centralizó el filtro en academic_filter.py y lo aplicó a varios agregados, pero quedaron consultas directas a historico_notas sin el filtro en el tablero Histórico y en el histórico de estudiante de Mi Panel docente. Reproducción: login superadmin, GET /api/dashboards/historical y comparar series_periodo con DB academic_notes_match; luego GET /api/dashboards/docente/estudiante/1000063303/historico y observar notas con programa 'INGLÉS ... FUERA DE LA MALLA'."
+}

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from auth import get_current_user
 from database import db
 from scope import apply_role_scope
+from academic_filter import academic_notes_match
 
 router = APIRouter(prefix="/api/dashboards/docente", tags=["dashboards-docente"])
 
@@ -169,7 +170,7 @@ async def estudiantes_en_riesgo(
         docente_filter["codigo_grupo"] = codigo_grupo
 
     avg_pipe = [
-        {"$match": {**docente_filter, "cedula": {"$in": list(cedulas)}}},
+        {"$match": academic_notes_match({**docente_filter, "cedula": {"$in": list(cedulas)}})},
         {"$group": {
             "_id": "$cedula",
             "prom_grupo": {"$avg": "$nota"},
@@ -333,8 +334,9 @@ async def grupos_comparativa(user=Depends(get_current_user)):
         return {"grupos": []}
 
     # For each group, look up notas with matching docente_id + codigo_asignatura in the last 2 periodos
+    # EXCLUYE cursos de extensión + inglés fuera de malla
     pipe = [
-        {"$match": {"docente_id": {"$ne": None}, "codigo_asignatura": {"$ne": ""}}},
+        {"$match": academic_notes_match({"docente_id": {"$ne": None}, "codigo_asignatura": {"$ne": ""}})},
         {"$group": {
             "_id": {
                 "docente_id": "$docente_id",

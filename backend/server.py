@@ -78,6 +78,40 @@ async def startup():
         {"role": {"$in": ["profesor", "decano", "coordinador"]}, "download_enabled": {"$exists": False}},
         {"$set": {"download_enabled": False}},
     )
+    # ------ Recompute students.promedio excluding extension/inglés fuera de malla ------
+    try:
+        from academic_filter import academic_notes_match
+        periodos = await _db.historico_notas.distinct("periodo")
+        ultimo = sorted([p for p in periodos if p])[-1] if periodos else None
+        if ultimo:
+            match = academic_notes_match({"periodo": ultimo})
+            pipe = [
+                {"$match": match},
+                {"$group": {
+                    "_id": "$cedula",
+                    "prom": {"$avg": "$nota"},
+                    "total": {"$sum": 1},
+                    "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}},
+                }},
+            ]
+            n_updated = 0
+            async for row in _db.historico_notas.aggregate(pipe):
+                aprob = row.get("aprob", 0)
+                total = row.get("total", 1) or 1
+                await _db.students.update_one(
+                    {"cedula": row["_id"]},
+                    {"$set": {
+                        "promedio": round(row.get("prom", 0) or 0, 2),
+                        "total_materias": total,
+                        "aprobadas": aprob,
+                        "avance_pct": round((aprob / total * 100.0) if total else 0, 2),
+                    }},
+                )
+                n_updated += 1
+            logger.info(f"Recomputado promedio académico (sin extensión/inglés fuera de malla) para {n_updated} estudiantes del periodo {ultimo}.")
+    except Exception as e:
+        logger.warning(f"Falló recompute de promedios académicos: {e}")
+
     if os.environ.get("SEED_DEMO_DATA", "false").lower() == "true":
         # Run seed in background to avoid blocking startup
         asyncio.create_task(seed_students())

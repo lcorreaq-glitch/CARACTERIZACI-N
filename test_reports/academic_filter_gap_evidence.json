@@ -1,0 +1,83 @@
+{
+  "timestamp": "2026-08-06T21:05:15.585009Z",
+  "checks": {
+    "login_status": 200,
+    "historical_status": 200,
+    "historical_api_periods": {
+      "2025-2": {
+        "n": 84871,
+        "promedio": 3.45
+      },
+      "2026-1": {
+        "n": 84505,
+        "promedio": 3.12
+      }
+    },
+    "historical_expected_academic_periods": {
+      "2025-2": {
+        "n": 82155,
+        "promedio": 3.48
+      },
+      "2026-1": {
+        "n": 82036,
+        "promedio": 3.17
+      }
+    },
+    "historical_raw_periods": {
+      "2025-2": {
+        "n": 84871,
+        "promedio": 3.45
+      },
+      "2026-1": {
+        "n": 84505,
+        "promedio": 3.12
+      }
+    },
+    "sample_student_with_nonacademic_note": {
+      "cedula": "1000063303",
+      "sample_note": {
+        "cedula": "1000063303",
+        "codigo_asignatura": "PREAEMBASI22006",
+        "asignatura_nombre": "Nivel II Inglés",
+        "nota": 3.299999952316284,
+        "programa": "INGLÉS 2 (INGLÉS FUERA DE LA MALLA X4)"
+      }
+    },
+    "docente_student_historico_status": 200,
+    "docente_student_historico_returned_nonacademic_sample": [
+      {
+        "periodo": "2026-1",
+        "codigo_asignatura": "PREHUMCHU23001",
+        "programa": "INGLÉS 3 (INGLÉS FUERA DE LA MALLA 2026-1 B2)",
+        "asignatura_nombre": "Nivel III Inglés",
+        "nota": 3.700000047683716
+      },
+      {
+        "periodo": "2025-2",
+        "codigo_asignatura": "PREAEMBASI22006",
+        "programa": "INGLÉS 2 (INGLÉS FUERA DE LA MALLA X4)",
+        "asignatura_nombre": "Nivel II Inglés",
+        "nota": 3.299999952316284
+      }
+    ],
+    "docente_grupos_comparativa_status": 200,
+    "docente_comparativa_extension_group": {
+      "codigo_grupo": "EXTEXT2602000_20001",
+      "asignatura_nombre": "Curso Informatica Básica- Extextext24003",
+      "asignatura_codigo": "EXTEXTEXT24003",
+      "programa": "Curso Informática Básica 2026 - Extension Curso Informática Básica 2026 - Extensión Académica Egresados Egresados",
+      "docente_nombre": "Extension Académica",
+      "periodo_grupo": "2026-2",
+      "periodos": [],
+      "promedio_actual": null,
+      "promedio_anterior": null,
+      "variacion": null,
+      "tendencia": "estable"
+    }
+  },
+  "failures": [
+    "/dashboards/historical period 2025-2 returned {'n': 84871, 'promedio': 3.45}; expected academic-only {'n': 82155, 'promedio': 3.48}",
+    "/dashboards/historical period 2026-1 returned {'n': 84505, 'promedio': 3.12}; expected academic-only {'n': 82036, 'promedio': 3.17}",
+    "/dashboards/docente/estudiante/{cedula}/historico still returns EXT/extension/fuera-de-malla notes"
+  ]
+}

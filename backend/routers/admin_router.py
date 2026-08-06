@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from models import UserCreate, UserUpdate, CatalogIn, DocenteMateriaIn
 from auth import hash_password, get_current_user, require_roles
 from database import db
+from academic_filter import academic_notes_match
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -258,7 +259,7 @@ async def list_grupos(
             # Promedio: buscar notas por (docente_id + codigo_asignatura)
             if g.get("docente_id") and g.get("asignatura_codigo"):
                 notas_agg = await db.historico_notas.aggregate([
-                    {"$match": {"docente_id": g["docente_id"], "codigo_asignatura": g["asignatura_codigo"]}},
+                    {"$match": academic_notes_match({"docente_id": g["docente_id"], "codigo_asignatura": g["asignatura_codigo"]})},
                     {"$group": {"_id": None, "prom": {"$avg": "$nota"}, "n": {"$sum": 1}}}
                 ]).to_list(1)
                 if notas_agg:
@@ -304,10 +305,11 @@ async def get_grupo_detail(codigo_grupo: str, user=Depends(require_roles("supera
             estudiantes.append({**e, "estado_matricula": m.get("estado")})
 
     # Notas históricas del docente en esa asignatura (todos los periodos)
+    # EXCLUYE cursos de extensión + inglés fuera de malla
     notas_periodos = []
     if grupo.get("docente_id") and grupo.get("asignatura_codigo"):
         pipe = [
-            {"$match": {"docente_id": grupo["docente_id"], "codigo_asignatura": grupo["asignatura_codigo"]}},
+            {"$match": academic_notes_match({"docente_id": grupo["docente_id"], "codigo_asignatura": grupo["asignatura_codigo"]})},
             {"$group": {"_id": "$periodo", "prom": {"$avg": "$nota"}, "n": {"$sum": 1},
                         "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}}}},
             {"$sort": {"_id": -1}},

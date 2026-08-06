@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from auth import get_current_user
 from database import db
 from scope import apply_role_scope
+from academic_filter import academic_notes_match
 
 router = APIRouter(prefix="/api/dashboards", tags=["dashboards"])
 
@@ -113,16 +114,16 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
         }}
     ]).to_list(1)
 
-    # Notas per periodo from historico_notas (source of truth)
-    # Restringir por cédulas del match (si hay filtros que reducen students)
+    # Notas per periodo from historico_notas (source of truth), EXCLUYENDO extensión + inglés fuera de malla
     if match:
         cedulas_match = await db.students.distinct("cedula", match)
         hn_match = {"cedula": {"$in": cedulas_match}}
     else:
         hn_match = {}
+    hn_match = academic_notes_match(hn_match)
     notas_per_periodo = {}
     async for r in db.historico_notas.aggregate([
-        {"$match": hn_match} if hn_match else {"$match": {}},
+        {"$match": hn_match},
         {"$group": {"_id": "$periodo", "n": {"$sum": 1},
                     "prom": {"$avg": "$nota"},
                     "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}}}}
@@ -198,9 +199,10 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
     total_facultades = len(await coll.distinct("facultad", match))
 
     # Promedio general PONDERADO desde historico_notas (nota real, no promedio de promedios)
+    # EXCLUYE cursos de extensión + inglés fuera de malla
     prom_ponderado = 0
     if not match or match.get("cedula", {}).get("$in") is not None or not match:
-        hn_match_general = hn_match if match else {}
+        hn_match_general = academic_notes_match(hn_match if match else {})
         rr = await db.historico_notas.aggregate([
             {"$match": hn_match_general},
             {"$group": {"_id": None, "p": {"$avg": "$nota"}}}
@@ -261,12 +263,9 @@ async def academic(
         cedulas_match = await db.students.distinct("cedula", match)
         hn_base["cedula"] = {"$in": cedulas_match}
     if not include_extension:
-        # Excluir tanto por área de formación como por prefijo de programa
-        # (los "CURSO …" y "DIPLOMADO …" son de extensión aunque tengan otra área)
-        hn_base["$and"] = [
-            {"area_formacion": {"$not": {"$regex": "extension", "$options": "i"}}},
-            {"programa": {"$not": {"$regex": "^(CURSO |DIPLOMADO |DPLOMADO |DIPOMADO |HERRAMIENTAS BÁSICAS|TRABAJO EN L[IÍ]NEA)", "$options": "i"}}},
-        ]
+        # Excluir cursos de Extensión Académica + Inglés Fuera de la Malla + Diplomados
+        # usando el helper unificado (codigo_asignatura EXT* + programa marcadores)
+        hn_base = academic_notes_match(hn_base)
 
     # ============================================================
     # SECCIÓN 1 · Comparativo por periodo

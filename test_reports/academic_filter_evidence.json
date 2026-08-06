@@ -1,0 +1,132 @@
+{
+  "timestamp": "2026-08-06T21:05:35.832322Z",
+  "base_url": "https://university-insights.preview.emergentagent.com",
+  "db": "iudigital",
+  "checks": {
+    "login_status": 200,
+    "db_raw_all_notes": {
+      "count": 169376,
+      "avg": 3.286302301505508,
+      "avg_round": 3.29
+    },
+    "db_academic_all_notes": {
+      "count": 164191,
+      "avg": 3.3246045069833383,
+      "avg_round": 3.32
+    },
+    "db_nonacademic_excluded_count": 5185,
+    "db_raw_periods": {
+      "2025-2": {
+        "count": 84871,
+        "avg_round": 3.45
+      },
+      "2026-1": {
+        "count": 84505,
+        "avg_round": 3.12
+      }
+    },
+    "db_academic_periods": {
+      "2025-2": {
+        "count": 82155,
+        "avg_round": 3.48
+      },
+      "2026-1": {
+        "count": 82036,
+        "avg_round": 3.17
+      }
+    },
+    "executive_status": 200,
+    "executive_kpis_subset": {
+      "promedio": 3.32,
+      "promedio_2025_2": 3.48,
+      "promedio_2026_1": 3.17,
+      "notas_2025_2": 82155,
+      "notas_2026_1": 82036
+    },
+    "academic_statuses": {
+      "default_false": 200,
+      "include_true": 200
+    },
+    "academic_counts": {
+      "default_estados_total": 164191,
+      "include_extension_estados_total": 169376,
+      "expected_academic_all_notes": 164191,
+      "expected_raw_all_notes": 169376,
+      "difference": 5185,
+      "default_notas_evaluadas": 154716,
+      "include_true_notas_evaluadas": 157925,
+      "expected_evaluated_academic": {
+        "count": 154716,
+        "avg": 3.4689494855638356,
+        "avg_round": 3.47
+      },
+      "expected_evaluated_raw": {
+        "count": 157925,
+        "avg": 3.4665353086730413,
+        "avg_round": 3.47
+      },
+      "default_promedio_global": 3.47,
+      "include_true_promedio_global": 3.47
+    },
+    "academic_bad_nonacademic_programs_in_by_program_avg": [],
+    "grupos_status": 200,
+    "grupo_detail_status": 200,
+    "grupos_test_group": {
+      "id": "d44c88d8-f9ca-4cd3-ba18-49408dcf795b",
+      "codigo_grupo": "EXTEXT2602000_20001",
+      "id_grupo": "33040",
+      "asignatura_nombre": "Curso Informatica Básica- Extextext24003",
+      "asignatura_codigo": "EXTEXTEXT24003",
+      "bloque": "Bloque 2",
+      "dia": "Domingo",
+      "hora": "02:00-04:00",
+      "docente_id": "353a62f2-f9ff-4126-86d5-a03fcc6ea218",
+      "docente_nombre": "Extension Académica",
+      "docente_email": "andres.palacio@iudigital.edu.co",
+      "docente_correo_personal": "andres.palacio@iudigital.edu.co",
+      "docente_correo_institucional": "andres.palacio@iudigital.edu.co",
+      "docente_cedula": "666",
+      "programa": "Curso Informática Básica 2026 - Extension Curso Informática Básica 2026 - Extensión Académica Egresados Egresados",
+      "facultad": "Extensión",
+      "periodo": "2026-2",
+      "periodicidad": "Mensual",
+      "created_at": "2026-08-06T03:50:22.795262",
+      "total_estudiantes": 4,
+      "promedio_historico": null,
+      "notas_historico": 0
+    },
+    "grupo_detail_notas_por_periodo": [],
+    "latest_period": "2026-1",
+    "student_recompute": {
+      "academic_cedulas_latest_period": 13194,
+      "checked_existing_students": 10772,
+      "historico_cedulas_missing_from_students": 2422,
+      "mismatch_sample_count": 0,
+      "mismatches_sample": []
+    },
+    "startup_log_hits": [
+      {
+        "file": "/var/log/supervisor/backend.err.log",
+        "line": "2026-08-06 20:59:53,113 - server - INFO - Recomputado promedio académico (sin extensión/inglés fuera de malla) para 13194 estudiantes del periodo 2026-1."
+      },
+      {
+        "file": "/var/log/supervisor/backend.err.log",
+        "line": "2026-08-06 21:00:06,169 - server - INFO - Recomputado promedio académico (sin extensión/inglés fuera de malla) para 13194 estudiantes del periodo 2026-1."
+      },
+      {
+        "file": "/var/log/supervisor/backend.err.log",
+        "line": "2026-08-06 21:00:18,903 - server - INFO - Recomputado promedio académico (sin extensión/inglés fuera de malla) para 13194 estudiantes del periodo 2026-1."
+      },
+      {
+        "file": "/var/log/supervisor/backend.err.log",
+        "line": "2026-08-06 21:00:32,769 - server - INFO - Recomputado promedio académico (sin extensión/inglés fuera de malla) para 13194 estudiantes del periodo 2026-1."
+      },
+      {
+        "file": "/var/log/supervisor/backend.err.log",
+        "line": "2026-08-06 21:00:44,710 - server - INFO - Recomputado promedio académico (sin extensión/inglés fuera de malla) para 13194 estudiantes del periodo 2026-1."
+      }
+    ]
+  },
+  "failures": [],
+  "warnings": []
+}
