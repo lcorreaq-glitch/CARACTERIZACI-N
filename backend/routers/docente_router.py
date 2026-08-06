@@ -333,6 +333,15 @@ async def grupos_comparativa(user=Depends(get_current_user)):
     if not groups:
         return {"grupos": []}
 
+    # Excluir grupos NO académicos (extensión / inglés fuera de la malla / diplomados / cursos)
+    from academic_filter import is_academic_note
+    groups = [g for g in groups if is_academic_note({
+        "codigo_asignatura": g.get("asignatura_codigo", ""),
+        "programa": g.get("programa", ""),
+    })]
+    if not groups:
+        return {"grupos": []}
+
     # For each group, look up notas with matching docente_id + codigo_asignatura in the last 2 periodos
     # EXCLUYE cursos de extensión + inglés fuera de malla
     pipe = [

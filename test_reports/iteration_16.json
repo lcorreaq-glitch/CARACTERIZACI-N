@@ -1,0 +1,61 @@
+{
+  "verdict": "not_fixed",
+  "user_reported_bug": "EN LAS NOTAS Y PROMEDIOS NO PUEDEN CONSIDERARSE LOS CURSOS DE EXTENSIÓN, O INGLES FUERA DE LA MALLA, RECALCULA Y VALIDA EXCEPTUA ESOS DATOS PARA PROMEDIOS, POR CARRERA O FACULTAD REVISA EN TODOS LOS TABLEROS ESE CALCULO",
+  "summary": "No relevant testing skill found. Focused backend retest confirms the final /api/dashboards/docente/grupos-comparativa fix works: PRECBH2602000_20003 is no longer present and no returned group has EXT* or fuera-de-malla/extensión metadata. Historical, docente student history, executive, academic, and carrera/facultad filter calculations also match academic-only DB totals. However, the bug is still not comprehensively fixed across all tableros: /api/admin/grupos and /api/admin/grupos/{codigo_grupo} still return averages/notas for the Inglés Fuera de la Malla group PRECBH2602000_20003.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/admin/grupos?codigo_grupo=PRECBH2602000_20003",
+        "issue": "Still returns non-academic group programa='Inglés 3 (inglés Fuera de la Malla 2026-1 B2)' with promedio_historico=4.2 and notas_historico=3. This violates the user contract that outside-malla English must not be considered in notas/promedios across all dashboards.",
+        "priority": "HIGH"
+      },
+      {
+        "endpoint": "GET /api/admin/grupos/PRECBH2602000_20003",
+        "issue": "Detail endpoint for the same outside-malla English group returns notas_por_periodo=[{'periodo':'2026-1','promedio':4.2,'total':3,'aprobadas':3,'tasa':100.0}], so the admin group detail tablero still shows a non-academic average.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Admin Grupos / group detail dashboard",
+        "issue": "Backend still supplies non-academic promedio/notas for PRECBH2602000_20003, so any frontend consuming these admin endpoints will show outside-malla English averages.",
+        "affected_selectors": []
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/test_academic_filter_bug_16.py",
+    "/app/test_reports/investigate_admin_premalla_16.py",
+    "/app/test_reports/bug_verification_16.json",
+    "/app/test_reports/iteration_16.json"
+  ],
+  "action_items": [
+    "Update /api/admin/grupos list enrichment to suppress promedio_historico/notas_historico when the group metadata itself is non-academic (programa/facultad outside-malla/extensión or EXT* assignment), not only when matching historico_notas rows are excluded.",
+    "Update /api/admin/grupos/{codigo_grupo} to return no notas_por_periodo/promedio for non-academic groups such as PRECBH2602000_20003.",
+    "Retest PRECBH2602000_20003 specifically in both admin group list and detail, plus the already-passing dashboard endpoints."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/routers/admin_router.py lines ~246-268: list_grupos enriches every grupo, and the notes query filters historico_notas only. It does not first exclude/suppress groups whose own programa/facultad identify Inglés Fuera de la Malla/Extensión, so PRECBH2602000_20003 receives a 4.2 promedio from matching non-excluded note metadata.",
+    "/app/backend/routers/admin_router.py lines ~279-321: get_grupo_detail returns the outside-malla group and computes notas_por_periodo for it. The same group-level non-academic guard used in docente grupos-comparativa is missing here."
+  ],
+  "updated_files": [
+    "/app/test_reports/test_academic_filter_bug_16.py",
+    "/app/test_reports/investigate_admin_premalla_16.py",
+    "/app/test_reports/bug_verification_16.json",
+    "/app/test_reports/iteration_16.json"
+  ],
+  "success_rate": {
+    "backend": "86%",
+    "frontend": "N/A - backend only"
+  },
+  "seed_data_creation": "No seed data created; used existing preview MongoDB iudigital data and superadmin credentials from /app/memory/test_credentials.md.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Mandatory skill lookup found no relevant testing skill. Backend base used: http://localhost:8001. Passing evidence: DB raw=169376 notes avg=3.29 vs academic=164191 avg=3.32; /docente/grupos-comparativa returned 1268 groups with target PRECBH2602000_20003 absent and bad_group_count=0; /historical 2025-2 n=82155 prom=3.48 and 2026-1 n=82036 prom=3.17; /executive prom=3.32; /academic default total=164191 and include_extension total=169376; /docente/estudiante/1000063303/historico returned 12 academic notes and 0 bad notes. Remaining failure: admin group list/detail still return PRECBH2602000_20003 with promedio 4.2 from 3 notes.",
+  "rca_of_the_issue": "The final fix correctly filters the docente grupos-comparativa group list with is_academic_note(), but the admin group endpoints still compute/display historical stats for non-academic group metadata. Reproduction: login as superadmin, GET /api/admin/grupos?codigo_grupo=PRECBH2602000_20003 and GET /api/admin/grupos/PRECBH2602000_20003; both return the Inglés Fuera de la Malla group with average 4.2."
+}
