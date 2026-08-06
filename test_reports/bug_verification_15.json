@@ -1,0 +1,50 @@
+{
+  "verdict": "not_fixed",
+  "user_reported_bug": "EN LAS NOTAS Y PROMEDIOS NO PUEDEN CONSIDERARSE LOS CURSOS DE EXTENSIÓN, O INGLES FUERA DE LA MALLA, RECALCULA Y VALIDA EXCEPTUA ESOS DATOS PARA PROMEDIOS, POR CARRERA O FACULTAD REVISA EN TODOS LOS TABLEROS ESE CALCULO",
+  "summary": "No relevant testing skill found. Focused backend retest confirmed the main aggregate dashboards now return academic-only historical/executive/academic/docente-student values, including historical 2025-2 n_notas=82155 promedio=3.48 and 2026-1 n_notas=82036 promedio=3.17. However, /api/dashboards/docente/grupos-comparativa still returns a visible Inglés Fuera de la Malla group with period averages, so the bug is not comprehensively fixed across all dashboards.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/dashboards/docente/grupos-comparativa",
+        "issue": "Still returns non-academic group PRECBH2602000_20003, programa='Inglés 3 (inglés Fuera de la Malla 2026-1 B2)', with periodos=[{'periodo':'2026-1','promedio':4.2,'total':3}], so outside-malla English is still considered in a dashboard average.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/test_academic_filter_bug_15.py",
+    "/app/test_reports/investigate_grupo_non_academic_15.py",
+    "/app/test_reports/bug_verification_15.json",
+    "/app/test_reports/iteration_15.json"
+  ],
+  "action_items": [
+    "Fix /api/dashboards/docente/grupos-comparativa so groups whose grupo.programa/facultad or matching notas represent Extensión/Inglés Fuera de la Malla do not return period averages and preferably are excluded from the dashboard output.",
+    "Expand the non-academic filter or join logic to cover related outside-malla labels such as 'INGLES PARA PROFESIONALES' when they are matched to an Inglés Fuera de la Malla group.",
+    "Re-run the focused backend test script after changes."
+  ],
+  "critical_code_review_comments": [
+    "docente_router.py /grupos-comparativa applies academic_notes_match only to historico_notas, but then attaches stats to every group from _my_groups without filtering group metadata. This allows a group whose programa is 'Inglés Fuera de la Malla' to display an average.",
+    "academic_filter.NON_ACADEMIC_PROGRAM_REGEX excludes 'fuera de la malla' but not 'INGLES PARA PROFESIONALES'; matching notes with that program produced the displayed 4.2 average under the outside-malla group."
+  ],
+  "updated_files": [
+    "/app/test_reports/test_academic_filter_bug_15.py",
+    "/app/test_reports/investigate_grupo_non_academic_15.py",
+    "/app/test_reports/bug_verification_15.json",
+    "/app/test_reports/iteration_15.json"
+  ],
+  "success_rate": {
+    "backend": "83%",
+    "frontend": "N/A"
+  },
+  "seed_data_creation": "No seed data created; used existing preview database and superadmin credentials from /app/memory/test_credentials.md.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Mandatory skill lookup found no relevant testing skill. Passing evidence: /historical exact expected academic-only series, /docente/estudiante/1000063303/historico returned 12 academic notes and 0 non-academic despite 2 raw bad notes in DB, /executive returned promedio=3.32 and academic note counts, /academic estados total=164191, faculty/program filters matched DB academic totals. Remaining failure: /docente/grupos-comparativa returns outside-malla group PRECBH2602000_20003 with promedio 4.2 from 3 included notes.",
+  "rca_of_the_issue": "The grupos-comparativa endpoint builds averages from historico_notas filtered with academic_notes_match, but it does not filter the group list itself by grupo.programa/facultad. The failing group is labeled Inglés Fuera de la Malla; its matching raw notes include excluded fuera-de-malla records and also 'INGLES PARA PROFESIONALES' records not caught by the current regex, resulting in a visible non-academic group average. Repro: login as superadmin, GET /api/dashboards/docente/grupos-comparativa, find codigo_grupo PRECBH2602000_20003."
+}

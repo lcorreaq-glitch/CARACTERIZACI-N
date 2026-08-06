@@ -577,10 +577,11 @@ async def territorial(match: dict = Depends(_common_params), user=Depends(get_cu
 async def historical(programa: Optional[str] = None, user=Depends(get_current_user)):
     """Histórico académico. Solo periodos con notas reales cargadas (2025-2 y 2026-1).
     Deriva TODO desde historico_notas (nota, aprobada, programa) y matriculas para el
-    conteo de matriculados únicos por periodo."""
+    conteo de matriculados únicos por periodo. EXCLUYE cursos de extensión + inglés fuera de malla."""
     hn_match = {}
     if programa:
         hn_match["programa"] = programa
+    hn_match = academic_notes_match(hn_match)
 
     # ---- Series por periodo (promedio ponderado + tasa aprobación + matriculados únicos)
     series_periodo = []
@@ -605,9 +606,16 @@ async def historical(programa: Optional[str] = None, user=Depends(get_current_us
         series_periodo.append(r)
 
     # ---- Por programa × periodo (para comparativo detallado)
+    # hn_match ya incluye academic_notes_match; agregar filtro de programa no nulo
+    by_program_match = dict(hn_match)
+    programa_extra = {"programa": {"$nin": [None, ""]}}
+    if "$and" in by_program_match:
+        by_program_match["$and"] = list(by_program_match["$and"]) + [programa_extra]
+    else:
+        by_program_match.update(programa_extra)
     by_program = []
     async for r in db.historico_notas.aggregate([
-        {"$match": {**hn_match, "programa": {"$nin": [None, ""]}}},
+        {"$match": by_program_match},
         {"$group": {
             "_id": {"prog": "$programa", "per": "$periodo"},
             "prom": {"$avg": "$nota"},

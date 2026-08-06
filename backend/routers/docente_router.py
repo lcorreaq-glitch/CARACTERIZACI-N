@@ -286,7 +286,7 @@ async def estudiante_historico(cedula: str, user=Depends(get_current_user)):
         raise HTTPException(404, "Estudiante no encontrado")
 
     notas = await db.historico_notas.find(
-        {"cedula": cedula},
+        academic_notes_match({"cedula": cedula}),
         {"_id": 0, "id": 0, "created_at": 0}
     ).sort([("periodo", -1), ("asignatura_nombre", 1)]).to_list(500)
 
