@@ -1,0 +1,251 @@
+{
+  "api_base": "https://university-insights.preview.emergentagent.com/api",
+  "checks": [
+    {
+      "name": "superadmin login",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "body": "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YTIwMzk0YS0yMGEwLTRhZTktODZmNy04ZTBlN2Y1Yjc4Y2UiLCJyb2xlIjoic3VwZXJhZG1pbiIsImVtYWlsIjoibGNvcnJlYXFAZ21haWwuY29tIiwiZXhwIjoxNzg2MDk2Mz"
+      }
+    },
+    {
+      "name": "superadmin vista export status 200",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      }
+    },
+    {
+      "name": "xlsx has exactly Grupo and Vista docente sheets",
+      "passed": true,
+      "evidence": {
+        "sheetnames": [
+          "Grupo",
+          "Vista docente"
+        ]
+      }
+    },
+    {
+      "name": "Vista docente has exactly 8 expected columns",
+      "passed": true,
+      "evidence": {
+        "header": [
+          "Cedula",
+          "Nombre",
+          "Apellidos",
+          "Programa",
+          "Promedio",
+          "Estado matricula",
+          "Flags de vulnerabilidad",
+          "N flags"
+        ],
+        "max_column": 8
+      }
+    },
+    {
+      "name": "PREEAC2602B010224 has 85 student rows + 1 header",
+      "passed": true,
+      "evidence": {
+        "max_row": 86,
+        "data_rows": 85
+      }
+    },
+    {
+      "name": "flags column consolidates visible flags example SISBEN A5 | Rural",
+      "passed": true,
+      "evidence": {
+        "matching_rows": 2,
+        "sample_flags": [
+          "Afro | SISBEN B6 | Etnia: Afrocolombianos",
+          "Campesino | SISBEN B2 | Rural",
+          "Comunidad Lgbtq | SISBEN D16",
+          "Desplazado por la Violencia | Víctima del conflicto | SISBEN A1",
+          "Desplazado por la Violencia | Víctima del conflicto | SISBEN B3",
+          "Desplazados por la Violencia | Víctima del conflicto | SISBEN B3 | Rural",
+          "Discapacidad: Discapacidad Sensorial - Sordera Profunda | SISBEN B4",
+          "Etnia: Zenú / Senú",
+          "Madre Cabeza de Hogar | SISBEN B1",
+          "Madre Cabeza de Hogar | SISBEN C4"
+        ]
+      }
+    },
+    {
+      "name": "group detail API available for UI comparison",
+      "passed": true,
+      "evidence": {
+        "status": 200
+      }
+    },
+    {
+      "name": "export row count matches detail visible matriculados",
+      "passed": true,
+      "evidence": {
+        "export_rows": 85,
+        "detail_estudiantes": 85,
+        "detail_total": 85
+      }
+    },
+    {
+      "name": "export flags match the detail-view visible flag logic for all rows",
+      "passed": true,
+      "evidence": {
+        "mismatch_count": 0,
+        "first_mismatch": []
+      }
+    },
+    {
+      "name": "docente demo login",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "download_enabled_db": false,
+        "global_download": false
+      }
+    },
+    {
+      "name": "docente without download_enabled=true receives 403 on vista endpoint",
+      "passed": true,
+      "evidence": {
+        "status": 403,
+        "body": "{\"detail\":\"No tiene permiso de descarga. Contacte al administrador.\"}",
+        "tested_group": "PREICA2602B020078",
+        "own_group": true
+      }
+    },
+    {
+      "name": "decano login for scope test",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "scope": "Facultad de Ciencias Económicas Administrativas y Contables (FCEAC)"
+      }
+    },
+    {
+      "name": "decano can download group inside scope",
+      "passed": true,
+      "evidence": {
+        "inside_group": {
+          "codigo_grupo": "PREPROF2602B020019",
+          "programa": "Administración de Empresas",
+          "facultad": "Facultad de Ciencias Económicas Administrativas y Contables (fceac)"
+        },
+        "status": 200
+      }
+    },
+    {
+      "name": "decano is forbidden from downloading group outside scope",
+      "passed": false,
+      "evidence": {
+        "outside_group": {
+          "codigo_grupo": "PRECBH2602B020258",
+          "programa": "Trabajo Social",
+          "facultad": "Facultad de Ciencias y Humanidades (fcyh)"
+        },
+        "status": 200
+      }
+    },
+    {
+      "name": "coordinador login for scope test",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "scope": "Administración De Empresas"
+      }
+    },
+    {
+      "name": "coordinador can download group inside scope",
+      "passed": true,
+      "evidence": {
+        "inside_group": {
+          "codigo_grupo": "PREPROF2602B020019",
+          "programa": "Administración de Empresas",
+          "facultad": "Facultad de Ciencias Económicas Administrativas y Contables (fceac)"
+        },
+        "status": 200
+      }
+    },
+    {
+      "name": "coordinador is forbidden from downloading group outside scope",
+      "passed": false,
+      "evidence": {
+        "outside_group": {
+          "codigo_grupo": "PRECBH2602B020258",
+          "programa": "Trabajo Social",
+          "facultad": "Facultad de Ciencias y Humanidades (fcyh)"
+        },
+        "status": 200
+      }
+    }
+  ],
+  "failures": [
+    {
+      "name": "decano is forbidden from downloading group outside scope",
+      "passed": false,
+      "evidence": {
+        "outside_group": {
+          "codigo_grupo": "PRECBH2602B020258",
+          "programa": "Trabajo Social",
+          "facultad": "Facultad de Ciencias y Humanidades (fcyh)"
+        },
+        "status": 200
+      }
+    },
+    {
+      "name": "coordinador is forbidden from downloading group outside scope",
+      "passed": false,
+      "evidence": {
+        "outside_group": {
+          "codigo_grupo": "PRECBH2602B020258",
+          "programa": "Trabajo Social",
+          "facultad": "Facultad de Ciencias y Humanidades (fcyh)"
+        },
+        "status": 200
+      }
+    }
+  ],
+  "notes": [],
+  "scope_test_groups": {
+    "decano": {
+      "scope": "Facultad de Ciencias Económicas Administrativas y Contables (FCEAC)",
+      "inside": {
+        "codigo_grupo": "PREPROF2602B020019",
+        "programa": "Administración de Empresas",
+        "facultad": "Facultad de Ciencias Económicas Administrativas y Contables (fceac)"
+      },
+      "outside": {
+        "codigo_grupo": "PRECBH2602B020258",
+        "programa": "Trabajo Social",
+        "facultad": "Facultad de Ciencias y Humanidades (fcyh)"
+      },
+      "inside_status": 200,
+      "outside_status": 200
+    },
+    "coordinador": {
+      "scope": "Administración De Empresas",
+      "inside": {
+        "codigo_grupo": "PREPROF2602B020019",
+        "programa": "Administración de Empresas",
+        "facultad": "Facultad de Ciencias Económicas Administrativas y Contables (fceac)"
+      },
+      "outside": {
+        "codigo_grupo": "PRECBH2602B020258",
+        "programa": "Trabajo Social",
+        "facultad": "Facultad de Ciencias y Humanidades (fcyh)"
+      },
+      "inside_status": 200,
+      "outside_status": 200
+    }
+  },
+  "restored_users": [
+    {
+      "email": "decano.test@iudigital.edu.co",
+      "download_enabled": false
+    },
+    {
+      "email": "coord.test@iudigital.edu.co",
+      "download_enabled": false
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "verdict": "not_fixed",
+  "user_reported_bug": "Validaremos algo importante este filtro no funciona el de materia quitarlo del panel porque es lo mismo que filtro por grupo. Adicionalmente vamos a generar para cada docente LA DESCARGA DE LA VISTA, POR GRUPO PERO NO CON TODOS LOS DATOS SOLO LO QUE SE VE EN LA VISTA DONDE ESTA EL REGFLAG",
+  "summary": "No relevant testing skill found. Focused UI/API verification found the Materia filter removed and the new vista export mostly correct, but the /api/exports/grupo/{codigo}/vista endpoint does not enforce decano/coordinador role scope: scoped users with download permission can export an out-of-scope group.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/exports/grupo/{codigo_grupo}/vista?fmt=xlsx",
+        "issue": "Role scope is not enforced for decano/coordinador. After temporarily enabling download permission for decano.test and coord.test, both could download out-of-scope group PRECBH2602B020258 (Trabajo Social / FCYH) with HTTP 200 instead of 403.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/bug_verification_export_vista.py",
+    "/app/test_reports/bug_verification_export_vista_results.json",
+    "/app/test_reports/bug_verification_18.json",
+    "/app/test_reports/iteration_18.json"
+  ],
+  "action_items": [
+    "In exports_router.py, enforce apply_role_scope for /grupo/{codigo_grupo}/vista by validating the requested group's facultad/programa (or the exported students) against the current user's decano/coordinador scope before streaming the file.",
+    "Retest out-of-scope vista downloads for decano.test and coord.test after the fix; expected status is 403 while in-scope groups remain 200."
+  ],
+  "critical_code_review_comments": [
+    "exports_router.py lines 428-430 computes scope_match = apply_role_scope(user, {}) but never applies it to the grupo lookup or student query; only missing-scope roles are rejected. This leaves out-of-scope group exports accessible to scoped roles when download_enabled is true."
+  ],
+  "updated_files": [
+    "/app/test_reports/bug_verification_export_vista.py",
+    "/app/test_reports/bug_verification_export_vista_results.json",
+    "/app/test_reports/bug_verification_18.json",
+    "/app/test_reports/iteration_18.json"
+  ],
+  "success_rate": {
+    "backend": "88%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "No permanent seed data created. The API test temporarily set decano.test@iudigital.edu.co and coord.test@iudigital.edu.co download_enabled=true to isolate scope enforcement, then restored both to their original false values.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Superadmin vista export for PREEAC2602B010224 passed: xlsx has sheets Grupo/Vista docente, exactly 8 columns, 85 data rows + header, and flags match detail-view logic including 'SISBEN A5 | Rural'. Docente demo with download_enabled=false got 403 on own group PREICA2602B020078. UI passed: no Materia filter, DocenteCursosPanel has vista Eye button, Grupos detail modal has Vista actual/Excel completo/CSV. Remaining failure is scoped role access on vista endpoint.",
+  "rca_of_the_issue": "Reproduction: enable download permission for decano.test or coord.test, login, then GET /api/exports/grupo/PRECBH2602B020258/vista?fmt=xlsx. Expected 403 because the group is outside FCEAC/Administración de Empresas scope; actual 200. Root cause appears to be scope_match calculated but not applied to the group/student export query. No APIs were MOCKED."
+}

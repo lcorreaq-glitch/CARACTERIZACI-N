@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 import {
   LayoutDashboard, GraduationCap, Map, History, Upload, Settings, Brain,
-  LogOut, Sun, Moon, Filter, ChevronDown, X, Users, BookOpen, Download
+  LogOut, Sun, Moon, Filter, ChevronDown, X, Users, BookOpen, Download, Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -243,7 +243,6 @@ function FiltersPanel() {
     : (opts.grupos || []);
   const objectGroups = [
     { key: "docente_id", label: `Docente${(opts.docentes || []).length ? ` (${opts.docentes.length})` : ""}`, list: opts.docentes || [] },
-    { key: "materia_id", label: `Materia${(opts.materias || []).length ? ` (${opts.materias.length})` : ""}`, list: opts.materias || [] },
     { key: "codigo_grupo", label: `Grupo${filters.docente_id ? ` (${gruposDelDocente.length} del docente)` : ` (${(opts.grupos || []).length})`}`, list: gruposDelDocente },
   ];
   const booleans = [
@@ -386,6 +385,27 @@ function DocenteCursosPanel() {
     }
   };
 
+  const descargarGrupoVista = async (codigo_grupo) => {
+    if (!canDownload) {
+      alert("No tiene permiso de descarga. Contacte al administrador.");
+      return;
+    }
+    try {
+      const url = `/api/exports/grupo/${encodeURIComponent(codigo_grupo)}/vista?fmt=xlsx`;
+      const token = localStorage.getItem("iud_token");
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!resp.ok) throw new Error(resp.status === 403 ? "Sin permiso" : `Error ${resp.status}`);
+      const blob = await resp.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `grupo_${codigo_grupo}_vista.xlsx`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      alert("Error al descargar: " + e.message);
+    }
+  };
+
   const descargarGrupoDetalle = async (codigo_grupo) => {
     if (!canDownload) {
       alert("No tiene permiso de descarga. Contacte al administrador.");
@@ -448,10 +468,18 @@ function DocenteCursosPanel() {
             {canDownload && (
               <>
                 <button
-                  onClick={() => descargarEstudiantes(c.id)}
-                  title="Descargar estudiantes de este curso (Excel)"
-                  data-testid={`descargar-curso-${c.id}`}
+                  onClick={() => descargarGrupoVista(c.id)}
+                  title="Descargar VISTA visible (matriculados + flags de vulnerabilidad)"
+                  data-testid={`descargar-vista-${c.id}`}
                   className="ml-1 p-0.5 hover:bg-[#0033A0]/10 rounded"
+                >
+                  <Eye className="w-3 h-3 text-[#0033A0]" />
+                </button>
+                <button
+                  onClick={() => descargarEstudiantes(c.id)}
+                  title="Descargar estudiantes completos de este curso (Excel con caracterización)"
+                  data-testid={`descargar-curso-${c.id}`}
+                  className="p-0.5 hover:bg-[#0033A0]/10 rounded"
                 >
                   <Download className="w-3 h-3 text-[#0033A0]" />
                 </button>

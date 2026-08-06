@@ -410,6 +410,101 @@ async def export_grupo_detail(
     )
 
 
+@router.get("/grupo/{codigo_grupo}/vista")
+async def export_grupo_vista(
+    codigo_grupo: str,
+    fmt: str = Query("xlsx", regex="^(xlsx|csv)$"),
+    user=Depends(get_current_user),
+):
+    """Descarga SOLO los datos que se ven en la vista del docente (matriculados + flags de vulnerabilidad).
+    No incluye caracterización completa ni notas históricas."""
+    await _enforce_download(user)
+    await _enforce_docente_scope(user, codigo_grupo, None)
+
+    grupo = await db.grupos.find_one({"codigo_grupo": codigo_grupo}, {"_id": 0})
+    if not grupo:
+        raise HTTPException(404, "Grupo no encontrado")
+
+    scope_match = apply_role_scope(user, {})
+    if "_no_scope_" in scope_match:
+        raise HTTPException(403, "Su rol requiere facultad/programa asignado")
+
+    matriculas = await db.matriculas.find(
+        {"codigo_grupo": codigo_grupo}, {"_id": 0, "cedula": 1, "estado": 1}
+    ).to_list(2000)
+    cedulas = [m["cedula"] for m in matriculas]
+
+    rows = []
+    if cedulas:
+        est_docs = await db.students.find(
+            {"cedula": {"$in": cedulas}},
+            {"_id": 0, "cedula": 1, "nombre": 1, "apellidos": 1, "programa": 1,
+             "promedio": 1, "sisben_tiene": 1, "sisben_nivel": 1,
+             "grupo_vulnerable": 1, "tipo_grupo_vulnerable": 1,
+             "victima_conflicto": 1, "tipo_ubicacion": 1,
+             "discapacidad_flag": 1, "discapacidad_tipo": 1,
+             "etnia": 1},
+        ).to_list(2000)
+        est_map = {e["cedula"]: e for e in est_docs}
+        for m in matriculas:
+            e = est_map.get(m["cedula"], {})
+            flags = []
+            if e.get("grupo_vulnerable"):
+                flags.append(e.get("tipo_grupo_vulnerable") or "Vulnerable")
+            if e.get("victima_conflicto"):
+                flags.append("Víctima del conflicto")
+            if e.get("discapacidad_flag"):
+                flags.append(f"Discapacidad: {e.get('discapacidad_tipo') or 'No especificada'}")
+            if e.get("sisben_tiene") and e.get("sisben_nivel"):
+                flags.append(f"SISBEN {e.get('sisben_nivel')}")
+            if e.get("tipo_ubicacion") in ("Rural", "Semirural"):
+                flags.append(e.get("tipo_ubicacion"))
+            if e.get("etnia") and e.get("etnia") not in ("Ninguno", "No Aplica"):
+                flags.append(f"Etnia: {e.get('etnia')}")
+
+            rows.append({
+                "Cedula": m["cedula"],
+                "Nombre": e.get("nombre", ""),
+                "Apellidos": e.get("apellidos", ""),
+                "Programa": e.get("programa", ""),
+                "Promedio": e.get("promedio", 0) or 0,
+                "Estado matricula": m.get("estado", ""),
+                "Flags de vulnerabilidad": " | ".join(flags) if flags else "Sin flags",
+                "N flags": len(flags),
+            })
+
+    ts = datetime.utcnow().strftime("%Y%m%d")
+    fname = f"grupo_{codigo_grupo}_vista_{ts}.{fmt}"
+
+    if not rows:
+        rows = [{"info": "Sin estudiantes matriculados"}]
+
+    df = pd.DataFrame(rows)
+    if fmt == "csv":
+        return _stream_csv(df, fname)
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        resumen = [{
+            "Codigo grupo": grupo.get("codigo_grupo"),
+            "Asignatura": grupo.get("asignatura_nombre"),
+            "Docente": grupo.get("docente_nombre"),
+            "Programa": grupo.get("programa"),
+            "Periodo": grupo.get("periodo"),
+            "Total matriculados": len([r for r in rows if "Cedula" in r]),
+        }]
+        pd.DataFrame(resumen).to_excel(writer, sheet_name="Grupo", index=False)
+        df.to_excel(writer, sheet_name="Vista docente", index=False)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+
+
 @router.get("/permission")
 async def download_permission(user=Depends(get_current_user)):
     """Endpoint público para el frontend: dice si el usuario actual puede descargar."""

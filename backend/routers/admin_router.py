@@ -427,14 +427,20 @@ async def list_docentes(user=Depends(require_roles("superadmin", "direccion"))):
 
 @router.get("/docentes/{docente_id}/grupos")
 async def docente_grupos(docente_id: str, user=Depends(require_roles("superadmin", "direccion"))):
-    """Grupos asignados a un docente con conteo de estudiantes."""
+    """Grupos asignados a un docente con conteo de estudiantes.
+    EXCLUYE grupos de extensión + inglés fuera de la malla."""
+    from academic_filter import is_academic_note
     grupos = await db.grupos.find({"docente_id": docente_id}, {"_id": 0}).to_list(500)
+    grupos = [g for g in grupos if is_academic_note({
+        "codigo_asignatura": g.get("asignatura_codigo", ""),
+        "programa": g.get("programa", ""),
+    })]
     for g in grupos:
         g["n_estudiantes"] = await db.matriculas.count_documents({"codigo_grupo": g["codigo_grupo"]})
-        # Notas históricas del docente en esa asignatura
+        # Notas históricas del docente en esa asignatura (excluye extensión/inglés fuera de malla)
         if g.get("asignatura_codigo"):
             agg = await db.historico_notas.aggregate([
-                {"$match": {"docente_id": docente_id, "codigo_asignatura": g["asignatura_codigo"]}},
+                {"$match": academic_notes_match({"docente_id": docente_id, "codigo_asignatura": g["asignatura_codigo"]})},
                 {"$group": {"_id": "$periodo", "prom": {"$avg": "$nota"}, "n": {"$sum": 1}}},
                 {"$sort": {"_id": -1}}
             ]).to_list(10)

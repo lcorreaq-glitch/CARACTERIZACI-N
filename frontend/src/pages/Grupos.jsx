@@ -56,20 +56,21 @@ export default function Grupos() {
     setDetail(r.data);
   };
 
-  const descargarGrupo = async (codigo, fmt = "xlsx") => {
+  const descargarGrupo = async (codigo, fmt = "xlsx", tipo = "detalle") => {
     if (!canDownload) {
       toast.error("No tiene permiso de descarga. Contacte al administrador.");
       return;
     }
     try {
-      const url = `/api/exports/grupo/${encodeURIComponent(codigo)}?fmt=${fmt}`;
+      const path = tipo === "vista" ? "vista" : "";
+      const url = `/api/exports/grupo/${encodeURIComponent(codigo)}${path ? "/" + path : ""}?fmt=${fmt}`;
       const token = localStorage.getItem("iud_token");
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!resp.ok) throw new Error(resp.status === 403 ? "Sin permiso" : `Error ${resp.status}`);
       const blob = await resp.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `grupo_${codigo}.${fmt}`;
+      a.download = `grupo_${codigo}_${tipo}.${fmt}`;
       a.click();
       URL.revokeObjectURL(a.href);
       toast.success("Descarga completada");
@@ -232,11 +233,14 @@ export default function Grupos() {
                 {detail?.grupo ? `${detail.grupo.asignatura_nombre} · ${detail.grupo.codigo_grupo}` : "Cargando…"}
               </DialogTitle>
               {detail?.grupo && canDownload && (
-                <div className="flex gap-2 flex-shrink-0">
-                  <Button size="sm" onClick={() => descargarGrupo(detail.grupo.codigo_grupo, "xlsx")} className="rounded-sm bg-[#0033A0] hover:bg-[#002A85] text-white text-xs h-8" data-testid="detail-download-xlsx">
-                    <Download className="w-3.5 h-3.5 mr-1" /> Excel detallado
+                <div className="flex gap-2 flex-shrink-0 flex-wrap">
+                  <Button size="sm" onClick={() => descargarGrupo(detail.grupo.codigo_grupo, "xlsx", "vista")} className="rounded-sm bg-[#0033A0] hover:bg-[#002A85] text-white text-xs h-8" data-testid="detail-download-vista" title="Descarga solo lo que se ve en la vista (matriculados + flags)">
+                    <Download className="w-3.5 h-3.5 mr-1" /> Vista actual
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => descargarGrupo(detail.grupo.codigo_grupo, "csv")} className="rounded-sm text-xs h-8" data-testid="detail-download-csv">
+                  <Button size="sm" variant="outline" onClick={() => descargarGrupo(detail.grupo.codigo_grupo, "xlsx", "detalle")} className="rounded-sm text-xs h-8" data-testid="detail-download-xlsx">
+                    <Download className="w-3.5 h-3.5 mr-1" /> Excel completo
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => descargarGrupo(detail.grupo.codigo_grupo, "csv", "vista")} className="rounded-sm text-xs h-8" data-testid="detail-download-csv">
                     <FileText className="w-3.5 h-3.5 mr-1" /> CSV
                   </Button>
                 </div>
