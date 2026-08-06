@@ -4,6 +4,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from auth import get_current_user
 from database import db
+from scope import apply_role_scope
 from models import AIInsightIn
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
@@ -156,27 +157,36 @@ Máximo 200 palabras. Sé directo y accionable."""
 
 
 async def _check_ai_enabled_for_docente(user):
-    """Docentes only get AI if the global setting allows it."""
-    if user.get("role") in ("superadmin", "admin"):
+    """AI toggle applies to profesor/decano/coordinador. Superadmin/direccion bypass."""
+    if user.get("role") in ("superadmin", "direccion"):
         return
     settings = await db.system_settings.find_one({"_id": "global"}, {"_id": 0}) or {}
     if not settings.get("docente_ai_insights_enabled", True):
         raise HTTPException(
             status_code=403,
-            detail="El módulo de IA está deshabilitado por el administrador para docentes.",
+            detail="El módulo de IA está deshabilitado por el administrador.",
         )
 
 
 async def _is_my_student(user, cedula: str) -> bool:
-    """Superadmin/admin bypass. Docente must have the student in one of their groups."""
-    if user.get("role") in ("superadmin", "admin"):
+    """superadmin/direccion bypass. profesor: check grupos. decano/coordinador: check scope."""
+    role = user.get("role")
+    if role in ("superadmin", "direccion"):
         return True
-    grupos = await db.grupos.find({"docente_id": user["id"]}, {"_id": 0, "codigo_grupo": 1}).to_list(1000)
-    codigos = [g["codigo_grupo"] for g in grupos]
-    if not codigos:
-        return False
-    hit = await db.matriculas.find_one({"codigo_grupo": {"$in": codigos}, "cedula": cedula})
-    return hit is not None
+    if role == "profesor":
+        grupos = await db.grupos.find({"docente_id": user["id"]}, {"_id": 0, "codigo_grupo": 1}).to_list(1000)
+        codigos = [g["codigo_grupo"] for g in grupos]
+        if not codigos:
+            return False
+        hit = await db.matriculas.find_one({"codigo_grupo": {"$in": codigos}, "cedula": cedula})
+        return hit is not None
+    if role in ("decano", "coordinador"):
+        scope_match = apply_role_scope(user, {"cedula": cedula})
+        if "_no_scope_" in scope_match:
+            return False
+        cnt = await db.students.count_documents(scope_match)
+        return cnt > 0
+    return False
 
 
 @router.post("/docente/alerta-estudiante")
@@ -209,7 +219,7 @@ async def alerta_estudiante(payload: dict, user=Depends(get_current_user)):
     notas_query = {"cedula": cedula}
     if codigo_grupo:
         notas_query["codigo_grupo"] = codigo_grupo
-    elif user.get("role") == "docente":
+    elif user.get("role") == "profesor":
         notas_query["docente_id"] = user["id"]
 
     notas = await db.historico_notas.find(
@@ -287,11 +297,19 @@ async def resumen_grupo(payload: dict, user=Depends(get_current_user)):
     grupo = await db.grupos.find_one({"codigo_grupo": codigo_grupo}, {"_id": 0})
     if not grupo:
         raise HTTPException(404, "Grupo no encontrado")
-    if user.get("role") == "docente" and grupo.get("docente_id") != user["id"]:
+    if user.get("role") == "profesor" and grupo.get("docente_id") != user["id"]:
         raise HTTPException(403, "No tiene acceso a este grupo")
 
     # Cédulas del grupo
     cedulas = await db.matriculas.distinct("cedula", {"codigo_grupo": codigo_grupo})
+    # Enforce scope for decano/coordinador: only cedulas belonging to their scope
+    if user.get("role") in ("decano", "coordinador"):
+        scope_match = apply_role_scope(user, {"cedula": {"$in": cedulas}})
+        if "_no_scope_" in scope_match or not cedulas:
+            raise HTTPException(403, "Este grupo no pertenece a su facultad/programa asignado")
+        cedulas = await db.students.distinct("cedula", scope_match)
+        if not cedulas:
+            raise HTTPException(403, "Este grupo no pertenece a su facultad/programa asignado")
     if not cedulas:
         return {
             "codigo_grupo": codigo_grupo,

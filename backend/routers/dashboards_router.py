@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from auth import get_current_user
 from database import db
+from scope import apply_role_scope
 
 router = APIRouter(prefix="/api/dashboards", tags=["dashboards"])
 
@@ -76,9 +77,13 @@ async def _common_params(
     docente_id: Optional[str] = None,
     materia_id: Optional[str] = None,
     codigo_grupo: Optional[str] = None,
+    user=Depends(get_current_user),
 ):
     match = _build_match(locals())
-    return await _apply_docente_materia(match, docente_id, materia_id, codigo_grupo)
+    match = await _apply_docente_materia(match, docente_id, materia_id, codigo_grupo)
+    # Enforce role-based scope (decano/coordinador filter by facultad/programa)
+    match = apply_role_scope(user, match)
+    return match
 
 
 @router.get("/executive")
@@ -629,18 +634,25 @@ async def filter_options(user=Depends(get_current_user)):
         invalid = invalid or {"SELECCIONE...", "SELECCIONE", "NO REGISTRA", ""}
         return sorted([v for v in values if v and str(v).strip().upper() not in invalid])
 
-    programas = _clean(await db.students.distinct("programa"))
-    facultades = _clean(await db.students.distinct("facultad"))
-    periodos = sorted([p for p in await db.students.distinct("periodo") if p])
-    generos = _clean(await db.students.distinct("genero"))
-    estratos = _clean(await db.students.distinct("estrato"))
-    etnias = _clean(await db.students.distinct("etnia"))
-    ubicaciones = _clean(await db.students.distinct("tipo_ubicacion"))
-    estados_matricula = _clean(await db.students.distinct("estado_matricula"))
+    # Apply role scope to base match for all distinct queries
+    base_match = apply_role_scope(user, {})
+    if "_no_scope_" in base_match:
+        return {"programas": [], "facultades": [], "periodos": [], "generos": [], "estratos": [],
+                "etnias": [], "ubicaciones": [], "estados_matricula": [], "facultad_programa": {},
+                "docentes": [], "materias": [], "grupos": []}
+
+    programas = _clean(await db.students.distinct("programa", base_match))
+    facultades = _clean(await db.students.distinct("facultad", base_match))
+    periodos = sorted([p for p in await db.students.distinct("periodo", base_match) if p])
+    generos = _clean(await db.students.distinct("genero", base_match))
+    estratos = _clean(await db.students.distinct("estrato", base_match))
+    etnias = _clean(await db.students.distinct("etnia", base_match))
+    ubicaciones = _clean(await db.students.distinct("tipo_ubicacion", base_match))
+    estados_matricula = _clean(await db.students.distinct("estado_matricula", base_match))
 
     # facultad -> [programas] mapping for cascading filters
     pipe = [
-        {"$match": {"facultad": {"$ne": None}, "programa": {"$ne": None}}},
+        {"$match": {**base_match, "facultad": {"$ne": None}, "programa": {"$ne": None}}},
         {"$group": {"_id": {"f": "$facultad", "p": "$programa"}}},
     ]
     facultad_programa = {}
@@ -652,7 +664,7 @@ async def filter_options(user=Depends(get_current_user)):
     facultad_programa = {k: sorted(v) for k, v in facultad_programa.items()}
 
     # Docentes y materias para filtros globales
-    docentes_rows = await db.users.find({"role": "docente"}, {"_id": 0, "id": 1, "full_name": 1, "email": 1}).to_list(1000)
+    docentes_rows = await db.users.find({"role": "profesor"}, {"_id": 0, "id": 1, "full_name": 1, "email": 1}).to_list(1000)
     docentes = sorted([{"id": d["id"], "nombre": d.get("full_name") or d.get("email", "")} for d in docentes_rows], key=lambda x: x["nombre"])
 
     materias_rows = await db.materias.find({}, {"_id": 0, "id": 1, "nombre": 1, "codigo": 1}).to_list(5000)
@@ -663,8 +675,16 @@ async def filter_options(user=Depends(get_current_user)):
 
     # Grupos activos (limitados a los 200 más relevantes o filtrados por rol)
     grupos_query = {}
-    if user.get("role") == "docente":
+    if user.get("role") == "profesor":
         grupos_query = {"docente_id": user["id"]}
+    elif user.get("role") in ("decano", "coordinador"):
+        # scoping via cedulas → codigos_grupo
+        cedulas_scope = await db.students.distinct("cedula", base_match)
+        if cedulas_scope:
+            codigos = await db.matriculas.distinct("codigo_grupo", {"cedula": {"$in": cedulas_scope}})
+            grupos_query = {"codigo_grupo": {"$in": codigos}} if codigos else {"codigo_grupo": "__NONE__"}
+        else:
+            grupos_query = {"codigo_grupo": "__NONE__"}
     grupos_rows = await db.grupos.find(grupos_query, {
         "_id": 0, "codigo_grupo": 1, "asignatura_nombre": 1,
         "asignatura_codigo": 1,

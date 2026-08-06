@@ -216,7 +216,7 @@ async def main():
         print(f"  {coll}: eliminados {r.deleted_count}")
     # Delete auto-created docentes (keep superadmin + docente.demo)
     r = await db.users.delete_many({
-        "role": "docente",
+        "role": "profesor",
         "email": {"$nin": ["docente.demo@iudigital.edu.co"]}
     })
     print(f"  users(docentes): eliminados {r.deleted_count}")
@@ -315,7 +315,7 @@ async def main():
                 "email": login_email,
                 "password": hash_pwd("IUDigital2026"),
                 "full_name": doc_name or f"Docente {doc_ced}",
-                "role": "docente",
+                "role": "profesor",
                 "documento": doc_ced,
                 "cedula": doc_ced,
                 "iddoc": iddoc,
@@ -649,7 +649,7 @@ async def main():
         )
 
     total_est = await db.students.count_documents({})
-    docs_creados = await db.users.count_documents({"role": "docente"})
+    docs_creados = await db.users.count_documents({"role": "profesor"})
     grupos_c = await db.grupos.count_documents({})
     matr_c = await db.matriculas.count_documents({})
     notas_c = await db.historico_notas.count_documents({})

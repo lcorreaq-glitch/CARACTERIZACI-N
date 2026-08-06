@@ -3,36 +3,72 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from auth import get_current_user
 from database import db
+from scope import apply_role_scope
 
 router = APIRouter(prefix="/api/dashboards/docente", tags=["dashboards-docente"])
 
 
+ALLOWED_ROLES = ("profesor", "superadmin", "direccion", "decano", "coordinador")
+
+
 async def _my_groups(user):
-    """Return groups where this user is the docente, plus admin bypass."""
-    if user.get("role") in ("superadmin", "admin"):
-        # optional docente_id filter via query would be added at endpoint level; here return all
+    """Return groups visible to this user:
+    - superadmin/direccion: all
+    - profesor: only where docente_id matches
+    - decano/coordinador: groups whose students are in scope (may be many)
+    """
+    role = user.get("role")
+    if role in ("superadmin", "direccion"):
         return await db.grupos.find({}, {"_id": 0}).to_list(5000)
-    return await db.grupos.find({"docente_id": user["id"]}, {"_id": 0}).to_list(1000)
+    if role == "profesor":
+        return await db.grupos.find({"docente_id": user["id"]}, {"_id": 0}).to_list(1000)
+    if role in ("decano", "coordinador"):
+        # Find cedulas in scope, then grupos where those cedulas are matriculated
+        scope_match = apply_role_scope(user, {})
+        if "_no_scope_" in scope_match:
+            return []
+        cedulas = await db.students.distinct("cedula", scope_match)
+        if not cedulas:
+            return []
+        codigos = await db.matriculas.distinct("codigo_grupo", {"cedula": {"$in": cedulas}})
+        if not codigos:
+            return []
+        return await db.grupos.find({"codigo_grupo": {"$in": codigos}}, {"_id": 0}).to_list(2000)
+    return []
 
 
 async def _cedulas_de_mis_grupos(user, codigo_grupo: Optional[str] = None):
-    """Cédulas matriculadas en los grupos del docente. Opcionalmente filtra a un grupo específico."""
-    groups = await _my_groups(user)
-    codigos = [g["codigo_grupo"] for g in groups]
+    """Cédulas visibles al usuario. Aplica scope de rol."""
+    role = user.get("role")
     if codigo_grupo:
-        if codigo_grupo not in codigos and user.get("role") not in ("superadmin", "admin"):
+        # Validate access to the specific group
+        groups = await _my_groups(user)
+        codigos = [g["codigo_grupo"] for g in groups]
+        if codigo_grupo not in codigos and role not in ("superadmin", "direccion"):
             raise HTTPException(403, "No tienes acceso a este grupo")
-        codigos = [codigo_grupo]
-    if not codigos:
-        return set()
-    cedulas = await db.matriculas.distinct("cedula", {"codigo_grupo": {"$in": codigos}})
-    return set(cedulas)
+        cedulas = await db.matriculas.distinct("cedula", {"codigo_grupo": codigo_grupo})
+        return set(cedulas)
+    # No codigo_grupo: return all cedulas in scope
+    if role in ("superadmin", "direccion"):
+        return set(await db.students.distinct("cedula", {}))
+    if role == "profesor":
+        groups = await _my_groups(user)
+        codigos = [g["codigo_grupo"] for g in groups]
+        if not codigos:
+            return set()
+        return set(await db.matriculas.distinct("cedula", {"codigo_grupo": {"$in": codigos}}))
+    if role in ("decano", "coordinador"):
+        scope_match = apply_role_scope(user, {})
+        if "_no_scope_" in scope_match:
+            return set()
+        return set(await db.students.distinct("cedula", scope_match))
+    return set()
 
 
 @router.get("/me")
 async def my_overview(codigo_grupo: Optional[str] = None, user=Depends(get_current_user)):
-    if user.get("role") not in ("docente", "superadmin", "admin"):
-        raise HTTPException(403, "Solo docentes")
+    if user.get("role") not in ALLOWED_ROLES:
+        raise HTTPException(403, "Rol no autorizado para este panel")
 
     groups = await _my_groups(user)
     if not groups:
@@ -117,7 +153,7 @@ async def estudiantes_en_riesgo(
 ):
     """Estudiantes en riesgo académico: promedio<umbral O nota<umbral en materia del docente.
     Aplica factores de vulnerabilidad para priorizar."""
-    if user.get("role") not in ("docente", "superadmin", "admin"):
+    if user.get("role") not in ALLOWED_ROLES:
         raise HTTPException(403, "Solo docentes")
 
     cedulas = await _cedulas_de_mis_grupos(user, codigo_grupo)
@@ -125,7 +161,7 @@ async def estudiantes_en_riesgo(
         return {"items": [], "total": 0}
 
     # Compute average by student (only from historico_notas de mis grupos)
-    if user.get("role") == "docente":
+    if user.get("role") == "profesor":
         docente_filter = {"docente_id": user["id"]}
     else:
         docente_filter = {}
@@ -209,7 +245,7 @@ async def my_students(
     user=Depends(get_current_user),
 ):
     """Lista de estudiantes del docente. Filtro opcional por grupo y riesgo."""
-    if user.get("role") not in ("docente", "superadmin", "admin"):
+    if user.get("role") not in ALLOWED_ROLES:
         raise HTTPException(403, "Solo docentes")
 
     cedulas = await _cedulas_de_mis_grupos(user, codigo_grupo)
@@ -239,7 +275,7 @@ async def estudiante_historico(cedula: str, user=Depends(get_current_user)):
     """Histórico académico completo del estudiante: todas sus notas + info personal.
     Docente solo puede ver estudiantes de sus grupos."""
     # Validar permiso docente
-    if user.get("role") == "docente":
+    if user.get("role") == "profesor":
         cedulas_permitidas = await _cedulas_de_mis_grupos(user)
         if cedula not in cedulas_permitidas:
             raise HTTPException(403, "No tienes acceso a este estudiante")
@@ -289,7 +325,7 @@ async def estudiante_historico(cedula: str, user=Depends(get_current_user)):
 async def grupos_comparativa(user=Depends(get_current_user)):
     """Comparativa por grupo: promedios en los últimos 2 periodos.
     Match cross-periodo por (docente_id + codigo_asignatura) porque codigo_grupo cambia cada periodo."""
-    if user.get("role") not in ("docente", "superadmin", "admin"):
+    if user.get("role") not in ALLOWED_ROLES:
         raise HTTPException(403, "Solo docentes")
 
     groups = await _my_groups(user)

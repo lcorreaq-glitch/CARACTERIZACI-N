@@ -21,13 +21,13 @@ def _b(v):
 
 
 @router.get("/")
-async def list_uploads(user=Depends(require_roles("superadmin", "admin"))):
+async def list_uploads(user=Depends(require_roles("superadmin", "direccion"))):
     items = await db.uploads.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
     return items
 
 
 @router.post("/preview")
-async def preview(file: UploadFile = File(...), user=Depends(require_roles("superadmin", "admin"))):
+async def preview(file: UploadFile = File(...), user=Depends(require_roles("superadmin", "direccion"))):
     content = await file.read()
     try:
         df = pd.read_excel(io.BytesIO(content))
@@ -54,7 +54,7 @@ async def preview(file: UploadFile = File(...), user=Depends(require_roles("supe
 async def ingest(
     file: UploadFile = File(...),
     periodo: str = Form(...),
-    user=Depends(require_roles("superadmin", "admin")),
+    user=Depends(require_roles("superadmin", "direccion")),
 ):
     content = await file.read()
     try:
@@ -337,7 +337,7 @@ TEMPLATES = {
 
 
 @router.get("/template/{tipo}")
-async def download_template(tipo: str, user=Depends(require_roles("superadmin", "admin"))):
+async def download_template(tipo: str, user=Depends(require_roles("superadmin", "direccion"))):
     """Descarga una plantilla Excel vacía con cabeceras y una fila de ejemplo."""
     if tipo not in TEMPLATES:
         raise HTTPException(404, f"Plantilla '{tipo}' no encontrada. Opciones: {list(TEMPLATES.keys())}")
@@ -397,7 +397,7 @@ async def _ensure_docente(email: str, full_name: str) -> str:
         "email": email,
         "password": hash_password("IUDigital2026!"),
         "full_name": (full_name or email.split("@")[0]).strip(),
-        "role": "docente",
+        "role": "profesor",
         "facultad_id": None,
         "programa_id": None,
         "active": True,
@@ -411,7 +411,7 @@ async def _ensure_docente(email: str, full_name: str) -> str:
 @router.post("/notas")
 async def ingest_notas(
     file: UploadFile = File(...),
-    user=Depends(require_roles("superadmin", "admin")),
+    user=Depends(require_roles("superadmin", "direccion")),
 ):
     """Ingesta masiva de notas históricas. Crea docentes/materias faltantes."""
     content = await file.read()
@@ -512,7 +512,7 @@ DM_REQUIRED = ["EmailDocente", "CodigoMateria", "Periodo"]
 @router.post("/docente-materia-bulk")
 async def ingest_docente_materia(
     file: UploadFile = File(...),
-    user=Depends(require_roles("superadmin", "admin")),
+    user=Depends(require_roles("superadmin", "direccion")),
 ):
     """Ingesta masiva de relaciones docente-materia. Crea usuarios docentes faltantes."""
     content = await file.read()
@@ -609,14 +609,14 @@ BACKUP_COLLECTIONS = {
 
 
 @router.get("/backup/{coleccion}")
-async def backup_collection(coleccion: str, user=Depends(require_roles("superadmin", "admin"))):
+async def backup_collection(coleccion: str, user=Depends(require_roles("superadmin", "direccion"))):
     """Descarga una colección de la BD como Excel."""
     if coleccion not in BACKUP_COLLECTIONS:
         raise HTTPException(404, f"Colección no válida. Opciones: {list(BACKUP_COLLECTIONS.keys())}")
     meta = BACKUP_COLLECTIONS[coleccion]
 
     if coleccion == "docentes":
-        docs = await db.users.find({"role": "docente"}, {"_id": 0, "password": 0}).to_list(5000)
+        docs = await db.users.find({"role": "profesor"}, {"_id": 0, "password": 0}).to_list(5000)
     else:
         docs = await db[coleccion].find({}, {"_id": 0}).to_list(200000)
 
@@ -641,14 +641,14 @@ async def backup_collection(coleccion: str, user=Depends(require_roles("superadm
 
 
 @router.get("/backup-stats")
-async def backup_stats(user=Depends(require_roles("superadmin", "admin"))):
+async def backup_stats(user=Depends(require_roles("superadmin", "direccion"))):
     """Cuenta de documentos por colección para el módulo de descargas."""
     counts = {}
     counts["students"] = await db.students.count_documents({})
     counts["grupos"] = await db.grupos.count_documents({})
     counts["matriculas"] = await db.matriculas.count_documents({})
     counts["historico_notas"] = await db.historico_notas.count_documents({})
-    counts["docentes"] = await db.users.count_documents({"role": "docente"})
+    counts["docentes"] = await db.users.count_documents({"role": "profesor"})
     counts["docente_materia"] = await db.docente_materia.count_documents({})
     counts["programas"] = await db.programas.count_documents({})
     counts["facultades"] = await db.facultades.count_documents({})
@@ -726,7 +726,7 @@ async def full_refresh(
         "grupos": await db.grupos.count_documents({}),
         "matriculas": await db.matriculas.count_documents({}),
         "historico_notas": await db.historico_notas.count_documents({}),
-        "docentes": await db.users.count_documents({"role": "docente"}),
+        "docentes": await db.users.count_documents({"role": "profesor"}),
         "docente_materia": await db.docente_materia.count_documents({}),
     }
 

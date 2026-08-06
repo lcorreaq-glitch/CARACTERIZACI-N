@@ -543,7 +543,7 @@ async def _seed_materias_and_docente_demo():
             "email": docente_email,
             "password": _hp("Docente2026!"),
             "full_name": "Prof. Ana María Restrepo",
-            "role": "docente",
+            "role": "profesor",
             "active": True,
             "must_change_password": False,
             "created_at": datetime.utcnow().isoformat(),

@@ -1,5 +1,6 @@
 """Admin router: users, facultades, programas, materias, periodos, docente-materia."""
 from datetime import datetime
+from typing import Optional
 import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from models import UserCreate, UserUpdate, CatalogIn, DocenteMateriaIn
@@ -9,10 +10,37 @@ from database import db
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
+async def _enrich_users_with_scope_names(users):
+    """Añade facultad_nombre/programa_nombre a cada usuario para la UI."""
+    fac_ids = {u.get("facultad_id") for u in users if u.get("facultad_id")}
+    prog_ids = {u.get("programa_id") for u in users if u.get("programa_id")}
+    fac_map = {}
+    prog_map = {}
+    if fac_ids:
+        async for f in db.facultades.find({"id": {"$in": list(fac_ids)}}, {"_id": 0, "id": 1, "nombre": 1}):
+            fac_map[f["id"]] = f.get("nombre")
+    if prog_ids:
+        async for p in db.programas.find({"id": {"$in": list(prog_ids)}}, {"_id": 0, "id": 1, "nombre": 1}):
+            prog_map[p["id"]] = p.get("nombre")
+    for u in users:
+        u["facultad_nombre"] = fac_map.get(u.get("facultad_id"))
+        u["programa_nombre"] = prog_map.get(u.get("programa_id"))
+    return users
+
+
+def _validate_scope_assignment(role: str, facultad_id: Optional[str], programa_id: Optional[str]):
+    """Enforce that decano/coordinador have the required scope assigned."""
+    if role == "decano" and not facultad_id:
+        raise HTTPException(400, "El rol 'decano' requiere una facultad asignada")
+    if role == "coordinador" and not facultad_id and not programa_id:
+        raise HTTPException(400, "El rol 'coordinador' requiere una facultad o un programa asignado")
+
+
 # ---------- Users ----------
 @router.get("/users")
-async def list_users(user=Depends(require_roles("superadmin", "admin"))):
+async def list_users(user=Depends(require_roles("superadmin", "direccion"))):
     users = await db.users.find({}, {"_id": 0, "password": 0}).to_list(1000)
+    await _enrich_users_with_scope_names(users)
     return users
 
 
@@ -20,6 +48,7 @@ async def list_users(user=Depends(require_roles("superadmin", "admin"))):
 async def create_user(payload: UserCreate, user=Depends(require_roles("superadmin"))):
     if await db.users.find_one({"email": payload.email.lower()}):
         raise HTTPException(400, "Email ya existe")
+    _validate_scope_assignment(payload.role, payload.facultad_id, payload.programa_id)
     new = {
         "id": str(uuid.uuid4()),
         "email": payload.email.lower(),
@@ -30,7 +59,7 @@ async def create_user(payload: UserCreate, user=Depends(require_roles("superadmi
         "programa_id": payload.programa_id,
         "active": True,
         "must_change_password": True,
-        "download_enabled": payload.role in ("superadmin", "admin"),
+        "download_enabled": payload.role in ("superadmin", "direccion"),
         "created_at": datetime.utcnow().isoformat(),
     }
     await db.users.insert_one(new)
@@ -44,9 +73,14 @@ async def update_user(user_id: str, payload: UserUpdate, user=Depends(require_ro
     upd = {k: v for k, v in payload.model_dump().items() if v is not None}
     if not upd:
         raise HTTPException(400, "Nada que actualizar")
-    res = await db.users.update_one({"id": user_id}, {"$set": upd})
-    if not res.matched_count:
+    # If role/scope is being updated, validate the combined resulting state
+    existing = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not existing:
         raise HTTPException(404, "Usuario no encontrado")
+    merged = {**existing, **upd}
+    if merged.get("role") in ("decano", "coordinador"):
+        _validate_scope_assignment(merged["role"], merged.get("facultad_id"), merged.get("programa_id"))
+    await db.users.update_one({"id": user_id}, {"$set": upd})
     u = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
     return u
 
@@ -105,7 +139,7 @@ DEFAULT_SETTINGS = {
 
 
 @router.get("/system-settings")
-async def get_system_settings(user=Depends(require_roles("superadmin", "admin"))):
+async def get_system_settings(user=Depends(require_roles("superadmin", "direccion"))):
     doc = await db.system_settings.find_one({"_id": "global"}, {"_id": 0}) or {}
     return {**DEFAULT_SETTINGS, **doc}
 
@@ -133,7 +167,7 @@ def _catalog_router(name: str, collection: str):
         return items
 
     @router.post(f"/{name}")
-    async def _create(payload: CatalogIn, user=Depends(require_roles("superadmin", "admin"))):
+    async def _create(payload: CatalogIn, user=Depends(require_roles("superadmin", "direccion"))):
         doc = {
             "id": str(uuid.uuid4()),
             "nombre": payload.nombre,
@@ -147,7 +181,7 @@ def _catalog_router(name: str, collection: str):
         return doc
 
     @router.delete(f"/{name}/{{item_id}}")
-    async def _delete(item_id: str, user=Depends(require_roles("superadmin", "admin"))):
+    async def _delete(item_id: str, user=Depends(require_roles("superadmin", "direccion"))):
         await db[collection].delete_one({"id": item_id})
         return {"ok": True}
 
@@ -169,7 +203,7 @@ async def list_docente_materia(user=Depends(get_current_user)):
 
 
 @router.post("/docente-materia")
-async def create_docente_materia(payload: DocenteMateriaIn, user=Depends(require_roles("superadmin", "admin"))):
+async def create_docente_materia(payload: DocenteMateriaIn, user=Depends(require_roles("superadmin", "direccion"))):
     doc = payload.model_dump()
     doc["id"] = str(uuid.uuid4())
     doc["created_at"] = datetime.utcnow().isoformat()
@@ -179,7 +213,7 @@ async def create_docente_materia(payload: DocenteMateriaIn, user=Depends(require
 
 
 @router.delete("/docente-materia/{item_id}")
-async def delete_dm(item_id: str, user=Depends(require_roles("superadmin", "admin"))):
+async def delete_dm(item_id: str, user=Depends(require_roles("superadmin", "direccion"))):
     await db.docente_materia.delete_one({"id": item_id})
     return {"ok": True}
 
@@ -194,7 +228,7 @@ async def list_grupos(
     docente_id: str | None = None,
     q: str | None = None,
     limit: int = 500,
-    user=Depends(require_roles("superadmin", "admin")),
+    user=Depends(require_roles("superadmin", "direccion")),
 ):
     """Lista grupos enriquecidos con conteo de estudiantes matriculados y promedio del docente."""
     match = {}
@@ -237,7 +271,7 @@ async def list_grupos(
 
 
 @router.get("/grupos/{codigo_grupo}")
-async def get_grupo_detail(codigo_grupo: str, user=Depends(require_roles("superadmin", "admin"))):
+async def get_grupo_detail(codigo_grupo: str, user=Depends(require_roles("superadmin", "direccion"))):
     """Detalle completo de un grupo: metadata + estudiantes + notas históricas."""
     grupo = await db.grupos.find_one({"codigo_grupo": codigo_grupo}, {"_id": 0})
     if not grupo:
@@ -289,7 +323,7 @@ async def get_grupo_detail(codigo_grupo: str, user=Depends(require_roles("supera
 
 # ---------- Facultades enriquecidas ----------
 @router.get("/facultades-stats")
-async def facultades_stats(user=Depends(require_roles("superadmin", "admin"))):
+async def facultades_stats(user=Depends(require_roles("superadmin", "direccion"))):
     """Facultades con contadores de programas, estudiantes, docentes."""
     facs = await db.facultades.find({}, {"_id": 0}).to_list(50)
     for f in facs:
@@ -306,7 +340,7 @@ async def facultades_stats(user=Depends(require_roles("superadmin", "admin"))):
 
 
 @router.put("/programas/{item_id}")
-async def update_programa(item_id: str, payload: dict, user=Depends(require_roles("superadmin", "admin"))):
+async def update_programa(item_id: str, payload: dict, user=Depends(require_roles("superadmin", "direccion"))):
     """Editar programa. Acepta campos parciales."""
     allowed = {"nombre", "nombre_corto", "codigo", "facultad_id", "facultad_nombre",
                "facultad_corta", "nivel", "modalidad", "estado"}
@@ -322,10 +356,10 @@ async def update_programa(item_id: str, payload: dict, user=Depends(require_role
 
 # ---------- Docentes enriquecidos ----------
 @router.get("/docentes")
-async def list_docentes(user=Depends(require_roles("superadmin", "admin"))):
+async def list_docentes(user=Depends(require_roles("superadmin", "direccion"))):
     """Lista de docentes con datos completos + conteo de grupos/cursos/estudiantes."""
     docentes = await db.users.find(
-        {"role": "docente"},
+        {"role": "profesor"},
         {"_id": 0, "password": 0}
     ).sort("full_name", 1).to_list(2000)
 
@@ -371,7 +405,7 @@ async def list_docentes(user=Depends(require_roles("superadmin", "admin"))):
 
 
 @router.get("/docentes/{docente_id}/grupos")
-async def docente_grupos(docente_id: str, user=Depends(require_roles("superadmin", "admin"))):
+async def docente_grupos(docente_id: str, user=Depends(require_roles("superadmin", "direccion"))):
     """Grupos asignados a un docente con conteo de estudiantes."""
     grupos = await db.grupos.find({"docente_id": docente_id}, {"_id": 0}).to_list(500)
     for g in grupos:

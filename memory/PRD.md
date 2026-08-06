@@ -24,6 +24,24 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - IA: resúmenes automáticos vía OpenAI GPT-5.4 (Emergent LLM Key)
 - Exportación PDF/Excel
 
+## Latest session (2026-08-06 · iteración 3 — Reestructuración de Roles)
+- ✅ **5 roles nuevos** con RBAC + scoping automático:
+  - `superadmin`: acceso total
+  - `direccion` (antes admin/viewer): ve todo, NO gestiona usuarios ni permisos globales
+  - `decano`: scoped por facultad asignada (validación obligatoria al crear/editar)
+  - `coordinador`: scoped por programa (o por facultad si es coord. de facultad)
+  - `profesor` (antes docente): scoped por sus grupos
+- ✅ **Migración automática al startup**: `docente` → `profesor` (400 usuarios), `admin`/`viewer` → `direccion`.
+- ✅ **`scope.py`**: helper `apply_role_scope(user, match)` que inyecta filtros case-insensitive por facultad/programa. Integrado en `dashboards_router`, `caracterizacion_router`, `exports_router`, `ai_router`, `docente_router`.
+- ✅ **Auth enriquece automáticamente** al usuario con `facultad_nombre` y `programa_nombre` desde su ID.
+- ✅ **Validaciones backend**: crear decano sin facultad → 400; crear coordinador sin facultad/programa → 400.
+- ✅ **Frontend Admin renovado**:
+  - Nueva columna "Facultad / Programa" en tabla de usuarios (muestra asignación o advertencia ⚠).
+  - Formulario Crear/Editar con selectores condicionales de Facultad/Programa que aparecen solo para decano/coordinador.
+  - Descripciones de rol dinámicas.
+  - Matriz de permisos ampliada a 5 columnas con badges de scope (Su facultad, Su programa, Sus grupos, Config).
+- ✅ **Sidebar** ahora sabe distinguir superadmin/direccion (ven admin), profesor (solo Mi panel), decano/coord (ven todo scoped).
+
 ## Latest session (2026-08-06 · iteración 2)
 - ✅ **Alertas Tempranas IA para Docentes** — Nuevo módulo integrado en `/mi-panel > En riesgo`.
   - `POST /api/ai/docente/alerta-estudiante {cedula, codigo_grupo?}` → diagnóstico personalizado + factores de riesgo + plan de intervención en 3-4 acciones concretas. Máx 250 palabras. Model: gpt-4o vía Emergent LLM Key.

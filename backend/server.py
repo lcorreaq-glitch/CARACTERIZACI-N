@@ -64,14 +64,18 @@ app.add_middleware(
 async def startup():
     await ensure_indexes()
     await seed_superadmin()
-    # Backfill download_enabled on existing users (idempotent)
+    # ------ Role migration (docente→profesor, admin/viewer→direccion) ------
     from database import db as _db
+    await _db.users.update_many({"role": "docente"}, {"$set": {"role": "profesor"}})
+    await _db.users.update_many({"role": "admin"}, {"$set": {"role": "direccion"}})
+    await _db.users.update_many({"role": "viewer"}, {"$set": {"role": "direccion"}})
+    # Backfill download_enabled on existing users (idempotent)
     await _db.users.update_many(
-        {"role": {"$in": ["superadmin", "admin"]}, "download_enabled": {"$exists": False}},
+        {"role": {"$in": ["superadmin", "direccion"]}, "download_enabled": {"$exists": False}},
         {"$set": {"download_enabled": True}},
     )
     await _db.users.update_many(
-        {"role": {"$in": ["docente", "viewer"]}, "download_enabled": {"$exists": False}},
+        {"role": {"$in": ["profesor", "decano", "coordinador"]}, "download_enabled": {"$exists": False}},
         {"$set": {"download_enabled": False}},
     )
     if os.environ.get("SEED_DEMO_DATA", "false").lower() == "true":

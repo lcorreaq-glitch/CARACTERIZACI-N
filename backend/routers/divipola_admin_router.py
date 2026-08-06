@@ -54,7 +54,7 @@ async def _seed_static():
 
 
 @router.post("")
-async def create_municipio(payload: MunicipioIn, user=Depends(require_roles("superadmin", "admin"))):
+async def create_municipio(payload: MunicipioIn, user=Depends(require_roles("superadmin", "direccion"))):
     if await db.divipola_municipios.find_one({"codigo": payload.codigo}):
         raise HTTPException(400, "Código ya existe")
     doc = payload.model_dump()
@@ -69,7 +69,7 @@ async def create_municipio(payload: MunicipioIn, user=Depends(require_roles("sup
 
 
 @router.patch("/{municipio_id}")
-async def update_municipio(municipio_id: str, payload: MunicipioIn, user=Depends(require_roles("superadmin", "admin"))):
+async def update_municipio(municipio_id: str, payload: MunicipioIn, user=Depends(require_roles("superadmin", "direccion"))):
     upd = payload.model_dump()
     await db.divipola_municipios.update_one({"id": municipio_id}, {"$set": upd})
     return await db.divipola_municipios.find_one({"id": municipio_id}, {"_id": 0})

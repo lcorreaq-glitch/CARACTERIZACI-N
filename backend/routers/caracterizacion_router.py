@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from auth import get_current_user
 from database import db
+from scope import apply_role_scope
 
 router = APIRouter(prefix="/api/caracterizacion", tags=["caracterizacion"])
 
@@ -60,6 +61,7 @@ async def _params(
     docente_id: Optional[str] = None,
     materia_id: Optional[str] = None,
     codigo_grupo: Optional[str] = None,
+    user=Depends(get_current_user),
 ):
     match = _build_match(locals())
     # docente/materia/grupo: intersección de cédulas
@@ -77,6 +79,8 @@ async def _params(
         for s in cedulas_sets[1:]:
             final = final & s
         match["cedula"] = {"$in": list(final)} if final else "__NO_MATCH__"
+    # Enforce role scope (decano/coordinador)
+    match = apply_role_scope(user, match)
     return match
 
 

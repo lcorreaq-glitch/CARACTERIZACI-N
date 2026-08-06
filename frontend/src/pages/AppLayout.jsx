@@ -16,6 +16,14 @@ import { Badge } from "@/components/ui/badge";
 const FilterContext = createContext({ filters: {}, setFilter: () => {}, clear: () => {}, opts: {} });
 export const useFilters = () => useContext(FilterContext);
 
+const ROLE_LABEL_MAP = {
+  superadmin: "Superadministrador",
+  direccion: "Dirección",
+  decano: "Decano",
+  coordinador: "Coordinador",
+  profesor: "Profesor",
+};
+
 const NAV = [
   { to: "/", label: "Ejecutivo", icon: LayoutDashboard, hideForDocente: true },
   { to: "/mi-panel", label: "Mi panel", icon: GraduationCap, onlyDocente: true },
@@ -67,13 +75,23 @@ export default function AppLayout() {
   const clear = () => setFilters({});
 
   const activeCount = Object.keys(filters).length;
-  const isAdmin = user?.role === "superadmin" || user?.role === "admin";
-  const isDocente = user?.role === "docente";
+  const role = user?.role;
+  const isSuperadmin = role === "superadmin";
+  const isDireccion = role === "direccion";
+  const isDecano = role === "decano";
+  const isCoordinador = role === "coordinador";
+  const isProfesor = role === "profesor";
+  // Access to admin/upload menu items: superadmin + direccion (dirección puede VER admin pero no PATCH permisos globales / usuarios)
+  const isAdmin = isSuperadmin || isDireccion;
+  // Access to "Mi panel": profesor, decano, coordinador, superadmin
+  const canSeeMiPanel = isProfesor || isDecano || isCoordinador || isSuperadmin;
+  // "Sólo scoped" — no ver dashboards globales sin filtro (todos ellos aplican scope)
+  const isScoped = isDecano || isCoordinador || isProfesor;
 
   const visibleNav = NAV.filter((n) => {
     if (n.admin && !isAdmin) return false;
-    if (n.onlyDocente && !isDocente && user?.role !== "superadmin") return false;
-    if (n.hideForDocente && isDocente) return false;
+    if (n.onlyDocente && !canSeeMiPanel) return false;
+    if (n.hideForDocente && isProfesor) return false;
     return true;
   });
 
@@ -114,7 +132,9 @@ export default function AppLayout() {
               </div>
               <div className="min-w-0">
                 <div className="text-xs font-medium truncate">{user?.full_name}</div>
-                <div className="text-[10px] text-muted-foreground uppercase tracking-widest">{user?.role}</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                  {ROLE_LABEL_MAP[user?.role] || user?.role}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -337,8 +357,8 @@ function DocenteCursosPanel() {
   const cursos = (opts.grupos || []).filter((g) => g.docente_id === filters.docente_id);
   const activo = filters.codigo_grupo;
 
-  // Superadmin/admin always can. Docente needs explicit permission.
-  const canDownload = user?.role === "superadmin" || user?.role === "admin" || user?.download_enabled === true;
+  // Superadmin/direccion always can. Others need explicit permission.
+  const canDownload = user?.role === "superadmin" || user?.role === "direccion" || user?.download_enabled === true;
 
   const descargarEstudiantes = async (codigo_grupo) => {
     if (!canDownload) {

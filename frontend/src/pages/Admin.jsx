@@ -14,7 +14,21 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-const ROLES = ["superadmin", "admin", "docente", "viewer"];
+const ROLES = ["superadmin", "direccion", "decano", "coordinador", "profesor"];
+const ROLE_LABELS = {
+  superadmin: "Superadministrador",
+  direccion: "Dirección",
+  decano: "Decano",
+  coordinador: "Coordinador",
+  profesor: "Profesor",
+};
+const ROLE_DESCRIPTIONS = {
+  superadmin: "Acceso total sin restricciones",
+  direccion: "Ve todos los tableros y admin — NO gestiona usuarios ni permisos globales",
+  decano: "Ve solo la facultad asignada (requiere facultad)",
+  coordinador: "Ve solo su programa (o facultad si es coord. de facultad)",
+  profesor: "Ve solo sus cursos asignados y sus estudiantes",
+};
 
 export default function Admin() {
   return (
@@ -29,7 +43,7 @@ export default function Admin() {
         <TabsList className="rounded-sm flex-wrap h-auto">
           <TabsTrigger value="users" data-testid="tab-users">Usuarios & Roles</TabsTrigger>
           <TabsTrigger value="settings" data-testid="tab-settings">Permisos globales</TabsTrigger>
-          <TabsTrigger value="docentes" data-testid="tab-docentes">Docentes</TabsTrigger>
+          <TabsTrigger value="docentes" data-testid="tab-docentes">Profesores</TabsTrigger>
           <TabsTrigger value="facultades" data-testid="tab-facultades">Facultades</TabsTrigger>
           <TabsTrigger value="programas" data-testid="tab-programas">Programas</TabsTrigger>
           <TabsTrigger value="materias" data-testid="tab-materias">Materias</TabsTrigger>
@@ -58,8 +72,10 @@ function UsersTab() {
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [facultades, setFacultades] = useState([]);
+  const [programas, setProgramas] = useState([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ email: "", password: "", full_name: "", role: "viewer" });
+  const [form, setForm] = useState({ email: "", password: "", full_name: "", role: "profesor", facultad_id: "", programa_id: "" });
   const [editUser, setEditUser] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [resetTarget, setResetTarget] = useState(null);
@@ -73,16 +89,39 @@ function UsersTab() {
       .then((r) => setUsers(r.data || []))
       .finally(() => setLoading(false));
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    api.get("/admin/facultades").then((r) => setFacultades(r.data || []));
+    api.get("/admin/programas").then((r) => setProgramas((r.data?.items || r.data || []))).catch(() => {});
+  }, []);
+
+  // Programas filtered by selected facultad in the form
+  const programasForFac = (facId) => facId ? programas.filter((p) => p.facultad_id === facId) : programas;
+
+  const validateScope = (payload) => {
+    if (payload.role === "decano" && !payload.facultad_id) {
+      toast.error("El rol Decano requiere una facultad asignada");
+      return false;
+    }
+    if (payload.role === "coordinador" && !payload.facultad_id && !payload.programa_id) {
+      toast.error("El rol Coordinador requiere una facultad o programa asignado");
+      return false;
+    }
+    return true;
+  };
 
   const create = async () => {
     if (!form.email || !form.password || !form.full_name) return toast.error("Complete todos los campos");
     if (form.password.length < 6) return toast.error("La contraseña debe tener al menos 6 caracteres");
+    if (!validateScope(form)) return;
     try {
-      await api.post("/admin/users", form);
+      const payload = { ...form };
+      if (!payload.facultad_id) delete payload.facultad_id;
+      if (!payload.programa_id) delete payload.programa_id;
+      await api.post("/admin/users", payload);
       toast.success("Usuario creado. Debe cambiar contraseña en el primer login.");
       setOpen(false);
-      setForm({ email: "", password: "", full_name: "", role: "viewer" });
+      setForm({ email: "", password: "", full_name: "", role: "profesor", facultad_id: "", programa_id: "" });
       load();
     } catch (e) { toast.error(e?.response?.data?.detail || "Error"); }
   };
@@ -94,13 +133,20 @@ function UsersTab() {
       role: u.role,
       active: u.active !== false,
       download_enabled: u.download_enabled === true,
+      facultad_id: u.facultad_id || "",
+      programa_id: u.programa_id || "",
     });
   };
 
   const saveEdit = async () => {
     if (!editUser) return;
+    if (!validateScope(editForm)) return;
     try {
-      await api.patch(`/admin/users/${editUser.id}`, editForm);
+      const payload = { ...editForm };
+      // Send empty string as null so backend can clear the field
+      if (payload.facultad_id === "") payload.facultad_id = null;
+      if (payload.programa_id === "") payload.programa_id = null;
+      await api.patch(`/admin/users/${editUser.id}`, payload);
       toast.success("Usuario actualizado");
       setEditUser(null);
       load();
@@ -158,31 +204,34 @@ function UsersTab() {
     active: users.filter((u) => u.active !== false).length,
     inactive: users.filter((u) => u.active === false).length,
     superadmin: users.filter((u) => u.role === "superadmin").length,
-    admin: users.filter((u) => u.role === "admin").length,
-    docente: users.filter((u) => u.role === "docente").length,
-    viewer: users.filter((u) => u.role === "viewer").length,
+    direccion: users.filter((u) => u.role === "direccion").length,
+    decano: users.filter((u) => u.role === "decano").length,
+    coordinador: users.filter((u) => u.role === "coordinador").length,
+    profesor: users.filter((u) => u.role === "profesor").length,
   };
 
   const roleBadge = (r) => {
     const cls = {
       superadmin: "bg-[#E3000F]/10 text-[#E3000F] border-[#E3000F]/30",
-      admin: "bg-[#0033A0]/10 text-[#0033A0] border-[#0033A0]/30",
-      docente: "bg-[#FFCD00]/20 text-[#7A6300] border-[#FFCD00]/40",
-      viewer: "bg-slate-500/10 text-slate-700 border-slate-500/30",
+      direccion: "bg-[#0033A0]/10 text-[#0033A0] border-[#0033A0]/30",
+      decano: "bg-purple-500/10 text-purple-700 border-purple-500/30",
+      coordinador: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30",
+      profesor: "bg-[#FFCD00]/20 text-[#7A6300] border-[#FFCD00]/40",
     }[r] || "bg-muted text-muted-foreground";
-    return <Badge variant="outline" className={`text-[9px] uppercase tracking-widest rounded-sm ${cls}`}>{r}</Badge>;
+    return <Badge variant="outline" className={`text-[9px] uppercase tracking-widest rounded-sm ${cls}`}>{ROLE_LABELS[r] || r}</Badge>;
   };
 
   return (
     <div className="dense-card p-5 mt-4" data-testid="users-tab-panel">
       {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-7 gap-3 mb-5">
         <StatCard label="Total" value={counts.total} />
         <StatCard label="Activos" value={counts.active} accent="text-emerald-700" />
         <StatCard label="Inactivos" value={counts.inactive} accent="text-[#E3000F]" />
-        <StatCard label="Admin/Super" value={counts.superadmin + counts.admin} accent="text-[#0033A0]" />
-        <StatCard label="Docentes" value={counts.docente} accent="text-[#7A6300]" />
-        <StatCard label="Viewer" value={counts.viewer} />
+        <StatCard label="Superadmin" value={counts.superadmin} accent="text-[#E3000F]" />
+        <StatCard label="Dirección" value={counts.direccion} accent="text-[#0033A0]" />
+        <StatCard label="Decanos" value={counts.decano} accent="text-purple-700" />
+        <StatCard label="Coord./Prof." value={counts.coordinador + counts.profesor} accent="text-[#7A6300]" />
       </div>
 
       <div className="flex flex-wrap gap-3 items-end justify-between mb-4">
@@ -198,7 +247,7 @@ function UsersTab() {
             <SelectTrigger className="rounded-sm w-40" data-testid="users-role-filter"><SelectValue placeholder="Rol" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los roles</SelectItem>
-              {ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+              {ROLES.map((r) => <SelectItem key={r} value={r}>{ROLE_LABELS[r] || r}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -217,7 +266,7 @@ function UsersTab() {
                 <UserPlus className="w-4 h-4 mr-2" /> Crear usuario
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle className="font-display">Crear usuario</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <div><Label className="label-eyebrow">Nombre completo</Label><Input className="rounded-sm" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} data-testid="new-user-name" /></div>
@@ -228,14 +277,51 @@ function UsersTab() {
                 </div>
                 <div>
                   <Label className="label-eyebrow">Rol</Label>
-                  <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                  <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v, facultad_id: "", programa_id: "" })}>
                     <SelectTrigger className="rounded-sm" data-testid="new-user-role"><SelectValue /></SelectTrigger>
-                    <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                    <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}</SelectContent>
                   </Select>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    <b>superadmin</b>: acceso total · <b>admin</b>: sin gestión de usuarios · <b>docente</b>: solo sus grupos · <b>viewer</b>: solo lectura.
-                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-1 italic">{ROLE_DESCRIPTIONS[form.role]}</p>
                 </div>
+                {(form.role === "decano" || form.role === "coordinador") && (
+                  <div className="border-l-2 border-purple-500/40 pl-3 py-2 bg-purple-500/5 rounded-sm space-y-3">
+                    <p className="text-[10px] font-semibold text-purple-700 uppercase tracking-wider">
+                      Scope obligatorio para {ROLE_LABELS[form.role]}
+                    </p>
+                    <div>
+                      <Label className="label-eyebrow">
+                        Facultad {form.role === "decano" && <span className="text-[#E3000F]">*</span>}
+                      </Label>
+                      <Select value={form.facultad_id || "__none__"} onValueChange={(v) => setForm({ ...form, facultad_id: v === "__none__" ? "" : v, programa_id: "" })}>
+                        <SelectTrigger className="rounded-sm" data-testid="new-user-facultad">
+                          <SelectValue placeholder="Seleccione una facultad…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">— Sin asignar —</SelectItem>
+                          {facultades.map((f) => <SelectItem key={f.id} value={f.id}>{f.nombre}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {form.role === "coordinador" && (
+                      <div>
+                        <Label className="label-eyebrow">
+                          Programa <span className="text-muted-foreground text-[9px]">(o vacío si es coord. de facultad)</span>
+                        </Label>
+                        <Select value={form.programa_id || "__none__"} onValueChange={(v) => setForm({ ...form, programa_id: v === "__none__" ? "" : v })}>
+                          <SelectTrigger className="rounded-sm" data-testid="new-user-programa">
+                            <SelectValue placeholder={form.facultad_id ? "Seleccione un programa…" : "Primero elija facultad (opcional)"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">— Coord. de Facultad —</SelectItem>
+                            {programasForFac(form.facultad_id).map((p) => (
+                              <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <DialogFooter><Button onClick={create} className="bg-[#0033A0] hover:bg-[#002A85] text-white rounded-sm" data-testid="new-user-submit">Crear</Button></DialogFooter>
             </DialogContent>
@@ -254,6 +340,7 @@ function UsersTab() {
               <TableHead className="text-[10px] uppercase tracking-wider">Usuario</TableHead>
               <TableHead className="text-[10px] uppercase tracking-wider">Email</TableHead>
               <TableHead className="text-[10px] uppercase tracking-wider">Rol</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider">Facultad / Programa</TableHead>
               <TableHead className="text-[10px] uppercase tracking-wider">Estado</TableHead>
               <TableHead className="text-[10px] uppercase tracking-wider">Descargas</TableHead>
               <TableHead className="text-[10px] uppercase tracking-wider">Último ingreso</TableHead>
@@ -261,7 +348,7 @@ function UsersTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading && <TableRow><TableCell colSpan={7} className="text-center py-6 text-xs text-muted-foreground">Cargando…</TableCell></TableRow>}
+            {loading && <TableRow><TableCell colSpan={8} className="text-center py-6 text-xs text-muted-foreground">Cargando…</TableCell></TableRow>}
             {!loading && filtered.map((u) => (
               <TableRow key={u.id} className={`hover:bg-muted/40 ${u.active === false ? "opacity-60" : ""}`} data-testid={`user-row-${u.id}`}>
                 <TableCell className="text-xs font-medium">
@@ -271,6 +358,14 @@ function UsersTab() {
                 </TableCell>
                 <TableCell className="text-[11px]">{u.email}</TableCell>
                 <TableCell>{roleBadge(u.role)}</TableCell>
+                <TableCell className="text-[10px]">
+                  {u.programa_nombre && <div><span className="text-muted-foreground">Programa:</span> <b>{u.programa_nombre}</b></div>}
+                  {u.facultad_nombre && <div><span className="text-muted-foreground">Facultad:</span> <b>{u.facultad_nombre}</b></div>}
+                  {!u.programa_nombre && !u.facultad_nombre && (u.role === "decano" || u.role === "coordinador")
+                    ? <Badge variant="outline" className="text-[8px] bg-[#E3000F]/10 text-[#E3000F] border-[#E3000F]/40 rounded-sm">⚠ Sin asignar</Badge>
+                    : (!u.programa_nombre && !u.facultad_nombre ? <span className="text-muted-foreground italic">—</span> : null)
+                  }
+                </TableCell>
                 <TableCell>
                   {isSuperadmin ? (
                     <Switch
@@ -321,7 +416,7 @@ function UsersTab() {
               </TableRow>
             ))}
             {!loading && filtered.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="text-center py-6 text-xs text-muted-foreground">Sin usuarios con esos criterios</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-6 text-xs text-muted-foreground">Sin usuarios con esos criterios</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -329,7 +424,7 @@ function UsersTab() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editUser} onOpenChange={(v) => !v && setEditUser(null)}>
-        <DialogContent data-testid="edit-user-dialog">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" data-testid="edit-user-dialog">
           <DialogHeader><DialogTitle className="font-display">Editar {editUser?.full_name}</DialogTitle></DialogHeader>
           {editUser && (
             <div className="space-y-3">
@@ -341,11 +436,49 @@ function UsersTab() {
                 <p className="text-[10px] text-muted-foreground mt-1">El correo no se puede modificar. Cree un usuario nuevo si es necesario.</p>
               </div>
               <div><Label className="label-eyebrow">Rol</Label>
-                <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v })}>
+                <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v, facultad_id: v === "profesor" || v === "superadmin" || v === "direccion" ? "" : editForm.facultad_id, programa_id: v === "profesor" || v === "superadmin" || v === "direccion" || v === "decano" ? "" : editForm.programa_id })}>
                   <SelectTrigger className="rounded-sm" data-testid="edit-user-role"><SelectValue /></SelectTrigger>
-                  <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                  <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}</SelectContent>
                 </Select>
+                <p className="text-[10px] text-muted-foreground mt-1 italic">{ROLE_DESCRIPTIONS[editForm.role]}</p>
               </div>
+              {(editForm.role === "decano" || editForm.role === "coordinador") && (
+                <div className="border-l-2 border-purple-500/40 pl-3 py-2 bg-purple-500/5 rounded-sm space-y-3">
+                  <p className="text-[10px] font-semibold text-purple-700 uppercase tracking-wider">
+                    Scope de {ROLE_LABELS[editForm.role]}
+                  </p>
+                  <div>
+                    <Label className="label-eyebrow">
+                      Facultad {editForm.role === "decano" && <span className="text-[#E3000F]">*</span>}
+                    </Label>
+                    <Select value={editForm.facultad_id || "__none__"} onValueChange={(v) => setEditForm({ ...editForm, facultad_id: v === "__none__" ? "" : v, programa_id: "" })}>
+                      <SelectTrigger className="rounded-sm" data-testid="edit-user-facultad">
+                        <SelectValue placeholder="Seleccione una facultad…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Sin asignar —</SelectItem>
+                        {facultades.map((f) => <SelectItem key={f.id} value={f.id}>{f.nombre}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {editForm.role === "coordinador" && (
+                    <div>
+                      <Label className="label-eyebrow">Programa <span className="text-muted-foreground text-[9px]">(vacío = coord. de facultad)</span></Label>
+                      <Select value={editForm.programa_id || "__none__"} onValueChange={(v) => setEditForm({ ...editForm, programa_id: v === "__none__" ? "" : v })}>
+                        <SelectTrigger className="rounded-sm" data-testid="edit-user-programa">
+                          <SelectValue placeholder="Seleccione un programa…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">— Coord. de Facultad —</SelectItem>
+                          {programasForFac(editForm.facultad_id).map((p) => (
+                            <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex items-center justify-between border-t border-border pt-3">
                 <div>
                   <Label className="label-eyebrow">Cuenta activa</Label>
@@ -431,20 +564,20 @@ function SystemSettingsTab() {
   const SWITCHES = [
     {
       key: "docente_downloads_globally_enabled",
-      title: "Descargas globales para docentes",
-      desc: "Cuando está encendido, TODOS los docentes pueden descargar Excel/CSV de sus grupos, aunque su permiso individual esté apagado. Recomendado: dejar apagado y habilitar caso a caso.",
+      title: "Descargas globales para profesores/coord./decanos",
+      desc: "Cuando está encendido, TODOS los profesores, coordinadores y decanos pueden descargar Excel/CSV, aunque su permiso individual esté apagado. Recomendado: dejar apagado y habilitar caso a caso.",
       icon: Download,
     },
     {
       key: "docente_ai_insights_enabled",
-      title: "IA — Insights para docentes",
-      desc: "Permite que los docentes accedan al módulo de Alertas tempranas y resúmenes con IA sobre sus propios estudiantes.",
+      title: "IA — Alertas tempranas para profesores/coord./decanos",
+      desc: "Permite que los profesores, coordinadores y decanos accedan al módulo de Alertas tempranas y resúmenes con IA sobre sus estudiantes.",
       icon: Shield,
     },
     {
       key: "docente_can_see_all_periods",
-      title: "Docente puede ver periodos anteriores",
-      desc: "Si está apagado, el docente solo verá el periodo activo (2026-2). Enciéndalo para dar acceso al histórico completo de sus asignaciones.",
+      title: "Profesor puede ver periodos anteriores",
+      desc: "Si está apagado, el profesor solo verá el periodo activo (2026-2). Enciéndalo para dar acceso al histórico completo de sus asignaciones.",
       icon: Eye,
     },
     {
@@ -515,23 +648,26 @@ function SystemSettingsTab() {
               <TableRow>
                 <TableHead className="text-[10px] uppercase tracking-wider">Acción</TableHead>
                 <TableHead className="text-[10px] uppercase tracking-wider text-center">Superadmin</TableHead>
-                <TableHead className="text-[10px] uppercase tracking-wider text-center">Admin</TableHead>
-                <TableHead className="text-[10px] uppercase tracking-wider text-center">Docente</TableHead>
-                <TableHead className="text-[10px] uppercase tracking-wider text-center">Viewer</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-center">Dirección</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-center">Decano</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-center">Coordinador</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-center">Profesor</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {[
-                ["Dashboards ejecutivo/académico/territorial", true, true, false, true],
-                ["Ver caracterización global", true, true, false, true],
-                ["Ver Mi Panel (solo sus grupos)", true, false, true, false],
-                ["Cargas de Excel", true, true, false, false],
-                ["Editar catálogos (facultades, programas, materias)", true, true, false, false],
-                ["Crear/editar/eliminar usuarios", true, false, false, false],
-                ["Permisos globales del sistema", true, false, false, false],
-                ["Descargar Excel/CSV", true, true, "config", false],
-                ["Ver estudiantes de otros docentes", true, true, false, true],
-                ["Cambiar propia contraseña", true, true, true, true],
+                // Cada fila: [acción, super, direccion, decano, coord, profesor]
+                ["Dashboards ejecutivo/académico/territorial (globales)", true, true, "facultad", "programa", false],
+                ["Ver caracterización global", true, true, "facultad", "programa", false],
+                ["Ver Mi Panel (con estudiantes)", true, true, "facultad", "programa", "sus grupos"],
+                ["Alertas IA sobre estudiantes", true, true, "facultad", "programa", "sus grupos"],
+                ["Cargas de Excel", true, true, false, false, false],
+                ["Editar catálogos (facultades, programas, materias)", true, true, false, false, false],
+                ["Crear/editar/eliminar usuarios", true, false, false, false, false],
+                ["Permisos globales del sistema", true, false, false, false, false],
+                ["Descargar Excel/CSV", true, true, "config", "config", "config"],
+                ["Ver estudiantes fuera de su scope", true, true, false, false, false],
+                ["Cambiar propia contraseña", true, true, true, true, true],
               ].map((row, idx) => (
                 <TableRow key={idx}>
                   <TableCell className="text-xs">{row[0]}</TableCell>
@@ -539,7 +675,10 @@ function SystemSettingsTab() {
                     <TableCell key={i} className="text-center">
                       {v === true && <CheckCircle2 className="w-4 h-4 text-emerald-600 inline" />}
                       {v === false && <XCircle className="w-3.5 h-3.5 text-muted-foreground inline" />}
-                      {v === "config" && <Badge variant="outline" className="text-[9px] rounded-sm bg-amber-500/10 text-amber-700 border-amber-500/40">Configurable</Badge>}
+                      {v === "config" && <Badge variant="outline" className="text-[9px] rounded-sm bg-amber-500/10 text-amber-700 border-amber-500/40">Config</Badge>}
+                      {v === "facultad" && <Badge variant="outline" className="text-[9px] rounded-sm bg-purple-500/10 text-purple-700 border-purple-500/40">Su facultad</Badge>}
+                      {v === "programa" && <Badge variant="outline" className="text-[9px] rounded-sm bg-emerald-500/10 text-emerald-700 border-emerald-500/40">Su programa</Badge>}
+                      {v === "sus grupos" && <Badge variant="outline" className="text-[9px] rounded-sm bg-[#FFCD00]/20 text-[#7A6300] border-[#FFCD00]/40">Sus grupos</Badge>}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -1000,7 +1139,7 @@ function DocenteMateriaTab() {
 
   const load = () => Promise.all([
     api.get("/admin/docente-materia").then((r) => setItems(r.data)),
-    api.get("/admin/users").then((r) => setUsers(r.data.filter((u) => u.role === "docente"))),
+    api.get("/admin/users").then((r) => setUsers(r.data.filter((u) => u.role === "profesor"))),
     api.get("/admin/materias").then((r) => setMaterias(r.data)),
     api.get("/admin/periodos").then((r) => setPeriodos(r.data)),
   ]);

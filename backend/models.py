@@ -13,18 +13,22 @@ def _now():
     return datetime.utcnow().isoformat()
 
 
+ROLES = ["superadmin", "direccion", "decano", "coordinador", "profesor"]
+RoleLiteral = Literal["superadmin", "direccion", "decano", "coordinador", "profesor"]
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     full_name: str
-    role: Literal["superadmin", "admin", "docente", "viewer"] = "viewer"
+    role: RoleLiteral = "profesor"
     facultad_id: Optional[str] = None
     programa_id: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
-    role: Optional[Literal["superadmin", "admin", "docente", "viewer"]] = None
+    role: Optional[RoleLiteral] = None
     facultad_id: Optional[str] = None
     programa_id: Optional[str] = None
     active: Optional[bool] = None
@@ -39,6 +43,8 @@ class UserOut(BaseModel):
     role: str
     facultad_id: Optional[str] = None
     programa_id: Optional[str] = None
+    facultad_nombre: Optional[str] = None
+    programa_nombre: Optional[str] = None
     active: bool = True
     must_change_password: bool = False
     download_enabled: bool = False

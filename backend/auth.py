@@ -49,6 +49,17 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)):
     user = await db.users.find_one({"id": payload.get("sub")}, {"_id": 0, "password": 0})
     if not user:
         raise HTTPException(status_code=401, detail="Usuario no encontrado")
+    if user.get("active") is False:
+        raise HTTPException(status_code=403, detail="Usuario desactivado")
+    # Enrich with scope names (facultad_nombre, programa_nombre) for roles that need it
+    role = user.get("role")
+    if role in ("decano", "coordinador"):
+        if user.get("facultad_id"):
+            fac = await db.facultades.find_one({"id": user["facultad_id"]}, {"_id": 0, "nombre": 1})
+            user["facultad_nombre"] = (fac or {}).get("nombre")
+        if user.get("programa_id"):
+            prog = await db.programas.find_one({"id": user["programa_id"]}, {"_id": 0, "nombre": 1})
+            user["programa_nombre"] = (prog or {}).get("nombre")
     return user
 
 

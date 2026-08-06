@@ -7,16 +7,18 @@ from fastapi.responses import StreamingResponse
 from typing import Optional
 from auth import get_current_user
 from database import db
+from scope import apply_role_scope
 
 router = APIRouter(prefix="/api/exports", tags=["exports"])
 
 
 async def _can_download(user) -> bool:
-    """Docentes need explicit permission (per-user OR global)."""
+    """Descargas: superadmin/direccion siempre; decano/coordinador/profesor requieren permiso individual
+    o el toggle global (docente_downloads_globally_enabled)."""
     role = user.get("role")
-    if role in ("superadmin", "admin"):
+    if role in ("superadmin", "direccion"):
         return True
-    if role == "docente":
+    if role in ("profesor", "decano", "coordinador"):
         if user.get("download_enabled") is True:
             return True
         settings = await db.system_settings.find_one({"_id": "global"}, {"_id": 0}) or {}
@@ -34,7 +36,7 @@ async def _enforce_download(user):
 
 async def _enforce_docente_scope(user, codigo_grupo: Optional[str], docente_id: Optional[str]):
     """A docente can only export their own groups."""
-    if user.get("role") != "docente":
+    if user.get("role") != "profesor":
         return
     if codigo_grupo:
         g = await db.grupos.find_one({"codigo_grupo": codigo_grupo}, {"_id": 0, "docente_id": 1})
@@ -136,10 +138,11 @@ async def export_students(
     await _enforce_download(user)
     await _enforce_docente_scope(user, codigo_grupo, docente_id)
     # Force docente scope
-    if user.get("role") == "docente" and not codigo_grupo and not docente_id:
+    if user.get("role") == "profesor" and not codigo_grupo and not docente_id:
         docente_id = user["id"]
     match = _build_match(locals())
     match = await _apply_docente_materia(match, docente_id, materia_id, codigo_grupo)
+    match = apply_role_scope(user, match)
     cursor = db.students.find(match, {"_id": 0, "id": 0, "created_at": 0,
                                        "hobbies_cat": 0, "actividades_cat": 0,
                                        "lat": 0, "lon": 0})
@@ -259,7 +262,7 @@ async def export_notas(
     """Descarga histórico de notas con filtros opcionales."""
     await _enforce_download(user)
     await _enforce_docente_scope(user, codigo_grupo, docente_id)
-    if user.get("role") == "docente" and not codigo_grupo and not docente_id:
+    if user.get("role") == "profesor" and not codigo_grupo and not docente_id:
         docente_id = user["id"]
     m = {}
     if periodo and periodo != "all":
@@ -271,6 +274,13 @@ async def export_notas(
     if codigo_grupo and codigo_grupo != "all":
         m["codigo_grupo"] = codigo_grupo
     docs = await db.historico_notas.find(m, {"_id": 0, "id": 0, "created_at": 0, "upload_id": 0}).to_list(100000)
+    # Role scope: filter by facultad/programa via cedulas of matching students
+    scope_match = apply_role_scope(user, {})
+    if "_no_scope_" in scope_match:
+        docs = []
+    elif "facultad" in scope_match or "programa" in scope_match:
+        cedulas_scope = set(await db.students.distinct("cedula", scope_match))
+        docs = [d for d in docs if d.get("cedula") in cedulas_scope]
     if not docs:
         docs = [{"info": "Sin notas registradas"}]
     df = pd.DataFrame(docs)
@@ -317,6 +327,17 @@ async def export_grupo_detail(
     grupo = await db.grupos.find_one({"codigo_grupo": codigo_grupo}, {"_id": 0})
     if not grupo:
         raise HTTPException(404, "Grupo no encontrado")
+
+    # Role scope: decano/coordinador can only access groups within their facultad/programa
+    scope_match = apply_role_scope(user, {})
+    if "_no_scope_" in scope_match:
+        raise HTTPException(403, "Su rol requiere facultad/programa asignado (contacte al administrador)")
+    if "facultad" in scope_match or "programa" in scope_match:
+        cedulas_grupo = await db.matriculas.distinct("cedula", {"codigo_grupo": codigo_grupo})
+        if cedulas_grupo:
+            in_scope = await db.students.count_documents({**scope_match, "cedula": {"$in": cedulas_grupo}})
+            if in_scope == 0:
+                raise HTTPException(403, "Este grupo no pertenece a su facultad/programa")
 
     # 1) Metadata del grupo
     resumen = [{
