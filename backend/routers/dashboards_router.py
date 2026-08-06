@@ -508,7 +508,8 @@ async def territorial(match: dict = Depends(_common_params), user=Depends(get_cu
     municipios = await coll.aggregate(pipeline + [
         {"$group": {
             "_id": {"codigo": "$ciudad_codigo", "nombre": "$ciudad_nombre",
-                    "lat": "$lat", "lon": "$lon", "departamento": "$departamento"},
+                    "lat": "$lat", "lon": "$lon", "departamento": "$departamento",
+                    "pais": "$pais"},
             "n": {"$sum": 1},
             "prom": {"$avg": "$promedio"},
             "vulnerables": {"$sum": {"$cond": ["$grupo_vulnerable", 1, 0]}},
@@ -518,17 +519,49 @@ async def territorial(match: dict = Depends(_common_params), user=Depends(get_cu
         {"$project": {"_id": 0, "codigo": "$_id.codigo", "nombre": "$_id.nombre",
                       "lat": "$_id.lat", "lon": "$_id.lon",
                       "departamento": "$_id.departamento",
+                      "pais": "$_id.pais",
                       "n": 1, "prom": {"$round": ["$prom", 2]},
                       "vulnerables": 1, "rural": 1}}
-    ]).to_list(2000)
+    ]).to_list(3000)
 
     por_departamento = await coll.aggregate(pipeline + [
         {"$group": {"_id": "$departamento", "n": {"$sum": 1}}},
         {"$sort": {"n": -1}},
-        {"$project": {"_id": 0, "departamento": "$_id", "n": 1}}
+        {"$project": {"_id": 0, "departamento": {"$ifNull": ["$_id", "Sin dato"]}, "n": 1}}
+    ]).to_list(100)
+
+    por_pais = await coll.aggregate(pipeline + [
+        {"$group": {"_id": "$pais", "n": {"$sum": 1}}},
+        {"$sort": {"n": -1}},
+        {"$project": {"_id": 0, "pais": {"$ifNull": ["$_id", "Sin dato"]}, "n": 1}}
     ]).to_list(50)
 
-    return {"municipios": municipios, "por_departamento": por_departamento}
+    # Resumen de cobertura territorial (totales y cuántos sin dato)
+    match_query = match if match else {}
+    total = await coll.count_documents(match_query)
+    con_georef = await coll.count_documents({**match_query, "lat": {"$ne": 0}})
+    sin_georef = total - con_georef
+    sin_ciudad = await coll.count_documents({**match_query, "$or": [{"ciudad_nombre": "Sin dato"}, {"ciudad_nombre": ""}, {"ciudad_nombre": None}]})
+    sin_departamento = await coll.count_documents({**match_query, "$or": [{"departamento": "Sin dato"}, {"departamento": ""}, {"departamento": None}]})
+    sin_pais = await coll.count_documents({**match_query, "$or": [{"pais": "Sin dato"}, {"pais": ""}, {"pais": None}]})
+    resumen = {
+        "total": total,
+        "con_georef": con_georef,
+        "sin_georef": sin_georef,
+        "sin_ciudad": sin_ciudad,
+        "sin_departamento": sin_departamento,
+        "sin_pais": sin_pais,
+        "n_municipios": len(set((m["nombre"], m["departamento"]) for m in municipios if m.get("nombre") and m["nombre"] != "Sin dato")),
+        "n_departamentos": len([d for d in por_departamento if d["departamento"] != "Sin dato"]),
+        "n_paises": len([p for p in por_pais if p["pais"] != "Sin dato"]),
+    }
+
+    return {
+        "municipios": municipios,
+        "por_departamento": por_departamento,
+        "por_pais": por_pais,
+        "resumen": resumen,
+    }
 
 
 @router.get("/historical")
