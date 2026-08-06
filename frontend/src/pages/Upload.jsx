@@ -46,8 +46,11 @@ export default function Upload() {
         </p>
       </header>
 
-      <Tabs defaultValue="estudiantes">
+      <Tabs defaultValue="fullrefresh">
         <TabsList className="rounded-sm flex-wrap h-auto">
+          <TabsTrigger value="fullrefresh" data-testid="upl-tab-fullrefresh">
+            <RotateCcw className="w-4 h-4 mr-2" /> Refresh completo
+          </TabsTrigger>
           <TabsTrigger value="estudiantes" data-testid="upl-tab-estudiantes">
             <Users className="w-4 h-4 mr-2" /> Estudiantes
           </TabsTrigger>
@@ -58,10 +61,13 @@ export default function Upload() {
             <BookOpen className="w-4 h-4 mr-2" /> Docente – Materia
           </TabsTrigger>
           <TabsTrigger value="descargas" data-testid="upl-tab-descargas">
-            <Database className="w-4 h-4 mr-2" /> Descargas / Backup
+            <Database className="w-4 h-4 mr-2" /> Descargar BD
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="fullrefresh" className="mt-4">
+          <FullRefreshTab onDone={loadAll} />
+        </TabsContent>
         <TabsContent value="estudiantes" className="mt-4">
           <StudentsUpload onIngestDone={loadAll} />
         </TabsContent>
@@ -317,6 +323,22 @@ function DownloadsTab() {
   const filterQs = buildQuery(filters);
   const hasFilters = Object.keys(filters || {}).length > 0;
   const ts = new Date().toISOString().slice(0, 10);
+  const [stats, setStats] = useState({});
+
+  useEffect(() => {
+    api.get("/uploads/backup-stats").then((r) => setStats(r.data || {})).catch(() => {});
+  }, []);
+
+  const backups = [
+    { key: "students", label: "Estudiantes completos", desc: "16.4k estudiantes con caracterización socio-demográfica, académica y territorial." },
+    { key: "grupos", label: "Grupos activos", desc: "1.3k grupos periodo 2026-2 con docente, asignatura, día/hora y programa." },
+    { key: "matriculas", label: "Matrículas", desc: "92k cédula × grupo × periodo, con estado y correos del estudiante." },
+    { key: "historico_notas", label: "Notas históricas", desc: "169k notas 2025-2 y 2026-1 con área, docente, aprobada, créditos y estado." },
+    { key: "docentes", label: "Docentes", desc: "399 docentes con documento, correo institucional, correo personal, IDDOC." },
+    { key: "docente_materia", label: "Docente-materia", desc: "737 relaciones únicas docente × asignatura × periodo × grupo." },
+    { key: "programas", label: "Catálogo programas SNIES", desc: "59 programas con código SNIES, facultad, nivel y modalidad." },
+    { key: "facultades", label: "Facultades", desc: "5 facultades institucionales." },
+  ];
 
   const downloads = [
     {
@@ -341,6 +363,35 @@ function DownloadsTab() {
 
   return (
     <div className="space-y-4">
+      {/* Backup completo de la BD por colección */}
+      <div className="dense-card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="label-eyebrow">Backup completo</p>
+            <h3 className="font-display font-bold text-lg tracking-tight">Descargar base de datos por colección</h3>
+            <p className="text-[11px] text-muted-foreground mt-1">Exporta la colección completa como Excel (sin filtros aplicados). Útil para respaldar la BD antes de una recarga.</p>
+          </div>
+          <Badge variant="outline" className="rounded-sm text-[10px]">{Object.values(stats).reduce((a, b) => a + (b || 0), 0).toLocaleString("es-CO")} registros totales</Badge>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {backups.map((b) => (
+            <button
+              key={b.key}
+              onClick={() => tokenizedDownload(`/api/uploads/backup/${b.key}`, `${b.key}_${ts}.xlsx`)}
+              data-testid={`backup-${b.key}`}
+              className="text-left p-4 border border-border rounded hover:border-[#0033A0] hover:bg-[#0033A0]/5 transition-soft group"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <Database className="w-4 h-4 text-[#0033A0] group-hover:scale-110 transition-transform" />
+                <Badge variant="outline" className="text-[9px] uppercase tracking-widest rounded-sm">{(stats[b.key] || 0).toLocaleString("es-CO")}</Badge>
+              </div>
+              <p className="text-xs font-semibold leading-tight mb-1">{b.label}</p>
+              <p className="text-[10px] text-muted-foreground leading-snug">{b.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {hasFilters && (
         <div className="dense-card p-4 border-[#0033A0]/30 bg-[#0033A0]/5">
           <p className="text-xs flex items-center gap-2">
@@ -375,6 +426,128 @@ function DownloadsTab() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+
+// ============================================================================
+// FULL REFRESH TAB · Recarga completa de la BD desde archivos maestros
+// ============================================================================
+function FullRefreshTab({ onDone }) {
+  const [files, setFiles] = useState({});
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState(null);
+  const [confirmed, setConfirmed] = useState(false);
+
+  const slots = [
+    { key: "carac", label: "Caracterización estudiantes", filename: "carac.xlsx", desc: "16.4k estudiantes con datos socio-demográficos, académicos y territoriales.", accept: ".xlsx" },
+    { key: "asignacion", label: "Asignación de grupos", filename: "estdoc.csv", desc: "Grupos 2026-2 con docente, asignatura, día/hora, matriculados y correos.", accept: ".csv" },
+    { key: "notas_25_2", label: "Notas 2025-2", filename: "notas_25_2.xlsx", desc: "Notas históricas cerradas del periodo 2025-2 (84.8k registros).", accept: ".xlsx" },
+    { key: "notas_26_1", label: "Notas 2026-1", filename: "notas_26_2.xlsx", desc: "Notas históricas cerradas del periodo 2026-1 (84.5k registros).", accept: ".xlsx" },
+    { key: "programas", label: "Catálogo de programas SNIES", filename: "progs.xlsx", desc: "5 facultades y 59 programas con código SNIES, nivel y modalidad.", accept: ".xlsx" },
+  ];
+
+  const upload = async () => {
+    if (!confirmed) {
+      toast.error("Debes confirmar el borrado y recarga de datos");
+      return;
+    }
+    const anyFile = Object.values(files).some(Boolean);
+    if (!anyFile) {
+      toast.error("Selecciona al menos un archivo");
+      return;
+    }
+    setRunning(true);
+    setResult(null);
+    const fd = new FormData();
+    Object.entries(files).forEach(([k, f]) => f && fd.append(k, f));
+    try {
+      const r = await api.post("/uploads/full-refresh", fd, { timeout: 600000 });
+      setResult(r.data);
+      toast.success("Recarga completa exitosa");
+      onDone && onDone();
+    } catch (e) {
+      toast.error(`Error en recarga: ${e.response?.data?.detail?.slice?.(0, 200) || e.message}`);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="dense-card p-5 border-2 border-amber-200 bg-amber-50/50">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-display font-bold text-amber-900">Recarga completa de la base de datos</p>
+            <p className="text-xs text-amber-800 leading-relaxed">
+              Este flujo <b>reemplaza los archivos maestros</b> en <code className="text-[10px] bg-amber-100 px-1 rounded">/app/uploads_user/</code> y ejecuta <code className="text-[10px] bg-amber-100 px-1 rounded">load_real_data.py</code>,
+              que <b>WIPE + REBUILD</b> las colecciones <b>students, grupos, matriculas, historico_notas, docente_materia</b> y los <b>docentes</b> auto-creados.
+              Los superadmin y el docente demo se preservan. Solo debes subir los archivos que <b>cambiaron</b>: los demás se conservan del snapshot anterior.
+              Este proceso puede tardar <b>60-120 segundos</b>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {slots.map((s) => (
+          <div key={s.key} className="dense-card p-4">
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <p className="text-xs font-semibold">{s.label}</p>
+                <p className="text-[10px] text-muted-foreground">{s.filename}</p>
+              </div>
+              {files[s.key] && <Badge variant="outline" className="text-[9px] text-emerald-700 border-emerald-700/40 rounded-sm">Cargado</Badge>}
+            </div>
+            <p className="text-[10px] text-muted-foreground mb-3">{s.desc}</p>
+            <Input
+              type="file"
+              accept={s.accept}
+              onChange={(e) => setFiles((prev) => ({ ...prev, [s.key]: e.target.files?.[0] }))}
+              className="rounded-sm text-xs"
+              data-testid={`fullref-${s.key}`}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="dense-card p-4 flex items-start justify-between gap-4">
+        <label className="flex items-start gap-2 text-xs cursor-pointer flex-1">
+          <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-0.5" data-testid="fullref-confirm" />
+          <span>
+            Entiendo que este proceso <b>elimina y recrea</b> todos los estudiantes, grupos, matrículas, notas y docentes.
+            Los superadmins y el docente demo se conservan.
+          </span>
+        </label>
+        <Button onClick={upload} disabled={running || !confirmed} className="rounded-sm bg-[#0033A0] text-white" data-testid="fullref-run">
+          {running ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Recargando…</> : <><RotateCcw className="w-4 h-4 mr-2" />Ejecutar recarga</>}
+        </Button>
+      </div>
+
+      {result && (
+        <div className="dense-card p-5 border-emerald-200 bg-emerald-50/40">
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-700" />
+            <p className="font-display font-bold text-emerald-900">Recarga completada</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-xs mb-4">
+            {Object.entries(result.stats || {}).map(([k, v]) => (
+              <div key={k}>
+                <p className="label-eyebrow">{k}</p>
+                <p className="kpi-num text-lg">{v.toLocaleString("es-CO")}</p>
+              </div>
+            ))}
+          </div>
+          {result.stdout_tail && (
+            <details className="text-[10px] mt-3">
+              <summary className="cursor-pointer text-muted-foreground">Ver salida del script</summary>
+              <pre className="bg-slate-900 text-slate-100 p-3 rounded-sm mt-2 overflow-x-auto text-[10px]">{result.stdout_tail.join("\n")}</pre>
+            </details>
+          )}
+        </div>
+      )}
     </div>
   );
 }

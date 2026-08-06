@@ -590,3 +590,150 @@ async def ingest_docente_materia(
         "duplicados": duplicados, "errores": len(errores),
         "docentes_creados": new_docentes, "materias_creadas": new_materias,
     }
+
+
+
+# ============================================================================
+# Descarga completa de BD (colecciones principales) como Excel
+# ============================================================================
+BACKUP_COLLECTIONS = {
+    "students": {"filename": "estudiantes_completos.xlsx", "sheet": "Estudiantes"},
+    "grupos": {"filename": "grupos.xlsx", "sheet": "Grupos"},
+    "matriculas": {"filename": "matriculas.xlsx", "sheet": "Matriculas"},
+    "historico_notas": {"filename": "notas_historicas.xlsx", "sheet": "Notas"},
+    "docentes": {"filename": "docentes.xlsx", "sheet": "Docentes"},
+    "docente_materia": {"filename": "docente_materia.xlsx", "sheet": "DocenteMateria"},
+    "programas": {"filename": "programas.xlsx", "sheet": "Programas"},
+    "facultades": {"filename": "facultades.xlsx", "sheet": "Facultades"},
+}
+
+
+@router.get("/backup/{coleccion}")
+async def backup_collection(coleccion: str, user=Depends(require_roles("superadmin", "admin"))):
+    """Descarga una colección de la BD como Excel."""
+    if coleccion not in BACKUP_COLLECTIONS:
+        raise HTTPException(404, f"Colección no válida. Opciones: {list(BACKUP_COLLECTIONS.keys())}")
+    meta = BACKUP_COLLECTIONS[coleccion]
+
+    if coleccion == "docentes":
+        docs = await db.users.find({"role": "docente"}, {"_id": 0, "password": 0}).to_list(5000)
+    else:
+        docs = await db[coleccion].find({}, {"_id": 0}).to_list(200000)
+
+    if not docs:
+        raise HTTPException(404, f"No hay datos en la colección '{coleccion}'")
+
+    df = pd.DataFrame(docs)
+    # Truncar campos lista/dict a string para Excel
+    for col in df.columns:
+        if df[col].apply(lambda x: isinstance(x, (list, dict))).any():
+            df[col] = df[col].apply(lambda x: str(x) if isinstance(x, (list, dict)) else x)
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name=meta["sheet"][:30], index=False)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{meta["filename"]}"'},
+    )
+
+
+@router.get("/backup-stats")
+async def backup_stats(user=Depends(require_roles("superadmin", "admin"))):
+    """Cuenta de documentos por colección para el módulo de descargas."""
+    counts = {}
+    counts["students"] = await db.students.count_documents({})
+    counts["grupos"] = await db.grupos.count_documents({})
+    counts["matriculas"] = await db.matriculas.count_documents({})
+    counts["historico_notas"] = await db.historico_notas.count_documents({})
+    counts["docentes"] = await db.users.count_documents({"role": "docente"})
+    counts["docente_materia"] = await db.docente_materia.count_documents({})
+    counts["programas"] = await db.programas.count_documents({})
+    counts["facultades"] = await db.facultades.count_documents({})
+    return counts
+
+
+# ============================================================================
+# Full-refresh: re-ejecutar load_real_data.py con archivos subidos
+# ============================================================================
+@router.post("/full-refresh")
+async def full_refresh(
+    carac: UploadFile | None = File(None),
+    asignacion: UploadFile | None = File(None),
+    notas_25_2: UploadFile | None = File(None),
+    notas_26_1: UploadFile | None = File(None),
+    programas: UploadFile | None = File(None),
+    user=Depends(require_roles("superadmin")),
+):
+    """Reemplaza archivos base en /app/uploads_user y ejecuta load_real_data.py.
+
+    ⚠️ Este endpoint WIPE + REBUILD toda la BD de estudiantes, notas, grupos y matrículas.
+    Solo el superadmin puede ejecutarlo. Solo reemplaza los archivos que se envíen (los otros
+    se conservan del snapshot anterior)."""
+    import os
+    import subprocess
+    from pathlib import Path
+
+    BASE = Path("/app/uploads_user")
+    BASE.mkdir(parents=True, exist_ok=True)
+
+    saved = {}
+    mapping = [
+        (carac, "carac.xlsx"),
+        (asignacion, "estdoc.csv"),
+        (notas_25_2, "notas_25_2.xlsx"),
+        (notas_26_1, "notas_26_2.xlsx"),
+        (programas, "progs.xlsx"),
+    ]
+    for f, name in mapping:
+        if f and f.filename:
+            path = BASE / name
+            content = await f.read()
+            path.write_bytes(content)
+            saved[name] = len(content)
+
+    if not saved:
+        raise HTTPException(400, "Debes subir al menos un archivo.")
+
+    # Ejecutar load_real_data.py de forma sincrónica y capturar salida
+    proc = subprocess.run(
+        ["python", "/app/backend/load_real_data.py"],
+        capture_output=True, text=True, timeout=600, cwd="/app/backend",
+    )
+    ok = proc.returncode == 0
+
+    # Registrar en uploads
+    upload_id = str(uuid.uuid4())
+    await db.uploads.insert_one({
+        "id": upload_id,
+        "tipo": "full-refresh",
+        "archivos_reemplazados": saved,
+        "ok": ok,
+        "stdout_tail": (proc.stdout or "").splitlines()[-30:],
+        "stderr": (proc.stderr or "")[:2000],
+        "uploaded_by": user["email"],
+        "created_at": datetime.utcnow().isoformat(),
+    })
+
+    if not ok:
+        raise HTTPException(500, f"load_real_data.py falló: {proc.stderr[:500]}")
+
+    # Estadísticas finales
+    stats = {
+        "students": await db.students.count_documents({}),
+        "grupos": await db.grupos.count_documents({}),
+        "matriculas": await db.matriculas.count_documents({}),
+        "historico_notas": await db.historico_notas.count_documents({}),
+        "docentes": await db.users.count_documents({"role": "docente"}),
+        "docente_materia": await db.docente_materia.count_documents({}),
+    }
+
+    return {
+        "ok": True,
+        "id": upload_id,
+        "archivos_reemplazados": saved,
+        "stats": stats,
+        "stdout_tail": (proc.stdout or "").splitlines()[-15:],
+    }

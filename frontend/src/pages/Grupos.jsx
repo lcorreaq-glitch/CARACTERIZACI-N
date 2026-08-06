@@ -93,23 +93,32 @@ export default function Grupos() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-[10px] uppercase tracking-wider">Código</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider">Código grupo</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider">Cód. asig.</TableHead>
                   <TableHead className="text-[10px] uppercase tracking-wider">Asignatura</TableHead>
                   <TableHead className="text-[10px] uppercase tracking-wider">Docente</TableHead>
                   <TableHead className="text-[10px] uppercase tracking-wider">Programa</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider">Día</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider">Hora</TableHead>
                   <TableHead className="text-[10px] uppercase tracking-wider">Periodo</TableHead>
-                  <TableHead className="text-[10px] uppercase tracking-wider text-right">Matriculados</TableHead>
-                  <TableHead className="text-[10px] uppercase tracking-wider text-right">Prom. histórico</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-right">Est.</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-right">Prom.</TableHead>
                   <TableHead className="text-[10px] uppercase tracking-wider"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {items.map((g) => (
                   <TableRow key={g.codigo_grupo} className="hover:bg-muted/40 cursor-pointer" onClick={() => openDetail(g.codigo_grupo)}>
-                    <TableCell className="text-[11px] mono">{g.codigo_grupo}</TableCell>
-                    <TableCell className="text-xs font-medium">{g.asignatura_nombre?.slice(0, 40)}</TableCell>
-                    <TableCell className="text-[11px] text-muted-foreground">{g.docente_nombre?.slice(0, 30)}</TableCell>
-                    <TableCell className="text-[11px]">{g.programa?.slice(0, 35)}</TableCell>
+                    <TableCell className="text-[10px] mono">{g.codigo_grupo}</TableCell>
+                    <TableCell className="text-[10px] mono text-muted-foreground">{g.asignatura_codigo || "—"}</TableCell>
+                    <TableCell className="text-xs font-medium" title={g.asignatura_nombre}>{g.asignatura_nombre?.slice(0, 34)}{g.asignatura_nombre?.length > 34 && "…"}</TableCell>
+                    <TableCell className="text-[11px]" title={`${g.docente_nombre}\n${g.docente_email || ""}\nCédula: ${g.docente_cedula || "—"}`}>
+                      <div className="truncate max-w-[180px]">{g.docente_nombre || "—"}</div>
+                      <div className="text-[9px] text-muted-foreground truncate max-w-[180px]">{g.docente_email || "—"}</div>
+                    </TableCell>
+                    <TableCell className="text-[11px]">{g.programa?.slice(0, 30) || "—"}</TableCell>
+                    <TableCell className="text-[10px]">{g.dia || "—"}</TableCell>
+                    <TableCell className="text-[10px]">{g.hora || "—"}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[9px] uppercase tracking-wider rounded-sm">{g.periodo}</Badge></TableCell>
                     <TableCell className="text-right">
                       <span className="kpi-num text-sm">{(g.total_estudiantes || 0).toLocaleString("es-CO")}</span>
@@ -129,7 +138,7 @@ export default function Grupos() {
                   </TableRow>
                 ))}
                 {items.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-xs text-muted-foreground py-6">Sin grupos con esos filtros</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-6">Sin grupos con esos filtros</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
