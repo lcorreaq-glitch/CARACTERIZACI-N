@@ -24,6 +24,23 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - IA: resúmenes automáticos vía OpenAI GPT-5.4 (Emergent LLM Key)
 - Exportación PDF/Excel
 
+## Latest session (2026-08-06 · iteración 6 — Grupos: filtros globales, flags detallados y descarga)
+- ✅ **Filtros globales sincronizados**: La vista `/grupos` ahora respeta los chips de filtro globales (`docente_id`, `codigo_grupo`). Al filtrar por un docente en el panel superior, `/grupos` muestra solo sus grupos. Banner azul indica el filtro activo con botón "Limpiar filtro global".
+- ✅ **Backend**: `GET /api/admin/grupos` acepta ahora `codigo_grupo` como query param.
+- ✅ **Flags de vulnerabilidad enriquecidos** en el detalle del grupo:
+  - **Grupo vulnerable** ahora muestra el tipo específico (ej. "Víctima del Conflicto Armado")
+  - **Discapacidad** muestra el tipo (ej. "Sensorial - Baja Visión")
+  - **SISBEN** con nivel completo (A1, B3, C10...)
+  - **Ubicación** rural/semirural con color verde
+  - **Etnia** cuando aplica (ej. "Afrocolombianos")
+  - **Víctima** en rojo institucional
+  - Cada badge tiene tooltip con la descripción completa
+- ✅ **Descarga por grupo desde `/grupos`**:
+  - Botón de descarga por fila en la tabla principal
+  - Botones "Excel detallado" y "CSV" en el header del modal de detalle
+  - Genera archivo Excel con 3 hojas (Grupo · Estudiantes · Notas)
+  - Respeta el permiso `download_enabled` del usuario
+
 ## Latest session (2026-08-06 · iteración 5 — Aclaración únicos vs matrículas)
 - 📋 **No era bug**: Fernaris tiene 85 + 44 = 129 matrículas pero **128 estudiantes únicos** porque 1 estudiante (Claudia López) está en ambos cursos. En caracterización se cuenta cada persona una sola vez (correcto).
 - ✅ **UI mejorada** para hacer transparente la distinción:

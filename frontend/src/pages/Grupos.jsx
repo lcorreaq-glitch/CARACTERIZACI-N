@@ -7,9 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, Users, Eye, GraduationCap, Search } from "lucide-react";
+import { toast } from "sonner";
+import { Eye, Search, Filter, X, Download, FileText, User, Info } from "lucide-react";
+import { useFilters } from "@/pages/AppLayout";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Grupos() {
+  const { filters, setFilter, opts: globalOpts } = useFilters();
+  const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState("");
@@ -18,6 +23,8 @@ export default function Grupos() {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [opts, setOpts] = useState({ programas: [], periodos: [] });
+
+  const canDownload = user?.role === "superadmin" || user?.role === "direccion" || user?.download_enabled === true;
 
   useEffect(() => {
     api.get("/dashboards/filters").then((r) => setOpts({
@@ -32,16 +39,47 @@ export default function Grupos() {
     if (q) params.append("q", q);
     if (programa !== "all") params.append("programa", programa);
     if (periodo !== "all") params.append("periodo", periodo);
+    // Sync with global filters (docente_id and codigo_grupo from filter chips)
+    if (filters.docente_id) params.append("docente_id", filters.docente_id);
+    if (filters.codigo_grupo) params.append("codigo_grupo", filters.codigo_grupo);
     api.get(`/admin/grupos?${params.toString()}`)
-      .then((r) => { setItems(r.data.items || []); setTotal(r.data.total || 0); })
+      .then((r) => {
+        setItems(r.data.items || []);
+        setTotal(r.data.total || 0);
+      })
       .finally(() => setLoading(false));
-  }, [q, programa, periodo]);
+  }, [q, programa, periodo, filters.docente_id, filters.codigo_grupo]);
 
   const openDetail = async (codigo) => {
     setDetail({ loading: true });
     const r = await api.get(`/admin/grupos/${encodeURIComponent(codigo)}`);
     setDetail(r.data);
   };
+
+  const descargarGrupo = async (codigo, fmt = "xlsx") => {
+    if (!canDownload) {
+      toast.error("No tiene permiso de descarga. Contacte al administrador.");
+      return;
+    }
+    try {
+      const url = `/api/exports/grupo/${encodeURIComponent(codigo)}?fmt=${fmt}`;
+      const token = localStorage.getItem("iud_token");
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!resp.ok) throw new Error(resp.status === 403 ? "Sin permiso" : `Error ${resp.status}`);
+      const blob = await resp.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `grupo_${codigo}.${fmt}`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast.success("Descarga completada");
+    } catch (e) {
+      toast.error("Error al descargar: " + e.message);
+    }
+  };
+
+  const docenteSel = (globalOpts.docentes || []).find((d) => d.id === filters.docente_id);
+  const hasGlobalFilter = !!(filters.docente_id || filters.codigo_grupo);
 
   return (
     <div className="space-y-6" data-testid="grupos-page">
@@ -52,6 +90,36 @@ export default function Grupos() {
           {total.toLocaleString("es-CO")} grupos activos con docente, asignatura y estudiantes matriculados.
         </p>
       </header>
+
+      {/* Chip de filtro global activo */}
+      {hasGlobalFilter && (
+        <div className="dense-card p-3 border-l-4 border-l-[#0033A0] bg-[#0033A0]/5 flex items-center justify-between gap-3" data-testid="global-filter-banner">
+          <div className="flex items-center gap-2 text-xs">
+            <Filter className="w-4 h-4 text-[#0033A0]" />
+            <span className="text-[#0033A0] font-semibold">Filtro global activo:</span>
+            {docenteSel && (
+              <Badge variant="outline" className="rounded-sm bg-white text-[#0033A0] border-[#0033A0]/40">
+                <User className="w-3 h-3 mr-1" /> {docenteSel.nombre}
+              </Badge>
+            )}
+            {filters.codigo_grupo && (
+              <Badge variant="outline" className="rounded-sm bg-white text-[#0033A0] border-[#0033A0]/40 font-mono text-[10px]">
+                {filters.codigo_grupo}
+              </Badge>
+            )}
+            <span className="text-muted-foreground italic">Mostrando solo grupos que coinciden con el filtro global.</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => { setFilter("docente_id", null); setFilter("codigo_grupo", null); }}
+            data-testid="clear-global-filter-grupos"
+          >
+            <X className="w-3 h-3 mr-1" /> Limpiar filtro global
+          </Button>
+        </div>
+      )}
 
       <div className="dense-card p-5">
         <div className="flex flex-wrap gap-3 items-end mb-4">
@@ -103,7 +171,7 @@ export default function Grupos() {
                   <TableHead className="text-[10px] uppercase tracking-wider">Periodo</TableHead>
                   <TableHead className="text-[10px] uppercase tracking-wider text-right">Est.</TableHead>
                   <TableHead className="text-[10px] uppercase tracking-wider text-right">Prom.</TableHead>
-                  <TableHead className="text-[10px] uppercase tracking-wider"></TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -130,15 +198,24 @@ export default function Grupos() {
                         </span>
                       ) : <span className="text-muted-foreground text-xs">—</span>}
                     </TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); openDetail(g.codigo_grupo); }} data-testid={`grupo-detail-${g.codigo_grupo}`}>
-                        <Eye className="w-3.5 h-3.5" />
+                    <TableCell className="text-right whitespace-nowrap">
+                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); openDetail(g.codigo_grupo); }} data-testid={`grupo-detail-${g.codigo_grupo}`} title="Ver detalle">
+                        <Eye className="w-3.5 h-3.5 text-[#0033A0]" />
                       </Button>
+                      {canDownload && (
+                        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); descargarGrupo(g.codigo_grupo); }} data-testid={`grupo-download-${g.codigo_grupo}`} title="Descargar Excel del grupo (Grupo · Estudiantes · Notas)">
+                          <Download className="w-3.5 h-3.5 text-[#0033A0]" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
                 {items.length === 0 && (
-                  <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-6">Sin grupos con esos filtros</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-6">
+                    {hasGlobalFilter
+                      ? "El filtro global no coincide con ningún grupo. Prueba limpiando el filtro."
+                      : "Sin grupos con esos filtros"}
+                  </TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -148,11 +225,23 @@ export default function Grupos() {
 
       {/* Detalle modal */}
       <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
-        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto" data-testid="grupo-detail-dialog">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" data-testid="grupo-detail-dialog">
           <DialogHeader>
-            <DialogTitle className="font-display tracking-tight">
-              {detail?.grupo ? `${detail.grupo.asignatura_nombre} · ${detail.grupo.codigo_grupo}` : "Cargando…"}
-            </DialogTitle>
+            <div className="flex items-start justify-between gap-4 pr-6">
+              <DialogTitle className="font-display tracking-tight flex-1">
+                {detail?.grupo ? `${detail.grupo.asignatura_nombre} · ${detail.grupo.codigo_grupo}` : "Cargando…"}
+              </DialogTitle>
+              {detail?.grupo && canDownload && (
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button size="sm" onClick={() => descargarGrupo(detail.grupo.codigo_grupo, "xlsx")} className="rounded-sm bg-[#0033A0] hover:bg-[#002A85] text-white text-xs h-8" data-testid="detail-download-xlsx">
+                    <Download className="w-3.5 h-3.5 mr-1" /> Excel detallado
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => descargarGrupo(detail.grupo.codigo_grupo, "csv")} className="rounded-sm text-xs h-8" data-testid="detail-download-csv">
+                    <FileText className="w-3.5 h-3.5 mr-1" /> CSV
+                  </Button>
+                </div>
+              )}
+            </div>
           </DialogHeader>
           {!detail || detail.loading ? (
             <Skeleton className="h-32 w-full" />
@@ -189,7 +278,13 @@ export default function Grupos() {
               )}
 
               <div className="border-t border-border pt-4">
-                <p className="label-eyebrow mb-2">Estudiantes matriculados ({detail.estudiantes?.length || 0})</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="label-eyebrow">Estudiantes matriculados ({detail.estudiantes?.length || 0})</p>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <Info className="w-3 h-3" />
+                    Pase el cursor sobre cada flag para ver el detalle
+                  </p>
+                </div>
                 <div className="max-h-96 overflow-y-auto">
                   <Table>
                     <TableHeader>
@@ -197,9 +292,9 @@ export default function Grupos() {
                         <TableHead className="text-[10px] uppercase tracking-wider">Cédula</TableHead>
                         <TableHead className="text-[10px] uppercase tracking-wider">Nombre</TableHead>
                         <TableHead className="text-[10px] uppercase tracking-wider">Programa</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider text-right">Promedio</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider text-right">Prom.</TableHead>
                         <TableHead className="text-[10px] uppercase tracking-wider">Estado</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider">Flags</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Flags de vulnerabilidad</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -217,11 +312,7 @@ export default function Grupos() {
                             <Badge variant="outline" className="text-[9px] uppercase tracking-wider rounded-sm">{s.estado_matricula}</Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-1 flex-wrap">
-                              {s.grupo_vulnerable && <Badge className="text-[8px] uppercase rounded-sm h-4 px-1 bg-amber-500/15 text-amber-700">Vuln</Badge>}
-                              {s.victima_conflicto && <Badge className="text-[8px] uppercase rounded-sm h-4 px-1 bg-[#E3000F]/10 text-[#E3000F]">Víctima</Badge>}
-                              {s.tipo_ubicacion === "Rural" && <Badge className="text-[8px] uppercase rounded-sm h-4 px-1 bg-emerald-500/15 text-emerald-700">Rural</Badge>}
-                            </div>
+                            <VulnFlags s={s} />
                           </TableCell>
                         </TableRow>
                       ))}
@@ -233,6 +324,81 @@ export default function Grupos() {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function VulnFlags({ s }) {
+  const flags = [];
+
+  if (s.grupo_vulnerable) {
+    flags.push({
+      label: s.tipo_grupo_vulnerable || "Vulnerable",
+      short: (s.tipo_grupo_vulnerable || "Vuln").slice(0, 18),
+      color: "bg-amber-500/15 text-amber-800 border-amber-500/30",
+      tooltip: `Grupo vulnerable: ${s.tipo_grupo_vulnerable || "No especificado"}`,
+    });
+  }
+  if (s.victima_conflicto) {
+    flags.push({
+      label: "Víctima",
+      short: "Víctima",
+      color: "bg-[#E3000F]/10 text-[#E3000F] border-[#E3000F]/30",
+      tooltip: "Víctima del conflicto armado",
+    });
+  }
+  if (s.discapacidad_flag) {
+    const tipo = (s.discapacidad_tipo && s.discapacidad_tipo !== "Ninguno") ? s.discapacidad_tipo : "Discapacidad";
+    flags.push({
+      label: tipo,
+      short: tipo.length > 18 ? tipo.slice(0, 16) + "…" : tipo,
+      color: "bg-purple-500/15 text-purple-800 border-purple-500/30",
+      tooltip: `Discapacidad: ${tipo}`,
+    });
+  }
+  if (s.sisben_tiene && s.sisben_nivel) {
+    // SISBEN nivel A/B highlight
+    const isCritical = /^[AB]/i.test(s.sisben_nivel || "");
+    flags.push({
+      label: `SISBEN ${s.sisben_nivel}`,
+      short: `SISB ${s.sisben_nivel}`,
+      color: isCritical ? "bg-blue-500/15 text-blue-800 border-blue-500/30" : "bg-blue-500/10 text-blue-700 border-blue-500/20",
+      tooltip: `SISBEN nivel ${s.sisben_nivel}${s.grupo_sisben ? ` (${s.grupo_sisben})` : ""}`,
+    });
+  }
+  if (s.tipo_ubicacion === "Rural" || s.tipo_ubicacion === "Semirural") {
+    flags.push({
+      label: s.tipo_ubicacion,
+      short: s.tipo_ubicacion,
+      color: "bg-emerald-500/15 text-emerald-800 border-emerald-500/30",
+      tooltip: `Ubicación ${s.tipo_ubicacion.toLowerCase()}`,
+    });
+  }
+  if (s.etnia && s.etnia !== "Ninguno" && s.etnia !== "No Aplica") {
+    flags.push({
+      label: s.etnia,
+      short: s.etnia.length > 14 ? s.etnia.slice(0, 12) + "…" : s.etnia,
+      color: "bg-orange-500/15 text-orange-800 border-orange-500/30",
+      tooltip: `Etnia: ${s.etnia}${s.grupo_etnia && s.grupo_etnia !== "Ningún Grupo Étnico" ? ` (${s.grupo_etnia})` : ""}`,
+    });
+  }
+
+  if (flags.length === 0) {
+    return <span className="text-[10px] text-muted-foreground italic">Sin flags</span>;
+  }
+
+  return (
+    <div className="flex gap-1 flex-wrap max-w-[280px]">
+      {flags.map((f, i) => (
+        <Badge
+          key={i}
+          variant="outline"
+          className={`text-[9px] rounded-sm h-4 px-1.5 border ${f.color} cursor-help`}
+          title={f.tooltip}
+        >
+          {f.short}
+        </Badge>
+      ))}
     </div>
   );
 }

@@ -226,6 +226,7 @@ async def list_grupos(
     facultad: str | None = None,
     periodo: str | None = None,
     docente_id: str | None = None,
+    codigo_grupo: str | None = None,
     q: str | None = None,
     limit: int = 500,
     user=Depends(require_roles("superadmin", "direccion")),
@@ -236,6 +237,7 @@ async def list_grupos(
     if facultad: match["facultad"] = facultad
     if periodo: match["periodo"] = periodo
     if docente_id: match["docente_id"] = docente_id
+    if codigo_grupo: match["codigo_grupo"] = codigo_grupo
     if q:
         rx = {"$regex": q, "$options": "i"}
         match["$or"] = [{"codigo_grupo": rx}, {"asignatura_nombre": rx}, {"docente_nombre": rx}, {"programa": rx}]
@@ -290,8 +292,11 @@ async def get_grupo_detail(codigo_grupo: str, user=Depends(require_roles("supera
         est_docs = await db.students.find(
             {"cedula": {"$in": cedulas}},
             {"_id": 0, "cedula": 1, "nombre": 1, "apellidos": 1, "programa": 1,
-             "promedio": 1, "estrato": 1, "sisben_nivel": 1,
-             "grupo_vulnerable": 1, "victima_conflicto": 1, "tipo_ubicacion": 1}
+             "promedio": 1, "estrato": 1, "sisben_nivel": 1, "sisben_tiene": 1, "grupo_sisben": 1,
+             "grupo_vulnerable": 1, "tipo_grupo_vulnerable": 1,
+             "victima_conflicto": 1, "tipo_ubicacion": 1,
+             "discapacidad_flag": 1, "discapacidad_tipo": 1,
+             "etnia": 1, "grupo_etnia": 1}
         ).to_list(500)
         est_map = {e["cedula"]: e for e in est_docs}
         for m in matriculas:
