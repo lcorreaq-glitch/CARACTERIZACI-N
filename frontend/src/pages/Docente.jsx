@@ -3,7 +3,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, Legend, LineChart, Line
 } from "recharts";
 import { MapContainer, TileLayer, CircleMarker, Tooltip as LTooltip } from "react-leaflet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,7 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { AlertTriangle, BookOpen, Users, TrendingUp, Heart, Accessibility, GraduationCap, MapPin } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, BookOpen, Users, TrendingUp, Heart, Accessibility, GraduationCap, MapPin, ArrowUpRight, ArrowDownRight, Minus, History } from "lucide-react";
 
 const PALETTE = ["#0033A0", "#0052FF", "#FFCD00", "#E3000F", "#059669", "#8B5CF6"];
 
@@ -35,9 +37,12 @@ export default function Docente() {
   const [data, setData] = useState(null);
   const [students, setStudents] = useState([]);
   const [enRiesgo, setEnRiesgo] = useState([]);
+  const [comparativa, setComparativa] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroGrupo, setFiltroGrupo] = useState("all");
   const [onlyRiesgo, setOnlyRiesgo] = useState(false);
+  const [historico, setHistorico] = useState(null);
+  const [openHistorico, setOpenHistorico] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -47,11 +52,21 @@ export default function Docente() {
   }, [filtroGrupo]);
 
   useEffect(() => {
+    api.get("/dashboards/docente/grupos-comparativa").then((r) => setComparativa(r.data.grupos || []));
+  }, []);
+
+  useEffect(() => {
     const q = new URLSearchParams();
     if (filtroGrupo !== "all") q.append("codigo_grupo", filtroGrupo);
     if (onlyRiesgo) q.append("riesgo", "true");
     api.get(`/dashboards/docente/students?${q.toString()}`).then((r) => setStudents(r.data.students || []));
   }, [filtroGrupo, onlyRiesgo]);
+
+  const openHist = async (cedula) => {
+    setOpenHistorico(true); setHistorico(null);
+    const r = await api.get(`/dashboards/docente/estudiante/${cedula}/historico`);
+    setHistorico(r.data);
+  };
 
   const fmt = (n) => (n || 0).toLocaleString("es-CO");
   const k = data?.kpis || {};
@@ -145,6 +160,9 @@ export default function Docente() {
               <TabsTrigger value="riesgo" data-testid="docente-tab-riesgo">
                 <AlertTriangle className="w-3.5 h-3.5 mr-1.5" /> En riesgo ({enRiesgo.length})
               </TabsTrigger>
+              <TabsTrigger value="comparativa" data-testid="docente-tab-comparativa">
+                <TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Comparativa periodos
+              </TabsTrigger>
               <TabsTrigger value="caracterizacion" data-testid="docente-tab-caracterizacion">Caracterización</TabsTrigger>
               <TabsTrigger value="territorial" data-testid="docente-tab-territorial">Territorial</TabsTrigger>
               <TabsTrigger value="estudiantes" data-testid="docente-tab-estudiantes">Estudiantes</TabsTrigger>
@@ -170,6 +188,7 @@ export default function Docente() {
                         <TableHead className="text-[10px] uppercase tracking-wider text-right">Prom. grupo</TableHead>
                         <TableHead className="text-[10px] uppercase tracking-wider text-right">Prom. gral</TableHead>
                         <TableHead className="text-[10px] uppercase tracking-wider">Motivos</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -206,10 +225,79 @@ export default function Docente() {
                               ))}
                             </div>
                           </TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openHist(s.cedula)} data-testid={`view-historico-${s.cedula}`}>
+                              <History className="w-3 h-3 mr-1" /> Histórico
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                       {enRiesgo.length === 0 && (
-                        <TableRow><TableCell colSpan={7} className="text-center text-xs text-muted-foreground py-6">🎉 Ningún estudiante en riesgo con los criterios actuales</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={8} className="text-center text-xs text-muted-foreground py-6">🎉 Ningún estudiante en riesgo con los criterios actuales</TableCell></TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="comparativa" className="mt-4">
+              <div className="dense-card p-5">
+                <div className="flex items-end justify-between mb-4">
+                  <div>
+                    <p className="label-eyebrow">Progresión</p>
+                    <h3 className="font-display font-bold text-lg tracking-tight">Comparativa por grupo · últimos 2 periodos</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Promedios y tasas de aprobación en 2025-2 vs 2026-1. Ordenados por promedio actual (peores arriba).
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-widest rounded-sm">
+                    {comparativa.filter((g) => g.promedio_actual !== null).length} grupos con datos
+                  </Badge>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Grupo</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Asignatura</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Docente</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider text-right">Prom. actual</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider text-right">Prom. anterior</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider text-right">Variación</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider text-right">% aprob.</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {comparativa.filter((g) => g.promedio_actual !== null).slice(0, 100).map((g) => {
+                        const TrendIcon = g.tendencia === "sube" ? ArrowUpRight : g.tendencia === "baja" ? ArrowDownRight : Minus;
+                        const trendColor = g.tendencia === "sube" ? "text-emerald-600" : g.tendencia === "baja" ? "text-[#E3000F]" : "text-muted-foreground";
+                        const actualLow = g.promedio_actual < 3;
+                        return (
+                          <TableRow key={g.codigo_grupo} className="hover:bg-muted/40">
+                            <TableCell className="text-[10px] mono">{g.codigo_grupo}</TableCell>
+                            <TableCell className="text-xs font-medium">{g.asignatura_nombre?.slice(0, 45)}</TableCell>
+                            <TableCell className="text-[10px] text-muted-foreground">{g.docente_nombre?.slice(0, 30)}</TableCell>
+                            <TableCell className={`text-right kpi-num text-sm ${actualLow ? "text-[#E3000F]" : ""}`}>
+                              {g.promedio_actual !== null ? g.promedio_actual.toFixed(2) : "—"}
+                            </TableCell>
+                            <TableCell className="text-right kpi-num text-sm text-muted-foreground">
+                              {g.promedio_anterior !== null ? g.promedio_anterior.toFixed(2) : "—"}
+                            </TableCell>
+                            <TableCell className={`text-right ${trendColor}`}>
+                              <div className="inline-flex items-center gap-1">
+                                <TrendIcon className="w-3 h-3" />
+                                <span className="kpi-num text-xs">{g.variacion !== null ? (g.variacion > 0 ? "+" : "") + g.variacion : "—"}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right text-xs">
+                              {g.periodos?.[0]?.tasa_aprobacion !== undefined ? `${g.periodos[0].tasa_aprobacion}%` : "—"}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {comparativa.filter((g) => g.promedio_actual !== null).length === 0 && (
+                        <TableRow><TableCell colSpan={7} className="text-center text-xs text-muted-foreground py-6">Sin histórico académico disponible</TableCell></TableRow>
                       )}
                     </TableBody>
                   </Table>
@@ -325,6 +413,7 @@ export default function Docente() {
                         <TableHead className="text-[10px] uppercase tracking-wider text-right">Promedio</TableHead>
                         <TableHead className="text-[10px] uppercase tracking-wider">Ciudad</TableHead>
                         <TableHead className="text-[10px] uppercase tracking-wider">Flags</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -348,10 +437,15 @@ export default function Docente() {
                               {s.tipo_ubicacion === "Rural" && <Badge variant="outline" className="text-[8px] uppercase tracking-wider rounded-sm h-4 px-1 border-emerald-500/40 text-emerald-700">Rural</Badge>}
                             </div>
                           </TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openHist(s.cedula)}>
+                              <History className="w-3 h-3 mr-1" /> Histórico
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                       {students.length === 0 && (
-                        <TableRow><TableCell colSpan={7} className="text-center text-xs text-muted-foreground py-6">Sin estudiantes para mostrar</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={8} className="text-center text-xs text-muted-foreground py-6">Sin estudiantes para mostrar</TableCell></TableRow>
                       )}
                     </TableBody>
                   </Table>
@@ -361,6 +455,116 @@ export default function Docente() {
           </Tabs>
         </>
       )}
+
+      {/* Modal Histórico Estudiante */}
+      <Dialog open={openHistorico} onOpenChange={setOpenHistorico}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto" data-testid="historico-dialog">
+          <DialogHeader>
+            <DialogTitle className="font-display tracking-tight">
+              Histórico académico
+            </DialogTitle>
+          </DialogHeader>
+          {!historico ? (
+            <Skeleton className="h-32 w-full" />
+          ) : (
+            <div className="space-y-4">
+              <div className="dense-card p-4">
+                <div className="text-xs label-eyebrow">Estudiante</div>
+                <div className="font-display text-xl font-bold">{historico.estudiante.nombre} {historico.estudiante.apellidos}</div>
+                <div className="text-[10px] text-muted-foreground mono">CC {historico.estudiante.cedula} · {historico.estudiante.correo_institucional || historico.estudiante.correo}</div>
+                <div className="grid grid-cols-4 gap-4 mt-4">
+                  <div>
+                    <span className="label-eyebrow block">Programa</span>
+                    <b className="text-xs">{historico.estudiante.programa}</b>
+                  </div>
+                  <div>
+                    <span className="label-eyebrow block">Nivel</span>
+                    <b className="kpi-num">{historico.estudiante.nivel}</b>
+                  </div>
+                  <div>
+                    <span className="label-eyebrow block">Promedio actual</span>
+                    <b className={`kpi-num ${historico.estudiante.promedio < 3 ? "text-[#E3000F]" : "text-emerald-700"}`}>{historico.estudiante.promedio?.toFixed(2)}</b>
+                  </div>
+                  <div>
+                    <span className="label-eyebrow block">Total notas</span>
+                    <b className="kpi-num">{historico.total_notas}</b>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  {historico.estudiante.grupo_vulnerable && <Badge variant="outline" className="text-[9px] uppercase tracking-wider rounded-sm border-amber-500/40 text-amber-700">Vulnerable</Badge>}
+                  {historico.estudiante.victima_conflicto && <Badge variant="outline" className="text-[9px] uppercase tracking-wider rounded-sm border-[#E3000F]/40 text-[#E3000F]">Víctima conflicto</Badge>}
+                  {historico.estudiante.discapacidad_flag && <Badge variant="outline" className="text-[9px] uppercase tracking-wider rounded-sm border-purple-500/40 text-purple-700">Discapacidad</Badge>}
+                  <Badge variant="outline" className="text-[9px] uppercase tracking-wider rounded-sm">SISBEN {historico.estudiante.sisben_nivel}</Badge>
+                  <Badge variant="outline" className="text-[9px] uppercase tracking-wider rounded-sm">{historico.estudiante.estrato}</Badge>
+                </div>
+              </div>
+
+              {/* Evolución promedio */}
+              {historico.periodos.length > 1 && (
+                <div className="dense-card p-4">
+                  <p className="label-eyebrow">Evolución</p>
+                  <ResponsiveContainer width="100%" height={140}>
+                    <LineChart data={[...historico.periodos].reverse()}>
+                      <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="periodo" tick={{ fontSize: 11 }} />
+                      <YAxis domain={[0, 5]} tick={{ fontSize: 11 }} />
+                      <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
+                      <Line type="monotone" dataKey="promedio" stroke="#0033A0" strokeWidth={2} dot={{ fill: "#0033A0", r: 5 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Notas por periodo */}
+              {historico.periodos.map((p) => (
+                <div key={p.periodo} className="dense-card p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="label-eyebrow">Periodo {p.periodo}</p>
+                      <h4 className="font-display font-bold text-base">
+                        Promedio {p.promedio.toFixed(2)}
+                        <span className="ml-2 text-xs text-muted-foreground">· {p.aprobadas}/{p.total} aprobadas · {p.reprobadas} reprobadas</span>
+                      </h4>
+                    </div>
+                    <Badge className={`rounded-sm ${p.promedio < 3 ? "bg-[#E3000F]/10 text-[#E3000F]" : p.promedio >= 4.5 ? "bg-emerald-500/15 text-emerald-700" : "bg-[#FFCD00]/20 text-[#7A6300]"}`}>
+                      {p.promedio < 3 ? "Riesgo" : p.promedio >= 4.5 ? "Excelencia" : "Regular"}
+                    </Badge>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Materia</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Docente</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider text-right">Nota</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Estado</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {p.notas.map((n, i) => (
+                        <TableRow key={i} className="hover:bg-muted/40">
+                          <TableCell className="text-xs font-medium">{n.asignatura_nombre}</TableCell>
+                          <TableCell className="text-[10px] text-muted-foreground">{n.docente_nombre}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={`kpi-num text-sm ${n.nota < 3 && n.nota > 0 ? "text-[#E3000F]" : n.nota >= 4 ? "text-emerald-700" : ""}`}>
+                              {n.nota?.toFixed(2)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[9px] uppercase tracking-wider rounded-sm">{n.estado}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ))}
+              {historico.periodos.length === 0 && (
+                <div className="text-center text-xs text-muted-foreground py-8">Sin histórico académico registrado</div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

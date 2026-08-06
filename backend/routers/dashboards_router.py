@@ -102,9 +102,8 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
     by_program = await coll.aggregate(pipeline + [
         {"$group": {"_id": "$programa", "n": {"$sum": 1}, "prom": {"$avg": "$promedio"}}},
         {"$sort": {"n": -1}},
-        {"$limit": 15},
         {"$project": {"_id": 0, "programa": "$_id", "n": 1, "prom": {"$round": ["$prom", 2]}}}
-    ]).to_list(20)
+    ]).to_list(100)
 
     by_genero = await coll.aggregate(pipeline + [
         {"$group": {"_id": "$genero", "n": {"$sum": 1}}},
@@ -155,12 +154,11 @@ async def academic(match: dict = Depends(_common_params), user=Depends(get_curre
         {"$group": {"_id": "$programa", "prom": {"$avg": "$promedio"}, "n": {"$sum": 1},
                     "reprobadas": {"$avg": "$reprobadas"}, "aprobadas": {"$avg": "$aprobadas"}}},
         {"$sort": {"n": -1}},
-        {"$limit": 20},
         {"$project": {"_id": 0, "programa": "$_id", "n": 1,
                       "prom": {"$round": ["$prom", 2]},
                       "reprobadas": {"$round": ["$reprobadas", 1]},
                       "aprobadas": {"$round": ["$aprobadas", 1]}}}
-    ]).to_list(50)
+    ]).to_list(100)
 
     by_facultad = await coll.aggregate(pipeline + [
         {"$group": {"_id": "$facultad", "prom": {"$avg": "$promedio"}, "n": {"$sum": 1}}},

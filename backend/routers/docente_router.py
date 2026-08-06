@@ -231,3 +231,132 @@ async def my_students(
     ).sort("promedio", 1).limit(500).to_list(500)
     total = await db.students.count_documents(match)
     return {"students": students, "total": total}
+
+
+
+@router.get("/estudiante/{cedula}/historico")
+async def estudiante_historico(cedula: str, user=Depends(get_current_user)):
+    """Histórico académico completo del estudiante: todas sus notas + info personal.
+    Docente solo puede ver estudiantes de sus grupos."""
+    # Validar permiso docente
+    if user.get("role") == "docente":
+        cedulas_permitidas = await _cedulas_de_mis_grupos(user)
+        if cedula not in cedulas_permitidas:
+            raise HTTPException(403, "No tienes acceso a este estudiante")
+
+    est = await db.students.find_one({"cedula": cedula}, {"_id": 0})
+    if not est:
+        raise HTTPException(404, "Estudiante no encontrado")
+
+    notas = await db.historico_notas.find(
+        {"cedula": cedula},
+        {"_id": 0, "id": 0, "created_at": 0}
+    ).sort([("periodo", -1), ("asignatura_nombre", 1)]).to_list(500)
+
+    # Agrupar por periodo con promedio
+    from collections import defaultdict
+    by_periodo = defaultdict(lambda: {"notas": [], "sum": 0, "count": 0, "aprob": 0, "repro": 0})
+    for n in notas:
+        p = n.get("periodo", "sin-periodo")
+        by_periodo[p]["notas"].append(n)
+        by_periodo[p]["sum"] += n.get("nota", 0)
+        by_periodo[p]["count"] += 1
+        if n.get("aprobada"):
+            by_periodo[p]["aprob"] += 1
+        elif n.get("nota", 0) > 0 and n.get("nota", 0) < 3.0:
+            by_periodo[p]["repro"] += 1
+
+    periodos = []
+    for p in sorted(by_periodo.keys(), reverse=True):
+        d = by_periodo[p]
+        periodos.append({
+            "periodo": p,
+            "notas": d["notas"],
+            "promedio": round(d["sum"] / d["count"], 2) if d["count"] else 0,
+            "total": d["count"],
+            "aprobadas": d["aprob"],
+            "reprobadas": d["repro"],
+        })
+
+    return {
+        "estudiante": est,
+        "periodos": periodos,
+        "total_notas": len(notas),
+    }
+
+
+@router.get("/grupos-comparativa")
+async def grupos_comparativa(user=Depends(get_current_user)):
+    """Comparativa por grupo: promedios en los últimos 2 periodos.
+    Match cross-periodo por (docente_id + codigo_asignatura) porque codigo_grupo cambia cada periodo."""
+    if user.get("role") not in ("docente", "superadmin", "admin"):
+        raise HTTPException(403, "Solo docentes")
+
+    groups = await _my_groups(user)
+    if not groups:
+        return {"grupos": []}
+
+    # For each group, look up notas with matching docente_id + codigo_asignatura in the last 2 periodos
+    pipe = [
+        {"$match": {"docente_id": {"$ne": None}, "codigo_asignatura": {"$ne": ""}}},
+        {"$group": {
+            "_id": {
+                "docente_id": "$docente_id",
+                "asignatura": "$codigo_asignatura",
+                "periodo": "$periodo",
+            },
+            "prom": {"$avg": "$nota"},
+            "n": {"$sum": 1},
+            "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}},
+            "repro": {"$sum": {"$cond": [{"$and": [{"$lt": ["$nota", 3.0]}, {"$gt": ["$nota", 0]}]}, 1, 0]}},
+        }},
+    ]
+
+    # Build (docente_id, asignatura) → { periodo: stats }
+    by_key = {}
+    async for r in db.historico_notas.aggregate(pipe):
+        key = (r["_id"]["docente_id"], r["_id"]["asignatura"])
+        by_key.setdefault(key, {})[r["_id"]["periodo"]] = r
+
+    # Sort periodos globally to know last 2
+    all_periodos = sorted({p for d in by_key.values() for p in d.keys()}, reverse=True)
+    last_two = all_periodos[:2]
+
+    out = []
+    for g in groups:
+        key = (g.get("docente_id"), g.get("asignatura_codigo"))
+        stats = by_key.get(key, {})
+        periodos_data = []
+        for per in last_two:
+            r = stats.get(per)
+            if r:
+                periodos_data.append({
+                    "periodo": per,
+                    "promedio": round(r["prom"] or 0, 2),
+                    "total": r["n"],
+                    "aprobadas": r["aprob"],
+                    "reprobadas": r["repro"],
+                    "tasa_aprobacion": round((r["aprob"] / r["n"] * 100) if r["n"] else 0, 1),
+                })
+        # Fallback: si no hay ningún histórico, incluye grupo con periodo actual y sin datos
+        prom_last = periodos_data[0]["promedio"] if len(periodos_data) >= 1 else None
+        prom_prev = periodos_data[1]["promedio"] if len(periodos_data) >= 2 else None
+        variacion = round(prom_last - prom_prev, 2) if (prom_last is not None and prom_prev is not None) else None
+
+        out.append({
+            "codigo_grupo": g.get("codigo_grupo"),
+            "asignatura_nombre": g.get("asignatura_nombre", ""),
+            "asignatura_codigo": g.get("asignatura_codigo", ""),
+            "programa": g.get("programa", ""),
+            "docente_nombre": g.get("docente_nombre", ""),
+            "periodo_grupo": g.get("periodo", ""),
+            "periodos": periodos_data,
+            "promedio_actual": prom_last,
+            "promedio_anterior": prom_prev,
+            "variacion": variacion,
+            "tendencia": "sube" if variacion and variacion > 0.1 else "baja" if variacion and variacion < -0.1 else "estable",
+        })
+
+    # Sort: those with lowest averages first
+    out.sort(key=lambda x: x["promedio_actual"] if x["promedio_actual"] is not None else 99)
+    return {"grupos": out}
