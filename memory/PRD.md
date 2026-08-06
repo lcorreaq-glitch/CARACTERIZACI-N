@@ -24,6 +24,16 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - IA: resúmenes automáticos vía OpenAI GPT-5.4 (Emergent LLM Key)
 - Exportación PDF/Excel
 
+## Datos reales cargados (2026-08)
+- ✅ **16.461 estudiantes** reales (CARACTERIZACION_2026.xlsx) — homologados con schema institucional
+- ✅ **1.311 grupos** activos periodo 2026-2 (ASIGNACION_GRUPO_CONSOLIDADO_2026_2)
+- ✅ **92.439 matrículas** (cédula × codigo_grupo × periodo)
+- ✅ **169.376 notas** (2025-2 + 2026-2)
+- ✅ **398 docentes** creados automáticamente desde asignaciones (pwd inicial: IUDigital2026)
+- ✅ **5 facultades**, **59 programas** desde catálogo SNIES oficial
+- ✅ **Panel docente restringido**: cada docente ve solo sus grupos + estudiantes matriculados
+- ✅ **Endpoint /en-riesgo**: score de riesgo combinado (nota bajo + factores vulnerabilidad)
+
 ## Implemented (2026-02)
 - ✅ JWT auth con superadmin seed (lcorreaq@gmail.com)
 - ✅ Modelo Student + carga Excel del diccionario de datos

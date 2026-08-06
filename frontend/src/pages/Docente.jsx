@@ -34,30 +34,28 @@ export default function Docente() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
   const [students, setStudents] = useState([]);
+  const [enRiesgo, setEnRiesgo] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filtroMateria, setFiltroMateria] = useState("all");
+  const [filtroGrupo, setFiltroGrupo] = useState("all");
   const [onlyRiesgo, setOnlyRiesgo] = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    api.get("/dashboards/docente/me").then((r) => setData(r.data)).finally(() => setLoading(false));
-  }, []);
+    const q = filtroGrupo !== "all" ? `?codigo_grupo=${filtroGrupo}` : "";
+    api.get(`/dashboards/docente/me${q}`).then((r) => setData(r.data)).finally(() => setLoading(false));
+    api.get(`/dashboards/docente/en-riesgo${q}`).then((r) => setEnRiesgo(r.data.items || []));
+  }, [filtroGrupo]);
 
   useEffect(() => {
     const q = new URLSearchParams();
-    if (filtroMateria !== "all") q.append("materia_id", filtroMateria);
+    if (filtroGrupo !== "all") q.append("codigo_grupo", filtroGrupo);
     if (onlyRiesgo) q.append("riesgo", "true");
     api.get(`/dashboards/docente/students?${q.toString()}`).then((r) => setStudents(r.data.students || []));
-  }, [filtroMateria, onlyRiesgo]);
+  }, [filtroGrupo, onlyRiesgo]);
 
   const fmt = (n) => (n || 0).toLocaleString("es-CO");
   const k = data?.kpis || {};
-  const materias = data?.materias || [];
-
-  const distribucion = (data?.distribucion_notas || []).map((b) => {
-    const labels = { 0: "0–1", 1: "1–2", 2: "2–3", 3: "3–3.5", 3.5: "3.5–4", 4: "4–4.5", 4.5: "4.5–5" };
-    return { rango: labels[b._id] || b._id, n: b.n };
-  });
+  const grupos = data?.grupos || [];
 
   const munis = data?.municipios || [];
   const maxN = Math.max(1, ...munis.map((m) => m.n));
@@ -81,16 +79,16 @@ export default function Docente() {
             Vista restringida a tus materias asignadas y los estudiantes de tus programas.
           </p>
         </div>
-        {materias.length > 0 && (
-          <Select value={filtroMateria} onValueChange={setFiltroMateria}>
-            <SelectTrigger className="h-9 w-72 rounded-sm" data-testid="docente-materia-select">
-              <SelectValue placeholder="Todas las materias" />
+        {grupos.length > 0 && (
+          <Select value={filtroGrupo} onValueChange={setFiltroGrupo}>
+            <SelectTrigger className="h-9 w-72 rounded-sm" data-testid="docente-grupo-select">
+              <SelectValue placeholder="Todos los grupos" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas mis materias</SelectItem>
-              {materias.map((m) => (
-                <SelectItem key={m.id} value={m.materia_id}>
-                  {m.materia_nombre} · {m.periodo}
+              <SelectItem value="all">Todos mis grupos ({grupos.length})</SelectItem>
+              {grupos.map((g) => (
+                <SelectItem key={g.codigo_grupo} value={g.codigo_grupo}>
+                  {g.codigo_grupo} · {g.asignatura_nombre?.slice(0, 40)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -98,37 +96,41 @@ export default function Docente() {
         )}
       </header>
 
-      {/* Materias asignadas */}
+      {/* Grupos asignados */}
       <div className="dense-card p-5">
         <div className="flex items-center gap-2 mb-3">
           <BookOpen className="w-4 h-4 text-[#0033A0]" />
-          <p className="label-eyebrow">Materias asignadas</p>
+          <p className="label-eyebrow">Grupos asignados ({grupos.length})</p>
         </div>
         {loading ? (
           <Skeleton className="h-12 w-full" />
-        ) : materias.length === 0 ? (
+        ) : grupos.length === 0 ? (
           <div className="text-sm text-muted-foreground italic py-4">
-            Aún no tienes materias asignadas. Solicita al administrador la asignación en el módulo de Administración → Docente-Materia.
+            Aún no tienes grupos asignados en este periodo. Contacta al administrador.
           </div>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {materias.map((m) => (
-              <div key={m.id} className="border border-border rounded px-3 py-2 transition-soft hover:border-[#0033A0]/40" data-testid={`docente-materia-card-${m.materia_id}`}>
-                <div className="text-sm font-medium">{m.materia_nombre}</div>
-                <div className="text-[10px] text-muted-foreground tracking-widest uppercase mt-0.5">
-                  {m.programa_nombre || "Sin programa"} · {m.periodo}
-                </div>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            {grupos.slice(0, 30).map((g) => (
+              <button
+                key={g.codigo_grupo}
+                onClick={() => setFiltroGrupo(g.codigo_grupo === filtroGrupo ? "all" : g.codigo_grupo)}
+                className={`text-left border rounded px-3 py-2 transition-soft hover:border-[#0033A0]/40 ${filtroGrupo === g.codigo_grupo ? "border-[#0033A0] bg-[#0033A0]/5" : "border-border"}`}
+                data-testid={`docente-grupo-card-${g.codigo_grupo}`}
+              >
+                <div className="text-xs font-medium truncate">{g.asignatura_nombre}</div>
+                <div className="text-[10px] text-muted-foreground mono mt-0.5">{g.codigo_grupo}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">{g.programa?.slice(0, 30)} · {g.periodo}</div>
+              </button>
             ))}
           </div>
         )}
       </div>
 
-      {materias.length > 0 && (
+      {grupos.length > 0 && (
         <>
           {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KPI label="Mis estudiantes" value={fmt(k.total_estudiantes)} sub={`${fmt(k.matriculados)} matriculados`} icon={Users} accent="bg-[#0033A0]/10 text-[#0033A0]" />
+            <KPI label="Mis estudiantes" value={fmt(k.total_estudiantes)} sub="matriculados en mis grupos" icon={Users} accent="bg-[#0033A0]/10 text-[#0033A0]" />
             <KPI label="Promedio" value={(k.promedio ?? 0).toFixed(2)} sub="Escala 0–5" icon={GraduationCap} accent="bg-[#FFCD00]/15 text-[#7A6300]" />
             <KPI label="En riesgo" value={fmt(k.en_riesgo)} sub="Promedio < 3.0" icon={AlertTriangle} accent="bg-[#E3000F]/10 text-[#E3000F]" />
             <KPI label="Excelencia" value={fmt(k.excelencia)} sub="Promedio ≥ 4.5" icon={TrendingUp} accent="bg-emerald-500/10 text-emerald-700" />
@@ -138,45 +140,79 @@ export default function Docente() {
             <KPI label="Discapacidad" value={fmt(k.discapacidad)} sub="Apoyo educativo" icon={Accessibility} accent="bg-purple-500/10 text-purple-700" />
           </div>
 
-          <Tabs defaultValue="academico">
+          <Tabs defaultValue="riesgo">
             <TabsList className="rounded-sm">
-              <TabsTrigger value="academico" data-testid="docente-tab-academico">Académico</TabsTrigger>
+              <TabsTrigger value="riesgo" data-testid="docente-tab-riesgo">
+                <AlertTriangle className="w-3.5 h-3.5 mr-1.5" /> En riesgo ({enRiesgo.length})
+              </TabsTrigger>
               <TabsTrigger value="caracterizacion" data-testid="docente-tab-caracterizacion">Caracterización</TabsTrigger>
               <TabsTrigger value="territorial" data-testid="docente-tab-territorial">Territorial</TabsTrigger>
               <TabsTrigger value="estudiantes" data-testid="docente-tab-estudiantes">Estudiantes</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="academico" className="mt-4">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                <div className="dense-card p-5 lg:col-span-7">
-                  <p className="label-eyebrow">Notas</p>
-                  <h3 className="font-display font-bold text-lg tracking-tight mb-3">Distribución de promedios</h3>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={distribucion}>
-                      <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
-                      <XAxis dataKey="rango" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                      <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                      <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
-                      <Bar dataKey="n" radius={[3, 3, 0, 0]}>
-                        {distribucion.map((d, i) => (
-                          <Cell key={i} fill={d.rango?.startsWith("0") || d.rango?.startsWith("1") || d.rango?.startsWith("2") ? "#E3000F" : d.rango?.startsWith("3") ? "#FFCD00" : "#059669"} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+            <TabsContent value="riesgo" className="mt-4">
+              <div className="dense-card p-5">
+                <div className="flex items-end justify-between mb-4">
+                  <div>
+                    <p className="label-eyebrow text-[#E3000F]">Alertas académicas</p>
+                    <h3 className="font-display font-bold text-lg tracking-tight">Estudiantes que requieren atención ({enRiesgo.length})</h3>
+                    <p className="text-xs text-muted-foreground mt-1">Ordenados por score de riesgo (nota + factores de vulnerabilidad). Bajo promedio, víctima, SISBEN A/B, discapacidad suman puntos.</p>
+                  </div>
                 </div>
-                <div className="dense-card p-5 lg:col-span-5">
-                  <p className="label-eyebrow">Por programa</p>
-                  <h3 className="font-display font-bold text-lg tracking-tight mb-3">Estudiantes y promedio</h3>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={data?.by_programa || []} layout="vertical" margin={{ left: 8 }}>
-                      <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
-                      <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                      <YAxis type="category" dataKey="programa" width={130} tick={{ fontSize: 9, fill: "hsl(var(--foreground))" }} tickFormatter={(v) => v?.length > 22 ? v.slice(0, 20) + "…" : v} />
-                      <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
-                      <Bar dataKey="n" fill="#0033A0" radius={[0, 2, 2, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Score</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Estudiante</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Contacto</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Programa</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider text-right">Prom. grupo</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider text-right">Prom. gral</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Motivos</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {enRiesgo.map((s) => (
+                        <TableRow key={s.cedula} className="hover:bg-muted/40">
+                          <TableCell>
+                            <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold ${s.score_riesgo > 40 ? "bg-[#E3000F]/10 text-[#E3000F]" : s.score_riesgo > 20 ? "bg-amber-500/15 text-amber-700" : "bg-muted"}`}>
+                              {s.score_riesgo}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-xs font-medium">{s.nombre} {s.apellidos}</div>
+                            <div className="text-[10px] text-muted-foreground mono">{s.cedula}</div>
+                          </TableCell>
+                          <TableCell className="text-[10px] leading-tight">
+                            <div>{s.correo_institucional || s.correo || "—"}</div>
+                            {s.telefono && <div className="text-muted-foreground mono">{s.telefono}</div>}
+                          </TableCell>
+                          <TableCell className="text-[10px] text-muted-foreground">{s.programa?.length > 30 ? s.programa.slice(0, 28) + "…" : s.programa}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={`kpi-num text-sm ${s.prom_grupo > 0 && s.prom_grupo < 3 ? "text-[#E3000F]" : ""}`}>
+                              {s.prom_grupo > 0 ? s.prom_grupo.toFixed(2) : "—"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className={`kpi-num text-sm ${s.promedio > 0 && s.promedio < 3 ? "text-[#E3000F]" : ""}`}>
+                              {s.promedio > 0 ? s.promedio.toFixed(2) : "—"}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {(s.motivos || []).slice(0, 3).map((m, i) => (
+                                <Badge key={i} variant="outline" className="text-[8px] uppercase tracking-wider rounded-sm h-4 px-1">{m}</Badge>
+                              ))}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {enRiesgo.length === 0 && (
+                        <TableRow><TableCell colSpan={7} className="text-center text-xs text-muted-foreground py-6">🎉 Ningún estudiante en riesgo con los criterios actuales</TableCell></TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             </TabsContent>
@@ -188,7 +224,7 @@ export default function Docente() {
                   <h3 className="font-display font-bold text-lg tracking-tight mb-3">Género</h3>
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
-                      <Pie data={data?.caracterizacion?.genero || []} dataKey="n" nameKey="genero" outerRadius={80} innerRadius={40} paddingAngle={2}>
+                      <Pie data={data?.caracterizacion?.genero || []} dataKey="n" nameKey="label" outerRadius={80} innerRadius={40} paddingAngle={2}>
                         {(data?.caracterizacion?.genero || []).map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
                       </Pie>
                       <Tooltip />
@@ -202,7 +238,7 @@ export default function Docente() {
                   <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={data?.caracterizacion?.estrato || []}>
                       <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
-                      <XAxis dataKey="estrato" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} />
+                      <XAxis dataKey="label" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} />
                       <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                       <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
                       <Bar dataKey="n" fill="#FFCD00" radius={[3, 3, 0, 0]} />
@@ -210,15 +246,15 @@ export default function Docente() {
                   </ResponsiveContainer>
                 </div>
                 <div className="dense-card p-5">
-                  <p className="label-eyebrow">Territorial</p>
-                  <h3 className="font-display font-bold text-lg tracking-tight mb-3">Ubicación</h3>
+                  <p className="label-eyebrow">SISBEN</p>
+                  <h3 className="font-display font-bold text-lg tracking-tight mb-3">Grupo SISBEN</h3>
                   <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={data?.caracterizacion?.ubicacion || []} layout="vertical">
+                    <BarChart data={data?.caracterizacion?.grupo_sisben || []} layout="vertical">
                       <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
                       <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                      <YAxis type="category" dataKey="tipo" width={90} tick={{ fontSize: 11 }} />
+                      <YAxis type="category" dataKey="label" width={90} tick={{ fontSize: 11 }} />
                       <Tooltip />
-                      <Bar dataKey="n" fill="#059669" radius={[0, 2, 2, 0]} />
+                      <Bar dataKey="n" fill="#0033A0" radius={[0, 2, 2, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
