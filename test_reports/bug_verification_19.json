@@ -1,0 +1,39 @@
+{
+  "verdict": "fixed",
+  "user_reported_bug": "Validaremos algo importante este filtro no funciona el de materia quitarlo del panel porque es lo mismo que filtro por grupo. Adicionalmente vamos a generar para cada docente LA DESCARGA DE LA VISTA, POR GRUPO PERO NO CON TODOS LOS DATOS SOLO LO QUE SE VE EN LA VISTA DONDE ESTA EL REGFLAG",
+  "summary": "No relevant testing skill found. Focused verification passed: Materia is removed from the global filters panel, the /api/exports/grupo/{codigo}/vista XLSX returns the requested 2-sheet/8-column view-only export, red-flag values match the visible group-detail logic, enabled docentes can download their own group view and not another docente's group, decano/coordinador scope is enforced (403 out of scope, 200 in scope), docentes without download permission get 403, and superadmin can download unrestricted.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/bug_verification_19.py",
+    "/app/test_reports/bug_verification_19_results.json",
+    "/app/test_reports/bug_verification_19.json",
+    "/app/test_reports/iteration_19.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "No blocking comments. Runtime evidence confirms the added apply_role_scope/count_documents check on /grupo/{codigo_grupo}/vista now prevents decano.test and coord.test from exporting PRECBH2602B020258 while preserving access to PREEAC2602B010224. No APIs were MOCKED."
+  ],
+  "updated_files": [
+    "/app/test_reports/bug_verification_19.py",
+    "/app/test_reports/bug_verification_19_results.json",
+    "/app/test_reports/bug_verification_19.json",
+    "/app/test_reports/iteration_19.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "No permanent seed data created. The test temporarily set decano.test@iudigital.edu.co and coord.test@iudigital.edu.co download_enabled=true, toggled docente.demo@iudigital.edu.co from false to true after the negative permission check to verify own-group download, set docente_downloads_globally_enabled=false for permission isolation, and restored all values afterward.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend script verified exact groups: PREEAC2602B010224 (FCEAC/Admin Empresas, 85 matriculas), PRECBH2602B020258 (Trabajo Social/FCYH, 23 matriculas), and docente.demo own group PREICA2602B020078 (55 vista rows). Browser automation logged in as superadmin, opened Filtros, confirmed Docente and Grupo triggers are visible and Materia is absent.",
+  "rca_of_the_issue": "Regression retest of iteration 18 failure: after enabling decano.test/coord.test downloads, GET /api/exports/grupo/PRECBH2602B020258/vista?fmt=xlsx now returns 403 with 'Este grupo no pertenece a su facultad/programa'; GET /api/exports/grupo/PREEAC2602B010224/vista?fmt=xlsx returns 200 for both scoped roles. The prior scope leak is fixed."
+}

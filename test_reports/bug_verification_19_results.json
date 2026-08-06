@@ -1,0 +1,346 @@
+{
+  "api_base": "https://university-insights.preview.emergentagent.com/api",
+  "skill_lookup": "No relevant testing skill found.",
+  "checks": [
+    {
+      "name": "AppLayout FiltersPanel has no Materia/materia_id global filter trigger",
+      "passed": true,
+      "evidence": {
+        "file": "/app/frontend/src/pages/AppLayout.jsx",
+        "filter_materia_occurrences": 0
+      }
+    },
+    {
+      "name": "AppLayout global object filters contain Docente and Grupo only for docente/materia/grupo area",
+      "passed": true,
+      "evidence": {
+        "file": "/app/frontend/src/pages/AppLayout.jsx"
+      }
+    },
+    {
+      "name": "test group PREEAC2602B010224 exists with matriculas",
+      "passed": true,
+      "evidence": {
+        "group": {
+          "codigo_grupo": "PREEAC2602B010224",
+          "docente_id": "77bbab72-4e3b-4fd7-b8a9-b354f96ad29e",
+          "programa": "Administración de Empresas",
+          "facultad": "Facultad de Ciencias Económicas Administrativas y Contables (fceac)"
+        },
+        "matriculas": 85
+      }
+    },
+    {
+      "name": "test group PRECBH2602B020258 exists with matriculas",
+      "passed": true,
+      "evidence": {
+        "group": {
+          "codigo_grupo": "PRECBH2602B020258",
+          "docente_id": null,
+          "programa": "Trabajo Social",
+          "facultad": "Facultad de Ciencias y Humanidades (fcyh)"
+        },
+        "matriculas": 23
+      }
+    },
+    {
+      "name": "superadmin login",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "body": "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YTIwMzk0YS0yMGEwLTRhZTktODZmNy04ZTBlN2Y1Yjc4Y2UiLCJyb2xlIjoic3VwZXJhZG1pbiIsImVtYWlsIjoibGNvcnJlYXFAZ21haWwuY29tIiwiZXhwIjoxNzg2MDk2OD"
+      }
+    },
+    {
+      "name": "superadmin can download in-scope sample vista export",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "bytes": 10784
+      }
+    },
+    {
+      "name": "vista xlsx has exactly two sheets",
+      "passed": true,
+      "evidence": {
+        "sheetnames": [
+          "Grupo",
+          "Vista docente"
+        ]
+      }
+    },
+    {
+      "name": "Vista docente sheet has exactly the 8 requested columns",
+      "passed": true,
+      "evidence": {
+        "header": [
+          "Cedula",
+          "Nombre",
+          "Apellidos",
+          "Programa",
+          "Promedio",
+          "Estado matricula",
+          "Flags de vulnerabilidad",
+          "N flags"
+        ]
+      }
+    },
+    {
+      "name": "Vista docente export has student rows",
+      "passed": true,
+      "evidence": {
+        "row_count": 85
+      }
+    },
+    {
+      "name": "Vista docente sheet contains no non-visible/full-characterization columns",
+      "passed": true,
+      "evidence": {
+        "extra_columns": []
+      }
+    },
+    {
+      "name": "group detail API available for visible-data comparison",
+      "passed": true,
+      "evidence": {
+        "status": 200
+      }
+    },
+    {
+      "name": "export row count matches group-detail visible matriculados",
+      "passed": true,
+      "evidence": {
+        "export_rows": 85,
+        "detail_rows": 85,
+        "detail_total": 85
+      }
+    },
+    {
+      "name": "vista export flags match the same visible red-flag logic as group detail",
+      "passed": true,
+      "evidence": {
+        "mismatch_count": 0,
+        "first_mismatches": []
+      }
+    },
+    {
+      "name": "superadmin can download any vista group including Trabajo Social sample",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "bytes": 7150
+      }
+    },
+    {
+      "name": "user exists for permission setup: decano.test@iudigital.edu.co",
+      "passed": true,
+      "evidence": {
+        "id": "7022e979-ca32-492b-8c5c-5dc9f21f92dc",
+        "download_enabled": false
+      }
+    },
+    {
+      "name": "user exists for permission setup: coord.test@iudigital.edu.co",
+      "passed": true,
+      "evidence": {
+        "id": "f07ffefc-7346-408b-9400-eb2b2b3eef4d",
+        "download_enabled": false
+      }
+    },
+    {
+      "name": "user exists for permission setup: docente.demo@iudigital.edu.co",
+      "passed": true,
+      "evidence": {
+        "id": "ea0fdd69-8ce7-4582-8080-c29172982815",
+        "download_enabled": false
+      }
+    },
+    {
+      "name": "decano.test is scoped to FCEAC/facultad and has download_enabled=true for test",
+      "passed": true,
+      "evidence": {
+        "facultad": "Facultad de Ciencias Económicas Administrativas y Contables (FCEAC)",
+        "download_enabled": true
+      }
+    },
+    {
+      "name": "decano.test login",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "body": "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MDIyZTk3OS1jYTMyLTQ5MmItOGM1Yy01ZGM5ZjIxZjkyZGMiLCJyb2xlIjoiZGVjYW5vIiwiZW1haWwiOiJkZWNhbm8udGVzdEBpdWRpZ2l0YWwuZWR1LmNvIiwiZXhwIjoxNz"
+      }
+    },
+    {
+      "name": "CRITICAL: decano.test with download_enabled=true receives 403 for Trabajo Social/FCYH group",
+      "passed": true,
+      "evidence": {
+        "status": 403,
+        "body": {
+          "detail": "Este grupo no pertenece a su facultad/programa"
+        },
+        "group": "PRECBH2602B020258"
+      }
+    },
+    {
+      "name": "decano.test with download_enabled=true receives 200 for FCEAC group",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "bytes": 10784,
+        "group": "PREEAC2602B010224"
+      }
+    },
+    {
+      "name": "coord.test is scoped to Administración de Empresas and has download_enabled=true for test",
+      "passed": true,
+      "evidence": {
+        "programa": "Administración De Empresas",
+        "download_enabled": true
+      }
+    },
+    {
+      "name": "coord.test login",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "body": "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmMDdmZmVmYy03MzQ2LTQwOGItOTQwMC1lYjJiMmIzZWVmNGQiLCJyb2xlIjoiY29vcmRpbmFkb3IiLCJlbWFpbCI6ImNvb3JkLnRlc3RAaXVkaWdpdGFsLmVkdS5jbyIsImV4cC"
+      }
+    },
+    {
+      "name": "coordinador with download_enabled=true receives 403 for non-program Trabajo Social group",
+      "passed": true,
+      "evidence": {
+        "status": 403,
+        "body": {
+          "detail": "Este grupo no pertenece a su facultad/programa"
+        },
+        "group": "PRECBH2602B020258"
+      }
+    },
+    {
+      "name": "coordinador with download_enabled=true receives 200 for Administración de Empresas group",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "bytes": 10784,
+        "group": "PREEAC2602B010224"
+      }
+    },
+    {
+      "name": "docente.demo login",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "body": "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYTBmZGQ2OS04Y2U3LTQ1ODItODA4MC1jMjkxNzI5ODI4MTUiLCJyb2xlIjoicHJvZmVzb3IiLCJlbWFpbCI6ImRvY2VudGUuZGVtb0BpdWRpZ2l0YWwuZWR1LmNvIiwiZXhwIj"
+      }
+    },
+    {
+      "name": "docente without download_enabled receives 403 on own/assigned vista download",
+      "passed": true,
+      "evidence": {
+        "status": 403,
+        "body": {
+          "detail": "No tiene permiso de descarga. Contacte al administrador."
+        },
+        "tested_group": "PREICA2602B020078",
+        "global_download": false
+      }
+    },
+    {
+      "name": "docente without download_enabled receives 403 on another vista download",
+      "passed": true,
+      "evidence": {
+        "status": 403,
+        "body": {
+          "detail": "No tiene permiso de descarga. Contacte al administrador."
+        },
+        "tested_group": "PREEAC2602B010224"
+      }
+    },
+    {
+      "name": "enabled docente can download vista xlsx for own group",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "bytes": 9099,
+        "tested_group": "PREICA2602B020078"
+      }
+    },
+    {
+      "name": "enabled docente own-group vista xlsx keeps 2 sheets and 8 requested columns",
+      "passed": true,
+      "evidence": {
+        "sheetnames": [
+          "Grupo",
+          "Vista docente"
+        ],
+        "header": [
+          "Cedula",
+          "Nombre",
+          "Apellidos",
+          "Programa",
+          "Promedio",
+          "Estado matricula",
+          "Flags de vulnerabilidad",
+          "N flags"
+        ],
+        "row_count": 55
+      }
+    },
+    {
+      "name": "enabled docente still cannot download another docente's vista group",
+      "passed": true,
+      "evidence": {
+        "status": 403,
+        "body": {
+          "detail": "No puede exportar grupos de otros docentes"
+        },
+        "tested_group": "PREEAC2602B010224"
+      }
+    }
+  ],
+  "failures": [],
+  "notes": [],
+  "groups": {
+    "in_scope_fceac": {
+      "group": {
+        "codigo_grupo": "PREEAC2602B010224",
+        "docente_id": "77bbab72-4e3b-4fd7-b8a9-b354f96ad29e",
+        "programa": "Administración de Empresas",
+        "facultad": "Facultad de Ciencias Económicas Administrativas y Contables (fceac)"
+      },
+      "matriculas": 85
+    },
+    "out_scope_trabajo_social": {
+      "group": {
+        "codigo_grupo": "PRECBH2602B020258",
+        "docente_id": null,
+        "programa": "Trabajo Social",
+        "facultad": "Facultad de Ciencias y Humanidades (fcyh)"
+      },
+      "matriculas": 23
+    }
+  },
+  "restored": [
+    {
+      "email": "decano.test@iudigital.edu.co",
+      "download_enabled": false
+    },
+    {
+      "email": "coord.test@iudigital.edu.co",
+      "download_enabled": false
+    },
+    {
+      "email": "docente.demo@iudigital.edu.co",
+      "download_enabled": false
+    },
+    {
+      "system_settings.docente_downloads_globally_enabled": false
+    }
+  ]
+}

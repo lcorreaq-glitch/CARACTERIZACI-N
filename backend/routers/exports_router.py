@@ -428,6 +428,12 @@ async def export_grupo_vista(
     scope_match = apply_role_scope(user, {})
     if "_no_scope_" in scope_match:
         raise HTTPException(403, "Su rol requiere facultad/programa asignado")
+    if "facultad" in scope_match or "programa" in scope_match:
+        cedulas_grupo = await db.matriculas.distinct("cedula", {"codigo_grupo": codigo_grupo})
+        if cedulas_grupo:
+            in_scope = await db.students.count_documents({**scope_match, "cedula": {"$in": cedulas_grupo}})
+            if in_scope == 0:
+                raise HTTPException(403, "Este grupo no pertenece a su facultad/programa")
 
     matriculas = await db.matriculas.find(
         {"codigo_grupo": codigo_grupo}, {"_id": 0, "cedula": 1, "estado": 1}
