@@ -25,29 +25,26 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - Exportación PDF/Excel
 
 ## Últimos ajustes (2026-08)
-- ✅ **Fix carga real de docentes**: `load_real_data.py` ahora persiste `documento`, `cedula`, `iddoc`, `correo_personal` y `correo_institucional` separadamente para los 398 docentes
-- ✅ **Fix asignatura_codigo**: se extrae automáticamente del sufijo del nombre de la asignatura cuando el campo directo viene vacío en el CSV (antes 1.311 grupos → ahora 0 grupos sin código de asignatura)
-- ✅ **Fix cross-periodo notas ↔ grupos**: notas de `notas_26_2.xlsx` se cargan como periodo real `2026-1` (leyendo ANO/PERIODO del archivo, no del nombre); grupos siguen en `2026-2`
-- ✅ **Fix dashboard KPIs**:
-  - Promedio ponderado real desde `historico_notas` (3.29)
-  - Vulnerables corregido: 2.853 (17.3%) — antes marcaba 100% al incluir "Sin dato"
-  - Discapacidad corregida: 202 (1.2%) — antes 70% por no filtrar "Ninguno" masculino
-  - Periodo 2026-1 con 84.505 notas y prom 3.12 (antes mostraba 0)
-- ✅ **Nueva pestaña Admin → Docentes**: tabla enriquecida (documento, correo institucional, correo personal, grupos, materias, estudiantes, programas) con buscador, exportación CSV y modal de detalle con histórico académico por grupo
-- ✅ Endpoints: `GET /api/admin/docentes`, `GET /api/admin/docentes/{id}/grupos`
-- ✅ **Vista /grupos NUEVA**: 1.311 grupos filtrables por código/asignatura/docente/programa + modal detalle con estudiantes, notas históricas por periodo y KPIs
-- ✅ Endpoints: `GET /api/admin/grupos` (con conteos), `GET /api/admin/grupos/{codigo}` (detalle), `PUT /api/admin/programas/{id}` (editar), `GET /api/admin/facultades-stats`
-- ✅ Vista rica de **Programas** con ojo/modal, buscador, filtro por nivel, badges coloreados
-- ✅ Datos limpios: nombres Title Case, códigos SNIES sin `.0`, nivel/modalidad rellenados
+- ✅ **Fix crítico de mapeo de datos vs archivo real**:
+  - **Víctimas conflicto**: 1.427 (8.7%) — antes 4.852 (falso). Ahora deriva solo de "Grupo vulnerable" con palabras clave víctima/desplazado/conflicto. Ya no del campo "Ubicación de conflicto" (que solo indica lugar geográfico).
+  - **Estudiantes rurales**: 7.551 (45.9%) — antes 0. Heurística basada en lista de 130 ciudades urbanas de Colombia (todas las capitales + área metro + ciudades intermedias > 100k hab).
+  - **Vulnerables**: 2.853 (17.3%) — antes 100% al no filtrar "Sin dato".
+  - **Discapacidad**: 202 (1.2%) — antes 70% por no filtrar "Ninguno" (masculino).
+  - **Tipo vulnerabilidad**: "SIN DATO" en vez de "NINGUNO" para no vulnerables (mejor claridad en gráfico).
+- ✅ **Chart programas mejorado**: nombres completos visibles (260px de ancho), altura dinámica según cantidad de programas, etiquetas de valor al final de cada barra.
+- ✅ **Docentes con datos completos**: 398 docentes con `documento`, `cedula`, `iddoc`, `correo_institucional` y `correo_personal` separados. `asignatura_codigo` extraído automáticamente del nombre.
+- ✅ **Periodos coherentes**: notas del archivo `notas_26_2.xlsx` se cargan como periodo real `2026-1` (leído de ANO/PERIODO en el propio archivo). Dashboard muestra 2025-2 (3.45, 84.871 notas) y 2026-1 (3.12, 84.505 notas).
+- ✅ **Nueva pestaña Admin → Docentes**: tabla enriquecida con documento, correos, grupos, materias, estudiantes, programas + buscador + exportación CSV + modal detalle con histórico académico. Endpoints `/api/admin/docentes` y `/api/admin/docentes/{id}/grupos`.
+- ✅ **Vista /grupos**: 1.311 grupos filtrables + modal detalle con estudiantes y notas históricas.
 
-## Datos reales cargados (2026-08)
-- ✅ **16.461 estudiantes** reales (CARACTERIZACION_2026.xlsx) — homologados con schema institucional
-- ✅ **1.311 grupos** activos periodo 2026-2 (ASIGNACION_GRUPO_CONSOLIDADO_2026_2)
-- ✅ **92.439 matrículas** (cédula × codigo_grupo × periodo)
-- ✅ **169.376 notas** — 2025-2 (84.871) + **2026-1** (84.505)
-- ✅ **398 docentes** con documento, correo institucional, correo personal y IDDOC completos
-- ✅ **5 facultades**, **59 programas** desde catálogo SNIES oficial
-- ✅ **Panel docente restringido**: cada docente ve solo sus grupos + estudiantes matriculados
+## Datos reales cargados (2026-08 · última verificación)
+- **16.461 estudiantes** reales
+- **1.311 grupos** activos periodo 2026-2
+- **92.439 matrículas**
+- **169.376 notas** — 2025-2 (84.871, prom 3.45) + **2026-1** (84.505, prom 3.12) · Promedio ponderado general: **3.29**
+- **398 docentes** con documento, correo institucional, correo personal, IDDOC
+- **5 facultades**, **59 programas** (21 con estudiantes activos)
+- **KPIs verificados**: Rurales 45.9% · Vulnerables 17.3% · Víctimas 8.7% · Discapacidad 1.2%
 - ✅ **Endpoint /en-riesgo**: score de riesgo combinado (nota bajo + factores vulnerabilidad)
 
 ## Implemented (2026-02)

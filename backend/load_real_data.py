@@ -152,14 +152,36 @@ def parse_genero(s):
 
 
 def parse_ubicacion(pais_res, ciudad, dep):
+    """Clasifica Urbana/Rural. Como el archivo no trae columna directa,
+    usamos una lista de las ~130 ciudades principales de Colombia."""
+    URBANAS = {
+        'MEDELLIN','MEDELLÍN','BOGOTA','BOGOTÁ','BOGOTA D.C.','CALI','SANTIAGO DE CALI','BARRANQUILLA',
+        'CARTAGENA','CARTAGENA DE INDIAS','BUCARAMANGA','PEREIRA','MANIZALES','IBAGUE','IBAGUÉ',
+        'CUCUTA','CÚCUTA','SAN JOSÉ DE CÚCUTA','MONTERIA','MONTERÍA','SANTA MARTA','VILLAVICENCIO',
+        'NEIVA','ARMENIA','PASTO','POPAYAN','POPAYÁN','VALLEDUPAR','SINCELEJO','TUNJA','QUIBDO','QUIBDÓ',
+        'FLORENCIA','RIOHACHA','YOPAL','MOCOA','LETICIA','ARAUCA','INIRIDA','INÍRIDA','MITU','MITÚ',
+        'PUERTO CARREÑO','SAN ANDRES','SAN ANDRÉS','ITAGUI','ITAGÜÍ','ENVIGADO','BELLO','SOACHA','SOLEDAD',
+        'MALAMBO','APARTADO','APARTADÓ','TURBO','RIONEGRO','SABANETA','LA ESTRELLA','COPACABANA',
+        'GIRARDOTA','CALDAS','CAUCASIA','GUARNE','PALMIRA','BUENAVENTURA','TULUÁ','TULUA','CARTAGO',
+        'JAMUNDÍ','JAMUNDI','YUMBO','FLORIDABLANCA','GIRÓN','GIRON','PIEDECUESTA','DOSQUEBRADAS',
+        'SANTA ROSA DE CABAL','LA DORADA','CHINCHINÁ','CHIA','CHÍA','ZIPAQUIRÁ','ZIPAQUIRA',
+        'FACATATIVÁ','FACATATIVA','MOSQUERA','MADRID','CAJICÁ','CAJICA','FUSAGASUGÁ','FUSAGASUGA','FUNZA',
+        'DUITAMA','SOGAMOSO','MONTELÍBANO','MONTELIBANO','CERETÉ','CERETE','LORICA','MAGANGUÉ','MAGANGUE',
+        'TURBACO','BARRANCABERMEJA','MALAGA','MÁLAGA','SOCORRO','SAN GIL','AGUACHICA','MAICAO','FONSECA',
+        'SAN ANDRÉS DE TUMACO','TUMACO','IPIALES','OCAÑA','PAMPLONA','LOS PATIOS','VILLA DEL ROSARIO',
+        'BOSCONIA','CIÉNAGA','CIENAGA','ESPINAL','FLANDES','MARIQUITA','HONDA','GIRARDOT','MELGAR',
+        'LA MESA','LA CEJA',
+    }
     p = _upper(pais_res)
-    if p and p != "COLOMBIA":
-        return "Urbana"  # asumo urbana en el exterior
     ciudad_u = _upper(ciudad)
+    if not ciudad_u or ciudad_u == "SIN DATO":
+        return "Sin dato"
+    if p and p != "COLOMBIA":
+        return "Urbana"  # residentes en el exterior se asumen urbanos
     RURAL_KEYS = ("VEREDA", "CORREGIMIENTO", "RURAL")
     if any(k in ciudad_u for k in RURAL_KEYS):
         return "Rural"
-    return "Urbana"
+    return "Urbana" if ciudad_u in URBANAS else "Rural"
 
 
 # =============================================================================
@@ -416,8 +438,10 @@ async def main():
         discap_flag = discap_tipo not in ("NINGUNA", "NINGUNO", "NO APLICA", "SIN DATO", "")
         vulnerable_txt = _norm(row.get("Grupo vulnerable (si pertenece a uno)"))
         vulnerable = bool(vulnerable_txt) and vulnerable_txt.lower() not in ("no", "no aplica", "ninguno", "ninguna", "sin dato", "n/a", "-")
-        victima_txt = _norm(row.get("Ubicación de conflicto"))
-        victima = bool(victima_txt) and victima_txt.lower() not in ("no", "no aplica", "ninguno", "n/a", "sin dato", "")
+        # Víctima del conflicto: derivar del texto de vulnerabilidad, NO de "Ubicación de conflicto"
+        # que solo indica lugar. Criterio: contiene "víctim", "desplaz" o "conflict".
+        vt_lower = vulnerable_txt.lower()
+        victima = vulnerable and any(k in vt_lower for k in ("victim", "víctim", "desplaz", "conflict"))
 
         students.append({
             "id": str(uuid.uuid4()),
@@ -446,7 +470,7 @@ async def main():
             "discapacidad_tipo": discap_tipo,
             "capacidad_excepcional": _upper(row.get("Posee capacidades excepcionales")) or "NINGUNA",
             "grupo_vulnerable": vulnerable,
-            "tipo_grupo_vulnerable": vulnerable_txt.upper() if vulnerable else "NINGUNO",
+            "tipo_grupo_vulnerable": vulnerable_txt.upper() if vulnerable else "SIN DATO",
             "victima_conflicto": victima,
             "veterano": _upper(row.get("Veteranos y/o núcleo familiar")) or "NO APLICA",
             "tipo_ubicacion": parse_ubicacion(pais, ciudad, depto),

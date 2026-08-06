@@ -3,7 +3,7 @@ import api, { API } from "@/lib/api";
 import { useFilters, buildQuery } from "./AppLayout";
 import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, Legend, LabelList
 } from "recharts";
 import { Users, GraduationCap, Building2, MapPin, AlertTriangle, Heart, Accessibility, TrendingUp, Trees, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -158,13 +158,15 @@ export default function Executive() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <ChartCard title="Estudiantes por programa" eyebrow="Distribución" span="lg:col-span-7">
-          <ResponsiveContainer width="100%" height={360}>
-            <BarChart data={data?.by_program || []} layout="vertical" margin={{ left: 8, right: 24 }}>
+          <ResponsiveContainer width="100%" height={Math.max(360, (data?.by_program?.length || 0) * 24)}>
+            <BarChart data={data?.by_program || []} layout="vertical" margin={{ left: 8, right: 40, top: 4, bottom: 4 }}>
               <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
               <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-              <YAxis type="category" dataKey="programa" tick={{ fontSize: 10, fill: "hsl(var(--foreground))" }} width={170} tickFormatter={(v) => v?.length > 30 ? v.slice(0, 28) + "…" : v} />
+              <YAxis type="category" dataKey="programa" tick={{ fontSize: 10, fill: "hsl(var(--foreground))" }} width={260} tickFormatter={(v) => v?.length > 40 ? v.slice(0, 38) + "…" : v} interval={0} />
               <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
-              <Bar dataKey="n" fill="#0033A0" radius={[0, 2, 2, 0]} />
+              <Bar dataKey="n" fill="#0033A0" radius={[0, 2, 2, 0]}>
+                <LabelList dataKey="n" position="right" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
