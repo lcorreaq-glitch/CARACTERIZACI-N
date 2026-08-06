@@ -27,6 +27,7 @@ export default function Admin() {
       <Tabs defaultValue="users">
         <TabsList className="rounded-sm flex-wrap h-auto">
           <TabsTrigger value="users" data-testid="tab-users">Usuarios</TabsTrigger>
+          <TabsTrigger value="docentes" data-testid="tab-docentes">Docentes</TabsTrigger>
           <TabsTrigger value="facultades" data-testid="tab-facultades">Facultades</TabsTrigger>
           <TabsTrigger value="programas" data-testid="tab-programas">Programas</TabsTrigger>
           <TabsTrigger value="materias" data-testid="tab-materias">Materias</TabsTrigger>
@@ -35,6 +36,7 @@ export default function Admin() {
           <TabsTrigger value="divipola" data-testid="tab-divipola">DIVIPOLA</TabsTrigger>
         </TabsList>
         <TabsContent value="users"><ErrorBoundary><UsersTab /></ErrorBoundary></TabsContent>
+        <TabsContent value="docentes"><ErrorBoundary><DocentesTab /></ErrorBoundary></TabsContent>
         <TabsContent value="facultades"><ErrorBoundary><CatalogTab name="facultades" label="Facultad" /></ErrorBoundary></TabsContent>
         <TabsContent value="programas"><ErrorBoundary><ProgramasTab /></ErrorBoundary></TabsContent>
         <TabsContent value="materias"><ErrorBoundary><CatalogTab name="materias" label="Materia" showPrograma /></ErrorBoundary></TabsContent>
@@ -802,6 +804,182 @@ function DivipolaTab() {
         </Table>
         {filtered.length > 500 && <div className="text-xs text-muted-foreground text-center py-3">… y {filtered.length - 500} más. Use el filtro de país o búsqueda para refinar.</div>}
       </div>
+    </div>
+  );
+}
+
+
+// =============================================================================
+// DOCENTES TAB — Vista enriquecida con documento, correos, grupos y estudiantes
+// =============================================================================
+function DocentesTab() {
+  const [docentes, setDocentes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [detail, setDetail] = useState(null);
+
+  useEffect(() => {
+    api.get("/admin/docentes")
+      .then((r) => setDocentes(r.data))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const openDetail = async (d) => {
+    setSelected(d);
+    setDetail(null);
+    try {
+      const r = await api.get(`/admin/docentes/${d.id}/grupos`);
+      setDetail(r.data);
+    } catch (e) {
+      toast.error("Error al cargar detalle");
+    }
+  };
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? docentes.filter((d) =>
+        [d.full_name, d.email, d.cedula, d.correo_personal, d.correo_institucional, d.iddoc]
+          .filter(Boolean).some((v) => String(v).toLowerCase().includes(q))
+      )
+    : docentes;
+
+  const exportCSV = () => {
+    const cols = ["Documento", "Nombre", "Correo institucional", "Correo personal", "IDDOC", "Grupos", "Materias", "Estudiantes", "Programas", "Periodos"];
+    const rows = filtered.map((d) => [
+      d.cedula || "", d.full_name || "", d.correo_institucional || d.email || "",
+      d.correo_personal || "", d.iddoc || "",
+      d.n_grupos || 0, d.n_materias || 0, d.n_estudiantes || 0,
+      (d.programas || []).join(" | "), (d.periodos || []).join(", "),
+    ]);
+    const csv = [cols, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `docentes_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-4 mt-4" data-testid="docentes-tab">
+      <div className="flex justify-between items-center gap-3 flex-wrap">
+        <div>
+          <p className="label-eyebrow text-[#0033A0]">Cuerpo docente</p>
+          <p className="text-2xl font-display font-black">{docentes.length} docentes</p>
+          <p className="text-xs text-muted-foreground">Con documento, correos institucional/personal y asignación actual.</p>
+        </div>
+        <div className="flex gap-2 items-center">
+          <Input
+            placeholder="Buscar por nombre, cédula, correo…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="rounded-sm w-72"
+            data-testid="docentes-search"
+          />
+          <Button variant="outline" size="sm" onClick={exportCSV} className="rounded-sm" data-testid="docentes-export">
+            <Download className="w-3 h-3 mr-1" />Exportar CSV
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-sm border overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Documento</TableHead>
+              <TableHead>Nombre</TableHead>
+              <TableHead>Correo institucional</TableHead>
+              <TableHead>Correo personal</TableHead>
+              <TableHead className="text-right">Grupos</TableHead>
+              <TableHead className="text-right">Materias</TableHead>
+              <TableHead className="text-right">Estudiantes</TableHead>
+              <TableHead>Programas</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading && <TableRow><TableCell colSpan={9} className="text-center py-8 text-xs text-muted-foreground">Cargando docentes…</TableCell></TableRow>}
+            {!loading && filtered.slice(0, 500).map((d) => (
+              <TableRow key={d.id} className="hover:bg-slate-50/50">
+                <TableCell className="text-[11px] font-mono">{d.cedula || "—"}</TableCell>
+                <TableCell className="text-xs font-medium">{d.full_name}</TableCell>
+                <TableCell className="text-[11px] text-muted-foreground">{d.correo_institucional || d.email || "—"}</TableCell>
+                <TableCell className="text-[11px] text-muted-foreground">{d.correo_personal || "—"}</TableCell>
+                <TableCell className="text-right text-xs font-semibold">{d.n_grupos || 0}</TableCell>
+                <TableCell className="text-right text-xs">{d.n_materias || 0}</TableCell>
+                <TableCell className="text-right text-xs">{d.n_estudiantes || 0}</TableCell>
+                <TableCell className="text-[10px] text-muted-foreground max-w-[220px] truncate" title={(d.programas || []).join(" | ")}>{(d.programas || []).slice(0, 2).join(" | ") || "—"}</TableCell>
+                <TableCell>
+                  <Button variant="ghost" size="sm" onClick={() => openDetail(d)} data-testid={`docente-detail-${d.id}`}>
+                    <Eye className="w-3 h-3" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {filtered.length > 500 && <div className="text-xs text-muted-foreground text-center py-3">Mostrando 500 de {filtered.length}. Usa el buscador para refinar.</div>}
+      </div>
+
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display">{selected?.full_name}</DialogTitle>
+          </DialogHeader>
+          {selected && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div><p className="label-eyebrow">Documento</p><p className="font-mono">{selected.cedula || "—"}</p></div>
+                <div><p className="label-eyebrow">IDDOC</p><p className="font-mono">{selected.iddoc || "—"}</p></div>
+                <div><p className="label-eyebrow">Correo institucional</p><p className="break-all">{selected.correo_institucional || selected.email || "—"}</p></div>
+                <div><p className="label-eyebrow">Correo personal</p><p className="break-all">{selected.correo_personal || "—"}</p></div>
+                <div><p className="label-eyebrow">Grupos</p><p className="text-lg font-black">{selected.n_grupos || 0}</p></div>
+                <div><p className="label-eyebrow">Materias</p><p className="text-lg font-black">{selected.n_materias || 0}</p></div>
+                <div><p className="label-eyebrow">Estudiantes</p><p className="text-lg font-black">{selected.n_estudiantes || 0}</p></div>
+                <div><p className="label-eyebrow">Periodos</p><p>{(selected.periodos || []).join(", ") || "—"}</p></div>
+              </div>
+
+              <div>
+                <p className="label-eyebrow mb-2">Grupos asignados</p>
+                {!detail && <p className="text-xs text-muted-foreground">Cargando grupos…</p>}
+                {detail && detail.length === 0 && <p className="text-xs text-muted-foreground italic">Este docente no tiene grupos asignados actualmente.</p>}
+                {detail && detail.length > 0 && (
+                  <div className="rounded-sm border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-[10px]">Código grupo</TableHead>
+                          <TableHead className="text-[10px]">Asignatura</TableHead>
+                          <TableHead className="text-[10px]">Programa</TableHead>
+                          <TableHead className="text-[10px]">Periodo</TableHead>
+                          <TableHead className="text-[10px] text-right">Estudiantes</TableHead>
+                          <TableHead className="text-[10px]">Histórico</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detail.map((g) => (
+                          <TableRow key={g.codigo_grupo}>
+                            <TableCell className="text-[10px] font-mono">{g.codigo_grupo}</TableCell>
+                            <TableCell className="text-[10px]">{g.asignatura_nombre}</TableCell>
+                            <TableCell className="text-[10px] text-muted-foreground">{g.programa || "—"}</TableCell>
+                            <TableCell className="text-[10px]">{g.periodo}</TableCell>
+                            <TableCell className="text-[10px] text-right font-semibold">{g.n_estudiantes}</TableCell>
+                            <TableCell className="text-[10px] text-muted-foreground">
+                              {(g.historico_notas || []).map((h) => (
+                                <div key={h.periodo}>{h.periodo}: <b>{h.promedio.toFixed(2)}</b> ({h.n})</div>
+                              ))}
+                              {(!g.historico_notas || g.historico_notas.length === 0) && <span className="italic">sin notas</span>}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

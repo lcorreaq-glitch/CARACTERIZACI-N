@@ -250,3 +250,73 @@ async def update_programa(item_id: str, payload: dict, user=Depends(require_role
     if not r.matched_count:
         raise HTTPException(404, "Programa no encontrado")
     return {"ok": True, "modified": r.modified_count}
+
+
+
+# ---------- Docentes enriquecidos ----------
+@router.get("/docentes")
+async def list_docentes(user=Depends(require_roles("superadmin", "admin"))):
+    """Lista de docentes con datos completos + conteo de grupos/cursos/estudiantes."""
+    docentes = await db.users.find(
+        {"role": "docente"},
+        {"_id": 0, "password": 0}
+    ).sort("full_name", 1).to_list(2000)
+
+    # Precalcular grupos y estudiantes por docente_id
+    grupos_by_doc = {}
+    async for r in db.grupos.aggregate([
+        {"$match": {"docente_id": {"$ne": None}}},
+        {"$group": {
+            "_id": "$docente_id",
+            "n_grupos": {"$sum": 1},
+            "materias": {"$addToSet": "$asignatura_nombre"},
+            "programas": {"$addToSet": "$programa"},
+            "periodos": {"$addToSet": "$periodo"},
+        }}
+    ]):
+        grupos_by_doc[r["_id"]] = {
+            "n_grupos": r["n_grupos"],
+            "n_materias": len([m for m in r["materias"] if m]),
+            "materias": sorted([m for m in r["materias"] if m])[:10],
+            "programas": sorted([p for p in r["programas"] if p]),
+            "periodos": sorted([p for p in r["periodos"] if p]),
+        }
+
+    # Estudiantes únicos por docente (via matriculas)
+    estud_by_doc = {}
+    async for r in db.matriculas.aggregate([
+        {"$match": {"docente_id": {"$ne": None}}},
+        {"$group": {"_id": "$docente_id", "cedulas": {"$addToSet": "$cedula"}}},
+        {"$project": {"n": {"$size": "$cedulas"}}}
+    ]):
+        estud_by_doc[r["_id"]] = r["n"]
+
+    for d in docentes:
+        stats = grupos_by_doc.get(d["id"], {})
+        d["n_grupos"] = stats.get("n_grupos", 0)
+        d["n_materias"] = stats.get("n_materias", 0)
+        d["materias"] = stats.get("materias", [])
+        d["programas"] = stats.get("programas", [])
+        d["periodos"] = stats.get("periodos", [])
+        d["n_estudiantes"] = estud_by_doc.get(d["id"], 0)
+
+    return docentes
+
+
+@router.get("/docentes/{docente_id}/grupos")
+async def docente_grupos(docente_id: str, user=Depends(require_roles("superadmin", "admin"))):
+    """Grupos asignados a un docente con conteo de estudiantes."""
+    grupos = await db.grupos.find({"docente_id": docente_id}, {"_id": 0}).to_list(500)
+    for g in grupos:
+        g["n_estudiantes"] = await db.matriculas.count_documents({"codigo_grupo": g["codigo_grupo"]})
+        # Notas históricas del docente en esa asignatura
+        if g.get("asignatura_codigo"):
+            agg = await db.historico_notas.aggregate([
+                {"$match": {"docente_id": docente_id, "codigo_asignatura": g["asignatura_codigo"]}},
+                {"$group": {"_id": "$periodo", "prom": {"$avg": "$nota"}, "n": {"$sum": 1}}},
+                {"$sort": {"_id": -1}}
+            ]).to_list(10)
+            g["historico_notas"] = [{"periodo": a["_id"], "promedio": round(a["prom"] or 0, 2), "n": a["n"]} for a in agg]
+        else:
+            g["historico_notas"] = []
+    return grupos

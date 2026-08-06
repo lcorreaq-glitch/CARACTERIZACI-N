@@ -223,6 +223,7 @@ async def main():
 
     docente_by_cedula = {}  # cedula -> user_id
     docente_by_email = {}   # email -> user_id
+    docente_meta = {}       # uid -> {correo_personal, correo_institucional, iddoc}
     # Pre-populate with existing users to avoid dupes (superadmin, demo)
     async for u in db.users.find({}, {"_id": 0, "id": 1, "email": 1}):
         if u.get("email"):
@@ -232,16 +233,39 @@ async def main():
     matriculas = []
     docente_users = []
 
+    def _extract_asig_codigo(cod_direct, asig_nombre):
+        """Extrae código de asignatura del nombre si viene vacío en el campo directo.
+        Patrón típico: 'Nombre materia - CODIGOMATERIA24014'."""
+        if cod_direct:
+            return cod_direct
+        if not asig_nombre or "-" not in asig_nombre:
+            return ""
+        # Última parte tras el último "- "
+        tail = asig_nombre.rsplit("-", 1)[-1].strip()
+        # Debe ser un código alfanumérico razonable (>=6 chars, sin espacios)
+        if 6 <= len(tail) <= 30 and " " not in tail and tail.upper() == tail.upper():
+            return tail
+        return ""
+
     for _, row in df.iterrows():
         # Docente
         doc_ced = _norm(row.get("DOCENTE_CEDULA"))
-        doc_email = _norm(row.get("DOCENTE_EMAIL")).lower() or _norm(row.get("DOCENTE_EMAIL_INSTITUCIONAL")).lower()
-        doc_name = _norm(row.get("DOCENTE_NOMBRE"))
+        email_personal = _norm(row.get("DOCENTE_EMAIL")).lower()
+        email_inst = _norm(row.get("DOCENTE_EMAIL_INSTITUCIONAL")).lower()
+        doc_email = email_inst or email_personal  # priorizar institucional para login
+        doc_name = " ".join(_norm(row.get("DOCENTE_NOMBRE")).split())  # limpia dobles espacios
+        iddoc = _norm(row.get("IDDOC"))
         if doc_ced and doc_ced not in docente_by_cedula:
             # Deduplicate by email
             existing_uid = docente_by_email.get(doc_email) if doc_email else None
             if existing_uid:
                 docente_by_cedula[doc_ced] = existing_uid
+                docente_meta[existing_uid] = {
+                    "correo_personal": email_personal,
+                    "correo_institucional": email_inst,
+                    "iddoc": iddoc,
+                    "cedula": doc_ced,
+                }
             else:
                 uid = str(uuid.uuid4())
                 docente_by_cedula[doc_ced] = uid
@@ -253,36 +277,61 @@ async def main():
                     "password": hash_pwd("IUDigital2026"),
                     "full_name": doc_name or f"Docente {doc_ced}",
                     "role": "docente",
+                    "documento": doc_ced,
                     "cedula": doc_ced,
+                    "iddoc": iddoc,
+                    "correo_personal": email_personal,
+                    "correo_institucional": email_inst,
                     "active": True,
                     "must_change_password": True,
                     "created_at": datetime.utcnow().isoformat(),
                 })
 
-        # Grupo
+        # Grupo (upsert: enriquecer si ya existe con datos faltantes)
         codigo_grupo = _norm(row.get("CODIGO_GRUPO"))
-        if codigo_grupo and codigo_grupo not in grupos_map:
+        if codigo_grupo:
             programa = _norm(row.get("PROGRAMA")).upper()
+            asig_nombre = _norm(row.get("ASIGNATURA_NOMBRE"))
+            asig_codigo = _extract_asig_codigo(_norm(row.get("CODIGO_ASIGATURA")), asig_nombre)
             prog_info = prog_by_name.get(programa, {})
-            grupos_map[codigo_grupo] = {
-                "id": str(uuid.uuid4()),
-                "codigo_grupo": codigo_grupo,
-                "id_grupo": _norm(row.get("IDGRUPO")),
-                "asignatura_nombre": _norm(row.get("ASIGNATURA_NOMBRE")),
-                "asignatura_codigo": _norm(row.get("CODIGO_ASIGATURA")),
-                "bloque": _norm(row.get("BLOQUE")),
-                "dia": _norm(row.get("DIA")),
-                "hora": _norm(row.get("HORA")),
-                "docente_id": docente_by_cedula.get(doc_ced),
-                "docente_nombre": doc_name,
-                "docente_email": doc_email,
-                "docente_cedula": doc_ced,
-                "programa": programa,
-                "facultad": prog_info.get("facultad_nombre", ""),
-                "periodo": f"{_norm(row.get('ANIO'))}-{_norm(row.get('PERIODO')).strip()}",
-                "periodicidad": _norm(row.get("PERIODICIDAD")),
-                "created_at": datetime.utcnow().isoformat(),
-            }
+            if codigo_grupo not in grupos_map:
+                grupos_map[codigo_grupo] = {
+                    "id": str(uuid.uuid4()),
+                    "codigo_grupo": codigo_grupo,
+                    "id_grupo": _norm(row.get("IDGRUPO")),
+                    "asignatura_nombre": asig_nombre,
+                    "asignatura_codigo": asig_codigo,
+                    "bloque": _norm(row.get("BLOQUE")),
+                    "dia": _norm(row.get("DIA")),
+                    "hora": _norm(row.get("HORA")),
+                    "docente_id": docente_by_cedula.get(doc_ced),
+                    "docente_nombre": doc_name,
+                    "docente_email": doc_email,
+                    "docente_correo_personal": email_personal,
+                    "docente_correo_institucional": email_inst,
+                    "docente_cedula": doc_ced,
+                    "programa": programa,
+                    "facultad": prog_info.get("facultad_nombre", ""),
+                    "periodo": f"{_norm(row.get('ANIO'))}-{_norm(row.get('PERIODO')).strip()}",
+                    "periodicidad": _norm(row.get("PERIODICIDAD")),
+                    "created_at": datetime.utcnow().isoformat(),
+                }
+            else:
+                # Enriquecer grupo existente si le faltaban datos
+                g = grupos_map[codigo_grupo]
+                if not g.get("programa") and programa:
+                    g["programa"] = programa
+                    if prog_info.get("facultad_nombre"):
+                        g["facultad"] = prog_info["facultad_nombre"]
+                if not g.get("asignatura_codigo") and asig_codigo:
+                    g["asignatura_codigo"] = asig_codigo
+                if not g.get("docente_id") and docente_by_cedula.get(doc_ced):
+                    g["docente_id"] = docente_by_cedula.get(doc_ced)
+                    g["docente_nombre"] = doc_name
+                    g["docente_email"] = doc_email
+                    g["docente_correo_personal"] = email_personal
+                    g["docente_correo_institucional"] = email_inst
+                    g["docente_cedula"] = doc_ced
 
         # Matrícula
         ced_est = _norm(row.get("DOC_ESTUDIANTE"))
@@ -291,9 +340,11 @@ async def main():
                 "id": str(uuid.uuid4()),
                 "cedula": ced_est,
                 "codigo_grupo": codigo_grupo,
-                "asignatura_codigo": _norm(row.get("CODIGO_ASIGATURA")),
+                "asignatura_codigo": _extract_asig_codigo(_norm(row.get("CODIGO_ASIGATURA")), _norm(row.get("ASIGNATURA_NOMBRE"))),
+                "asignatura_nombre": _norm(row.get("ASIGNATURA_NOMBRE")),
                 "docente_id": docente_by_cedula.get(doc_ced),
                 "docente_cedula": doc_ced,
+                "docente_nombre": doc_name,
                 "programa": _norm(row.get("PROGRAMA")).upper(),
                 "periodo": f"{_norm(row.get('ANIO'))}-{_norm(row.get('PERIODO')).strip()}",
                 "estado": _norm(row.get("ESTADO_ASIGNATURA")),
@@ -305,6 +356,13 @@ async def main():
     if docente_users:
         await db.users.insert_many(docente_users)
     print(f"  Docentes creados: {len(docente_users)}")
+
+    # Actualizar meta en docentes ya existentes (deduplicados por email)
+    for uid, meta in docente_meta.items():
+        await db.users.update_one(
+            {"id": uid},
+            {"$set": {k: v for k, v in meta.items() if v}}
+        )
     if grupos_map:
         await db.grupos.insert_many(list(grupos_map.values()))
     print(f"  Grupos: {len(grupos_map)}")
@@ -355,11 +413,11 @@ async def main():
         etnia = _upper(row.get("Etnia")) or "NO APLICA"
         grupo_etnia = _norm(row.get("Grupo étnico"))
         discap_tipo = _upper(row.get("Tipo de discapacidad")) or "NINGUNA"
-        discap_flag = discap_tipo not in ("NINGUNA", "NO APLICA", "")
+        discap_flag = discap_tipo not in ("NINGUNA", "NINGUNO", "NO APLICA", "SIN DATO", "")
         vulnerable_txt = _norm(row.get("Grupo vulnerable (si pertenece a uno)"))
-        vulnerable = bool(vulnerable_txt) and vulnerable_txt.lower() not in ("no", "no aplica", "ninguno")
+        vulnerable = bool(vulnerable_txt) and vulnerable_txt.lower() not in ("no", "no aplica", "ninguno", "ninguna", "sin dato", "n/a", "-")
         victima_txt = _norm(row.get("Ubicación de conflicto"))
-        victima = bool(victima_txt) and victima_txt.lower() not in ("no", "no aplica", "ninguno", "n/a", "")
+        victima = bool(victima_txt) and victima_txt.lower() not in ("no", "no aplica", "ninguno", "n/a", "sin dato", "")
 
         students.append({
             "id": str(uuid.uuid4()),
@@ -440,7 +498,7 @@ async def main():
         return df
 
     notas_all = []
-    for path, per in [(f"{BASE}/notas_25_2.xlsx", "2025-2"), (f"{BASE}/notas_26_2.xlsx", "2026-2")]:
+    for path, per_fallback in [(f"{BASE}/notas_25_2.xlsx", "2025-2"), (f"{BASE}/notas_26_2.xlsx", "2026-1")]:
         d = norm_note_cols(pd.read_excel(path, sheet_name=0))
         for _, r in d.iterrows():
             ced = _norm(r.get("DOC_ESTUDIANTE"))
@@ -452,6 +510,10 @@ async def main():
             if doc_ced.endswith(".0"):
                 doc_ced = doc_ced[:-2]
             docente_id = docente_by_cedula.get(doc_ced)
+            # Periodo real desde columnas ANO/PERIODO (más confiable que el nombre del archivo)
+            anio_val = _int(r.get("ANO"), _int(r.get("AÑO")))
+            per_val = _int(r.get("PERIODO"))
+            periodo_real = f"{anio_val}-{per_val}" if (anio_val and per_val) else per_fallback
             notas_all.append({
                 "id": str(uuid.uuid4()),
                 "cedula": ced,
@@ -467,9 +529,9 @@ async def main():
                 "docente_id": docente_id,
                 "docente_cedula": doc_ced,
                 "docente_nombre": _norm(r.get("DOCENTE")),
-                "anio": _int(r.get("ANO"), _int(r.get("AÑO"))),
-                "periodo_num": _int(r.get("PERIODO")),
-                "periodo": per,
+                "anio": anio_val,
+                "periodo_num": per_val,
+                "periodo": periodo_real,
                 "programa": _upper(r.get("PROGRAMA")),
                 "area_formacion": _norm(r.get("FACULTAD_ASIGNATURA")),
                 "created_at": datetime.utcnow().isoformat(),
@@ -480,9 +542,13 @@ async def main():
     print(f"  Notas totales: {len(notas_all)}")
 
     # =========================================================================
-    print("\n=== 6) Calcular promedios/aprobadas por estudiante (periodo 2026-2 primero) ===")
+    print("\n=== 6) Calcular promedios/aprobadas por estudiante (último periodo con notas) ===")
+    # Detectar automáticamente el último periodo con notas
+    periodos_con_notas = await db.historico_notas.distinct("periodo")
+    ultimo_periodo = sorted(periodos_con_notas)[-1] if periodos_con_notas else "2026-1"
+    print(f"  Último periodo detectado: {ultimo_periodo}")
     pipe = [
-        {"$match": {"periodo": "2026-2"}},
+        {"$match": {"periodo": ultimo_periodo}},
         {"$group": {
             "_id": "$cedula",
             "prom": {"$avg": "$nota"},
