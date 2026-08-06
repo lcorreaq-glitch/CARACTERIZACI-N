@@ -24,6 +24,16 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - IA: resúmenes automáticos vía OpenAI GPT-5.4 (Emergent LLM Key)
 - Exportación PDF/Excel
 
+## Latest session (2026-08-06 · iteración 9 — Territorial: filtros + búsqueda + validación de promedios)
+- ✅ **Buscador de municipio por nombre** con autocomplete (muestra ubicación + estudiantes + promedio). Al seleccionar hace fly-to en el mapa.
+- ✅ **Filtros locales del mapa**: País (11) y Departamento (51 cascada). Con botón "Limpiar filtros".
+- ✅ **Selección visual**: municipio seleccionado se destaca en rojo con radio mayor.
+- ✅ **Promedios transparentes**:
+  - Header muestra promedio ponderado de la vista actual: `El mapa muestra 14,933 estudiantes con geolocalización en 305 municipios visibles. Promedio ponderado 2.35.`
+  - Tooltip del mapa aclara: "Ponderado sobre N estudiantes con notas" o "Sin notas cargadas".
+  - Todos los promedios coinciden entre tooltip / KPI header / autocomplete.
+- ✅ **Cross-filter**: clic en barra "Top municipios" o en un país de la lista lateral filtra el mapa.
+
 ## Latest session (2026-08-06 · iteración 8 — Filtro Materia removido + Descarga "Vista actual")
 - ✅ **Filtro Materia removido** del panel de filtros globales (era redundante con el filtro de Grupo). Ahora sólo aparecen: Docente y Grupo (cascada).
 - ✅ **Nuevo endpoint `GET /api/exports/grupo/{codigo}/vista`** que exporta solo los datos visibles en la vista del docente:
