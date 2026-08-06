@@ -36,23 +36,26 @@ def _build_match(args: dict) -> dict:
     return m
 
 
-async def _apply_docente_materia(match: dict, docente_id, materia_id) -> dict:
-    """If docente_id and/or materia_id are present, restrict match to cédulas
-    in historico_notas matching that docente/materia."""
-    if not docente_id and not materia_id:
-        return match
+async def _apply_docente_materia(match: dict, docente_id, materia_id, codigo_grupo=None) -> dict:
+    """If docente_id/materia_id/codigo_grupo are present, restrict match to intersection
+    of cédulas from historico_notas (docente/materia) and matriculas (grupo)."""
+    cedulas_sets = []
+    if codigo_grupo and codigo_grupo not in ("all", "todos", ""):
+        cedulas = await db.matriculas.distinct("cedula", {"codigo_grupo": codigo_grupo})
+        cedulas_sets.append(set(cedulas))
     hn_match = {}
     if docente_id and docente_id not in ("all", "todos", ""):
         hn_match["docente_id"] = docente_id
     if materia_id and materia_id not in ("all", "todos", ""):
         hn_match["materia_id"] = materia_id
-    if not hn_match:
-        return match
-    cedulas = await db.historico_notas.distinct("cedula", hn_match)
-    if cedulas:
-        match["cedula"] = {"$in": cedulas}
-    else:
-        match["cedula"] = "__NO_MATCH__"
+    if hn_match:
+        cedulas = await db.historico_notas.distinct("cedula", hn_match)
+        cedulas_sets.append(set(cedulas))
+    if cedulas_sets:
+        final = cedulas_sets[0]
+        for s in cedulas_sets[1:]:
+            final = final & s
+        match["cedula"] = {"$in": list(final)} if final else "__NO_MATCH__"
     return match
 
 
@@ -72,9 +75,10 @@ async def _common_params(
     grupo_vulnerable: Optional[str] = None,
     docente_id: Optional[str] = None,
     materia_id: Optional[str] = None,
+    codigo_grupo: Optional[str] = None,
 ):
     match = _build_match(locals())
-    return await _apply_docente_materia(match, docente_id, materia_id)
+    return await _apply_docente_materia(match, docente_id, materia_id, codigo_grupo)
 
 
 @router.get("/executive")
@@ -289,6 +293,23 @@ async def filter_options(user=Depends(get_current_user)):
         key=lambda x: x["nombre"],
     )
 
+    # Grupos activos (limitados a los 200 más relevantes o filtrados por rol)
+    grupos_query = {}
+    if user.get("role") == "docente":
+        grupos_query = {"docente_id": user["id"]}
+    grupos_rows = await db.grupos.find(grupos_query, {
+        "_id": 0, "codigo_grupo": 1, "asignatura_nombre": 1,
+        "programa": 1, "docente_nombre": 1, "periodo": 1
+    }).sort("codigo_grupo", 1).to_list(2000)
+    grupos = [
+        {"id": g["codigo_grupo"],
+         "nombre": f"{g.get('asignatura_nombre', '')[:35]}",
+         "codigo": g["codigo_grupo"],
+         "programa": g.get("programa", "")[:30],
+         "docente": g.get("docente_nombre", "")}
+        for g in grupos_rows
+    ]
+
     return {
         "programas": programas,
         "facultades": facultades,
@@ -301,4 +322,5 @@ async def filter_options(user=Depends(get_current_user)):
         "facultad_programa": facultad_programa,
         "docentes": docentes,
         "materias": materias,
+        "grupos": grupos,
     }

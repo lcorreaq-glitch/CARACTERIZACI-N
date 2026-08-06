@@ -19,8 +19,8 @@ export const useFilters = () => useContext(FilterContext);
 const NAV = [
   { to: "/", label: "Ejecutivo", icon: LayoutDashboard, hideForDocente: true },
   { to: "/mi-panel", label: "Mi panel", icon: GraduationCap, onlyDocente: true },
-  { to: "/caracterizacion", label: "Caracterización", icon: Users, hideForDocente: true },
-  { to: "/academico", label: "Académico", icon: GraduationCap, hideForDocente: true },
+  { to: "/caracterizacion", label: "Caracterización", icon: Users },
+  { to: "/academico", label: "Académico", icon: GraduationCap },
   { to: "/territorial", label: "Territorial", icon: Map, hideForDocente: true },
   { to: "/historico", label: "Histórico", icon: History, hideForDocente: true },
   { to: "/insights", label: "Insights IA", icon: Brain, hideForDocente: true },
@@ -214,10 +214,11 @@ function FiltersPanel() {
     { key: "etnia", label: "Grupo étnico", list: opts.etnias || [] },
     { key: "tipo_ubicacion", label: "Ubicación", list: opts.ubicaciones || [] },
   ];
-  // Docente + Materia (estructura distinta: list de objetos {id, nombre})
+  // Docente + Materia + Grupo (estructura distinta: list de objetos {id, nombre})
   const objectGroups = [
     { key: "docente_id", label: `Docente${(opts.docentes || []).length ? ` (${opts.docentes.length})` : ""}`, list: opts.docentes || [] },
     { key: "materia_id", label: `Materia${(opts.materias || []).length ? ` (${opts.materias.length})` : ""}`, list: opts.materias || [] },
+    { key: "codigo_grupo", label: `Grupo${(opts.grupos || []).length ? ` (${opts.grupos.length})` : ""}`, list: opts.grupos || [] },
   ];
   const booleans = [
     { key: "sisben", label: "Beneficiario SISBEN" },
