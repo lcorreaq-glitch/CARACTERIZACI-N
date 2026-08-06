@@ -193,7 +193,7 @@ export default function Executive() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Tipo de ubicación" eyebrow="Territorial" span="lg:col-span-6">
+        <ChartCard title="Tipo de ubicación" eyebrow="Territorial (Tipo de vivienda)" span="lg:col-span-6">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={data?.by_ubicacion || []} layout="vertical">
               <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
@@ -201,6 +201,42 @@ export default function Executive() {
               <YAxis type="category" dataKey="tipo" tick={{ fontSize: 11, fill: "hsl(var(--foreground))" }} width={90} />
               <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
               <Bar dataKey="n" fill="#059669" radius={[0, 2, 2, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Grupos etarios" eyebrow="Demografía" span="lg:col-span-6">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={data?.by_edad || []}>
+              <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
+              <XAxis dataKey="rango" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+              <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
+              <Bar dataKey="n" fill="#0033A0" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Tipo de vulnerabilidad" eyebrow="Enfoque diferencial" span="lg:col-span-6">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={data?.by_vulnerabilidad || []} layout="vertical">
+              <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
+              <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+              <YAxis type="category" dataKey="tipo" tick={{ fontSize: 10, fill: "hsl(var(--foreground))" }} width={130} tickFormatter={(v) => v?.length > 22 ? v.slice(0, 20) + "…" : v} />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
+              <Bar dataKey="n" fill="#E3000F" radius={[0, 2, 2, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Georeferenciación · departamento de residencia" eyebrow="Territorial" span="lg:col-span-6">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={data?.by_departamento || []} layout="vertical">
+              <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
+              <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+              <YAxis type="category" dataKey="departamento" tick={{ fontSize: 10, fill: "hsl(var(--foreground))" }} width={130} />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
+              <Bar dataKey="n" fill="#8B5CF6" radius={[0, 2, 2, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>

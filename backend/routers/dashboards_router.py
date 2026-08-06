@@ -146,6 +146,35 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
         {"$project": {"_id": 0, "tipo": "$_id", "n": 1}}
     ]).to_list(10)
 
+    by_edad = await coll.aggregate(pipeline + [
+        {"$group": {"_id": "$rango_edad", "n": {"$sum": 1}}},
+        {"$sort": {"_id": 1}},
+        {"$project": {"_id": 0, "rango": "$_id", "n": 1}}
+    ]).to_list(10)
+
+    by_vulnerabilidad = await coll.aggregate(pipeline + [
+        {"$match": {"grupo_vulnerable": True}},
+        {"$group": {"_id": "$tipo_grupo_vulnerable", "n": {"$sum": 1}}},
+        {"$sort": {"n": -1}},
+        {"$limit": 10},
+        {"$project": {"_id": 0, "tipo": "$_id", "n": 1}}
+    ]).to_list(15)
+
+    by_pais = await coll.aggregate(pipeline + [
+        {"$group": {"_id": "$pais", "n": {"$sum": 1}}},
+        {"$sort": {"n": -1}},
+        {"$limit": 15},
+        {"$project": {"_id": 0, "pais": "$_id", "n": 1}}
+    ]).to_list(15)
+
+    by_departamento = await coll.aggregate(pipeline + [
+        {"$match": {"departamento_residencia": {"$ne": None}}},
+        {"$group": {"_id": "$departamento_residencia", "n": {"$sum": 1}}},
+        {"$sort": {"n": -1}},
+        {"$limit": 15},
+        {"$project": {"_id": 0, "departamento": "$_id", "n": 1}}
+    ]).to_list(15)
+
     total_programas = len(await coll.distinct("programa", match))
     total_facultades = len(await coll.distinct("facultad", match))
 
@@ -173,6 +202,10 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
         "by_genero": by_genero,
         "by_estrato": by_estrato,
         "by_ubicacion": by_ubicacion,
+        "by_edad": by_edad,
+        "by_vulnerabilidad": by_vulnerabilidad,
+        "by_pais": by_pais,
+        "by_departamento": by_departamento,
     }
 
 

@@ -1,0 +1,49 @@
+{
+  "verdict": "fixed",
+  "user_reported_bug": "Por ejemplo los estudiantes rurales no coinciden mira mi dato calculado, por tipo de vivienda, no hay datos de grupos etareos por ejemplo, de tipo de vulnerabilidad, no estan actualizados, la georeferenciación con pais, departamento, ciudad de residencia, entre otros",
+  "summary": "No relevant testing skill found. Focused backend+frontend verification passed: login works, /api/dashboards/executive now returns rural KPI 3404, vulnerables 2821, age groups, normalized vulnerability categories, country and department residence breakdowns; the UI shows KPI ESTUDIANTES RURALES = 3.404 and the new executive chart cards are visible.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/dashboards/executive",
+        "issue": "by_departamento returns source spelling NARINIO instead of canonical Nariño. Top-5 order/counts are otherwise correct."
+      },
+      {
+        "endpoint": "GET /api/dashboards/executive",
+        "issue": "by_ubicacion collapses Semirural into Rural (Rural=3404) rather than exposing Semirural=143 as a separate Tipo de vivienda category. This matches the rural KPI requirement but may be less granular than the raw Excel."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/verify_executive_dashboard_bug.py",
+    "/app/tests/verify_executive_dashboard_ui_playwright.py"
+  ],
+  "action_items": [
+    "Persist the same Tipo de vivienda, vulnerability normalization, pais/departamento_residencia transformations in backend/load_real_data.py or the canonical ingestion path so a future reload cannot regress the fixed dashboard data.",
+    "Optionally canonicalize department labels such as NARINIO -> NARIÑO/Nariño and decide whether the UI should show Semirural separately under Tipo de vivienda."
+  ],
+  "critical_code_review_comments": [
+    "Runtime MongoDB data contains the new fields/counts and the API/UI are correct now, but backend/load_real_data.py still appears to parse tipo_ubicacion from pais/ciudad, keep raw tipo_grupo_vulnerable, and does not write departamento_residencia. Re-running that loader would likely regress this bug unless the ingestion/backfill logic is committed elsewhere."
+  ],
+  "updated_files": [
+    "/app/tests/verify_executive_dashboard_bug.py",
+    "/app/tests/verify_executive_dashboard_ui_playwright.py",
+    "/app/test_reports/bug_verification_12.json",
+    "/app/test_reports/iteration_12.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "None. Used existing real dataset and /app/uploads_user/carac.xlsx as source reference.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "API verification logged: kpis.rurales=3404, kpis.vulnerables=2821, by_edad has 7 groups, by_vulnerabilidad includes Víctima conflicto=1361/Afro=221/Indígena=177/Madre cabeza=194/LGBTI+=76/Pobreza=132, by_pais COLOMBIA=16425 with exterior countries, by_departamento top 5 ANTIOQUIA/MAGDALENA/NARINIO/CAUCA/GUAJIRA. UI login with lcorreaq@gmail.com / IUDigital2026 passed and required cards were visible. No mocked APIs used.",
+  "rca_of_the_issue": "The reported mismatch was caused by dashboard data not being aligned to the characterization Excel fields: rural count needed Tipo de vivienda rather than address/residence heuristics, vulnerability needed text normalization, and georeferencing needed residence country/department fields. Current runtime data and endpoint now reflect those values."
+}
