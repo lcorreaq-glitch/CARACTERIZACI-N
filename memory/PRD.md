@@ -24,6 +24,11 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - IA: resúmenes automáticos vía OpenAI GPT-5.4 (Emergent LLM Key)
 - Exportación PDF/Excel
 
+## Latest session (2026-08-06 · iteración 4 — Fix filtro docente)
+- 🐛 **Fix crítico**: al filtrar dashboards por `docente_id`, se estaba haciendo UNIÓN de matrículas activas + histórico de notas de periodos anteriores. Un docente con 145 estudiantes actuales pero 43 estudiantes en periodos 2025-2/2026-1 mostraba **187** en lugar de **145**.
+- ✅ **Solución**: `_apply_docente_materia` en `dashboards_router`, `caracterizacion_router` y `exports_router` ahora usa solo **matriculas activas** para filtrar por docente (el histórico se considera solo cuando se filtra por `materia_id`).
+- ✅ **Verificación**: Isabel Cristina Quiroz Ospina — Executive/Caracterización ahora reportan 145 (antes 187). Con `docente_id + codigo_grupo` también 145.
+
 ## Latest session (2026-08-06 · iteración 3 — Reestructuración de Roles)
 - ✅ **5 roles nuevos** con RBAC + scoping automático:
   - `superadmin`: acceso total

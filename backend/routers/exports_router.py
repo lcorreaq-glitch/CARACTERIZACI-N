@@ -69,24 +69,23 @@ def _build_match(args):
 async def _apply_docente_materia(match: dict, docente_id, materia_id, codigo_grupo=None) -> dict:
     if not docente_id and not materia_id and not codigo_grupo:
         return match
-    # Si hay codigo_grupo, filtrar por matriculas
+    # Si hay codigo_grupo, filtrar por matriculas del grupo específico
     if codigo_grupo and codigo_grupo not in ("all", "todos", ""):
         cedulas = await db.matriculas.distinct("cedula", {"codigo_grupo": codigo_grupo})
         match["cedula"] = {"$in": cedulas} if cedulas else "__NO_MATCH__"
         return match
-    hn_match = {}
+    # Filtrado por docente y/o materia
     if docente_id and docente_id not in ("all", "todos", ""):
-        hn_match["docente_id"] = docente_id
+        # Solo matrículas activas del docente (no incluye histórico de periodos anteriores)
+        cedulas = await db.matriculas.distinct("cedula", {"docente_id": docente_id})
+        if materia_id and materia_id not in ("all", "todos", ""):
+            # Intersección con materia
+            cedulas_materia = await db.historico_notas.distinct("cedula", {"materia_id": materia_id})
+            cedulas = list(set(cedulas) & set(cedulas_materia))
+        match["cedula"] = {"$in": cedulas} if cedulas else "__NO_MATCH__"
+        return match
     if materia_id and materia_id not in ("all", "todos", ""):
-        hn_match["materia_id"] = materia_id
-    if hn_match:
-        # Buscar cedulas en historico_notas O en matriculas (más completo para docente_id)
-        cedulas_notas = await db.historico_notas.distinct("cedula", hn_match)
-        if docente_id:
-            cedulas_matriculas = await db.matriculas.distinct("cedula", {"docente_id": docente_id})
-            cedulas = list(set(cedulas_notas) | set(cedulas_matriculas))
-        else:
-            cedulas = cedulas_notas
+        cedulas = await db.historico_notas.distinct("cedula", {"materia_id": materia_id})
         match["cedula"] = {"$in": cedulas} if cedulas else "__NO_MATCH__"
     return match
 

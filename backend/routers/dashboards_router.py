@@ -39,16 +39,21 @@ def _build_match(args: dict) -> dict:
 
 async def _apply_docente_materia(match: dict, docente_id, materia_id, codigo_grupo=None) -> dict:
     """If docente_id/materia_id/codigo_grupo are present, restrict match to intersection
-    of cédulas from historico_notas (docente/materia) UNIÓN matriculas del docente y grupo."""
+    of cédulas.
+
+    - codigo_grupo: matriculados en ese grupo específico.
+    - docente_id: SOLO matriculados actuales del docente (no incluye histórico de periodos anteriores
+      para evitar sumar estudiantes de cursos que ya no dicta).
+    - materia_id: cédulas con notas históricas en esa materia (útil para análisis por materia).
+    """
     cedulas_sets = []
     if codigo_grupo and codigo_grupo not in ("all", "todos", ""):
         cedulas = await db.matriculas.distinct("cedula", {"codigo_grupo": codigo_grupo})
         cedulas_sets.append(set(cedulas))
     if docente_id and docente_id not in ("all", "todos", ""):
-        # UNIÓN: notas históricas del docente + matrículas activas del docente
-        c1 = set(await db.historico_notas.distinct("cedula", {"docente_id": docente_id}))
+        # Solo matriculas activas del docente (periodo actual)
         c2 = set(await db.matriculas.distinct("cedula", {"docente_id": docente_id}))
-        cedulas_sets.append(c1 | c2)
+        cedulas_sets.append(c2)
     if materia_id and materia_id not in ("all", "todos", ""):
         c = set(await db.historico_notas.distinct("cedula", {"materia_id": materia_id}))
         cedulas_sets.append(c)

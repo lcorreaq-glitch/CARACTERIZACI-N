@@ -69,9 +69,9 @@ async def _params(
     if codigo_grupo and codigo_grupo not in ("all", "todos", ""):
         cedulas_sets.append(set(await db.matriculas.distinct("cedula", {"codigo_grupo": codigo_grupo})))
     if docente_id and docente_id not in ("all", "todos", ""):
-        c1 = set(await db.historico_notas.distinct("cedula", {"docente_id": docente_id}))
+        # Solo matrículas activas (evita sumar estudiantes de periodos históricos)
         c2 = set(await db.matriculas.distinct("cedula", {"docente_id": docente_id}))
-        cedulas_sets.append(c1 | c2)
+        cedulas_sets.append(c2)
     if materia_id and materia_id not in ("all", "todos", ""):
         cedulas_sets.append(set(await db.historico_notas.distinct("cedula", {"materia_id": materia_id})))
     if cedulas_sets:
