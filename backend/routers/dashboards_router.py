@@ -178,6 +178,17 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
     total_programas = len(await coll.distinct("programa", match))
     total_facultades = len(await coll.distinct("facultad", match))
 
+    # Promedio general PONDERADO desde historico_notas (nota real, no promedio de promedios)
+    prom_ponderado = 0
+    if not match or match.get("cedula", {}).get("$in") is not None or not match:
+        hn_match_general = hn_match if match else {}
+        rr = await db.historico_notas.aggregate([
+            {"$match": hn_match_general},
+            {"$group": {"_id": None, "p": {"$avg": "$nota"}}}
+        ]).to_list(1)
+        if rr:
+            prom_ponderado = round(rr[0]["p"] or 0, 2)
+
     k = agg_kpi[0] if agg_kpi else {}
     return {
         "kpis": {
@@ -185,7 +196,7 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
             "matriculados": k.get("matriculados", 0),
             "programas": total_programas,
             "facultades": total_facultades,
-            "promedio": round(k.get("promedio", 0) or 0, 2),
+            "promedio": prom_ponderado or round(k.get("promedio", 0) or 0, 2),
             "avance_pct": round(k.get("avance_pct", 0) or 0, 1),
             "vulnerables": k.get("vulnerables", 0),
             "victimas": k.get("victimas", 0),

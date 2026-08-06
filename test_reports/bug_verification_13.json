@@ -1,0 +1,35 @@
+{
+  "verdict": "fixed",
+  "user_reported_bug": "este dashboard tampoco coincide - promedio general 3.80 no coincidía con promedios por semestre (2025-2:3.45, 2026-1:3.12)",
+  "summary": "No relevant testing skill found. Focused API and UI regression verified the executive dashboard now returns and displays Promedio general 3.29, not 3.80, coherent with the 2025-2 and 2026-1 period averages. Login, dashboard load, period cards, and the requested chart headings were verified end to end with real backend data.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/bug_exec_dashboard_promedio_api.py",
+    "/app/tests/bug_exec_dashboard_promedio_ui_playwright.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/tests/bug_exec_dashboard_promedio_api.py",
+    "/app/tests/bug_exec_dashboard_promedio_ui_playwright.py",
+    "/app/test_reports/bug_verification_13.json",
+    "/app/test_reports/iteration_13.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "None. Used existing preview data and provided superadmin credentials.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Focused test plan covered the exact unfiltered executive dashboard bug: inspect dashboards_router.py diff, authenticate as lcorreaq@gmail.com, call GET /api/dashboards/executive, verify weighted promedio 3.29 and exact KPIs, then verify UI card/period cards/chart headings. No relevant testing skill found. No MOCKED APIs were used.",
+  "rca_of_the_issue": "Regression evidence: GET /api/dashboards/executive returned kpis.promedio=3.29, promedio_2025_2=3.45, promedio_2026_1=3.12, notas_2025_2=84871, notas_2026_1=84505; (84871*3.45 + 84505*3.12)/169376 = 3.285357, rounding to 3.29. Browser UI showed Promedio general 3.29 and period cards 3.45/3.12 after real login."
+}
