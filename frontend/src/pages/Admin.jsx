@@ -9,7 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, UserPlus, Globe, Download, Eye } from "lucide-react";
+import { Plus, Trash2, UserPlus, Globe, Download, Eye, Pencil, Save } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
@@ -227,6 +227,8 @@ function ProgramasTab() {
   const [nivelFilter, setNivelFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({});
   const [form, setForm] = useState({
     nombre: "", nombre_corto: "", codigo: "", facultad_id: "",
     nivel: "Pregrado", modalidad: "Virtual", estado: "Activo",
@@ -253,6 +255,35 @@ function ProgramasTab() {
     if (!window.confirm("¿Eliminar este programa?")) return;
     await api.delete(`/admin/programas/${id}`);
     toast.success("Eliminado"); load();
+  };
+
+  const startEdit = (p) => {
+    setEditForm({
+      nombre: p.nombre || "", nombre_corto: p.nombre_corto || "",
+      codigo: p.codigo || "", facultad_id: p.facultad_id || "",
+      nivel: p.nivel || "Pregrado", modalidad: p.modalidad || "Virtual",
+      estado: p.estado || "Activo",
+    });
+    setEditMode(true);
+  };
+
+  const saveEdit = async () => {
+    if (!detail?.id) return;
+    try {
+      // Sync facultad_nombre based on facultad_id
+      const fac = facs.find((f) => f.id === editForm.facultad_id);
+      const payload = { ...editForm };
+      if (fac) payload.facultad_nombre = fac.nombre;
+      await api.put(`/admin/programas/${detail.id}`, payload);
+      toast.success("Programa actualizado");
+      setEditMode(false);
+      await load();
+      // Refresh detail with new data
+      const refreshed = { ...detail, ...payload };
+      setDetail(refreshed);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Error al guardar");
+    }
   };
 
   const filtered = items.filter((p) => {
@@ -393,6 +424,9 @@ function ProgramasTab() {
                 <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setDetail(p)} data-testid={`programa-detail-${p.id}`} title="Ver detalle">
                   <Eye className="w-3.5 h-3.5" />
                 </Button>
+                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => { setDetail(p); startEdit(p); }} data-testid={`programa-edit-${p.id}`} title="Editar">
+                  <Pencil className="w-3.5 h-3.5 text-[#0033A0]" />
+                </Button>
                 <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => remove(p.id)} title="Eliminar">
                   <Trash2 className="w-3 h-3 text-[#E3000F]" />
                 </Button>
@@ -406,12 +440,19 @@ function ProgramasTab() {
       </Table>
 
       {/* Detalle modal */}
-      <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
+      <Dialog open={!!detail} onOpenChange={(v) => { if (!v) { setDetail(null); setEditMode(false); } }}>
         <DialogContent className="max-w-2xl" data-testid="programa-detail-dialog">
           <DialogHeader>
-            <DialogTitle className="font-display tracking-tight">{detail?.nombre}</DialogTitle>
+            <DialogTitle className="font-display tracking-tight flex items-center justify-between gap-4">
+              <span>{editMode ? "Editar programa" : detail?.nombre}</span>
+              {detail && !editMode && (
+                <Button size="sm" variant="outline" className="rounded-sm" onClick={() => startEdit(detail)} data-testid="programa-modal-edit-btn">
+                  <Pencil className="w-3 h-3 mr-1" /> Editar
+                </Button>
+              )}
+            </DialogTitle>
           </DialogHeader>
-          {detail && (
+          {detail && !editMode && (
             <div className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 {nivelBadge(detail.nivel)}
@@ -434,6 +475,70 @@ function ProgramasTab() {
               <div className="pt-2 border-t border-border">
                 <p className="label-eyebrow mb-2">Estadísticas</p>
                 <ProgramaStats programa={detail.nombre} />
+              </div>
+            </div>
+          )}
+
+          {detail && editMode && (
+            <div className="space-y-3">
+              <div><Label className="label-eyebrow">Nombre completo</Label>
+                <Input className="rounded-sm" value={editForm.nombre} onChange={(e) => setEditForm({ ...editForm, nombre: e.target.value })} data-testid="edit-nombre" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="label-eyebrow">Nombre corto</Label>
+                  <Input className="rounded-sm" value={editForm.nombre_corto} onChange={(e) => setEditForm({ ...editForm, nombre_corto: e.target.value })} />
+                </div>
+                <div><Label className="label-eyebrow">Código SNIES</Label>
+                  <Input className="rounded-sm" value={editForm.codigo} onChange={(e) => setEditForm({ ...editForm, codigo: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <Label className="label-eyebrow">Facultad</Label>
+                <Select value={editForm.facultad_id} onValueChange={(v) => setEditForm({ ...editForm, facultad_id: v })}>
+                  <SelectTrigger className="rounded-sm"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                  <SelectContent>{facs.map((f) => <SelectItem key={f.id} value={f.id}>{f.nombre}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="label-eyebrow">Nivel</Label>
+                  <Select value={editForm.nivel} onValueChange={(v) => setEditForm({ ...editForm, nivel: v })}>
+                    <SelectTrigger className="rounded-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pregrado">Pregrado</SelectItem>
+                      <SelectItem value="Posgrado">Posgrado</SelectItem>
+                      <SelectItem value="Extensión Académica">Extensión Académica</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="label-eyebrow">Modalidad</Label>
+                  <Select value={editForm.modalidad} onValueChange={(v) => setEditForm({ ...editForm, modalidad: v })}>
+                    <SelectTrigger className="rounded-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Virtual">Virtual</SelectItem>
+                      <SelectItem value="Presencial">Presencial</SelectItem>
+                      <SelectItem value="Distancia">Distancia</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="label-eyebrow">Estado</Label>
+                  <Select value={editForm.estado} onValueChange={(v) => setEditForm({ ...editForm, estado: v })}>
+                    <SelectTrigger className="rounded-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Activo">Activo</SelectItem>
+                      <SelectItem value="Inactivo">Inactivo</SelectItem>
+                      <SelectItem value="Suspendido">Suspendido</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-border">
+                <Button variant="outline" className="rounded-sm" onClick={() => setEditMode(false)}>Cancelar</Button>
+                <Button className="bg-[#0033A0] hover:bg-[#002A85] text-white rounded-sm" onClick={saveEdit} data-testid="programa-save-btn">
+                  <Save className="w-3.5 h-3.5 mr-1" /> Guardar cambios
+                </Button>
               </div>
             </div>
           )}
