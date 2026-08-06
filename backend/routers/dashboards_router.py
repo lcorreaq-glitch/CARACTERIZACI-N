@@ -231,18 +231,27 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
 
 
 @router.get("/academic")
-async def academic(match: dict = Depends(_common_params), user=Depends(get_current_user)):
+async def academic(
+    include_extension: bool = False,
+    match: dict = Depends(_common_params),
+    user=Depends(get_current_user),
+):
     """Dashboard académico basado 100% en historico_notas (2 periodos reales: 2025-2 y 2026-1)
-    + campo 'nivel' (semestre) del estudiante para trayectoria 2026-2."""
+    + campo 'nivel' (semestre) del estudiante para trayectoria 2026-2.
+
+    Por defecto EXCLUYE las notas del área EXTENSION (cursos/diplomados).
+    Con `?include_extension=true` se incluyen.
+    """
     coll = db.students
     pipeline = [{"$match": match}] if match else []
 
     # Restringir historico_notas a las cédulas del match global
+    hn_base = {}
     if match:
         cedulas_match = await db.students.distinct("cedula", match)
-        hn_base = {"cedula": {"$in": cedulas_match}}
-    else:
-        hn_base = {}
+        hn_base["cedula"] = {"$in": cedulas_match}
+    if not include_extension:
+        hn_base["area_formacion"] = {"$not": {"$regex": "extension", "$options": "i"}}
 
     # ============================================================
     # SECCIÓN 1 · Comparativo por periodo
@@ -335,8 +344,14 @@ async def academic(match: dict = Depends(_common_params), user=Depends(get_curre
     ]).to_list(10)
 
     # 2c) Promedio por área de formación (facultad de la asignatura)
+    area_match = dict(hn_base)
+    # Combinar filtros de area_formacion (extensión + no-vacío)
+    if "area_formacion" in hn_base:
+        area_match["area_formacion"] = {**hn_base["area_formacion"], "$nin": [None, ""]}
+    else:
+        area_match["area_formacion"] = {"$nin": [None, ""]}
     by_area = await db.historico_notas.aggregate([
-        {"$match": {**hn_base, "area_formacion": {"$nin": [None, ""]}}},
+        {"$match": area_match},
         {"$group": {
             "_id": "$area_formacion", "n": {"$sum": 1},
             "prom": {"$avg": "$nota"},

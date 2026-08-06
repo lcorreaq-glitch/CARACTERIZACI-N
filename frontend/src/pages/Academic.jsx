@@ -9,6 +9,8 @@ import {
 import { TrendingDown, TrendingUp, BookOpen, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const fmt = (n) => (n || 0).toLocaleString("es-CO");
 
@@ -57,13 +59,15 @@ export default function Academic() {
   const { filters } = useFilters();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [includeExtension, setIncludeExtension] = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    api.get(`/dashboards/academic?${buildQuery(filters)}`)
+    const q = buildQuery(filters);
+    api.get(`/dashboards/academic?${q}${q ? "&" : ""}include_extension=${includeExtension}`)
       .then((r) => setData(r.data))
       .finally(() => setLoading(false));
-  }, [filters]);
+  }, [filters, includeExtension]);
 
   const k = data?.kpis || {};
 
@@ -74,10 +78,20 @@ export default function Academic() {
           <p className="label-eyebrow text-[#0033A0]">Dashboard académico</p>
           <h1 className="font-display font-black text-3xl md:text-4xl tracking-tighter mt-1">Rendimiento y trayectoria</h1>
           <p className="text-sm text-muted-foreground mt-2">
-            Basado en <b>169.376 notas</b> de <b>2025-2</b> y <b>2026-1</b> + nivel académico <b>2026-2</b>.
+            Basado en <b>{fmt(data?.kpis?.notas_evaluadas || 0)}</b> notas de <b>2025-2</b> y <b>2026-1</b> + nivel académico <b>2026-2</b>.
+            {!includeExtension && <span className="ml-1 text-amber-700"> · Excluye Extensión</span>}
           </p>
         </div>
-        <ExportButtons scope="academico" filters={filters} />
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 dense-card px-3 py-2" data-testid="toggle-extension">
+            <Switch id="ext-toggle" checked={includeExtension} onCheckedChange={setIncludeExtension} data-testid="switch-extension" />
+            <Label htmlFor="ext-toggle" className="text-xs cursor-pointer">
+              Incluir Extensión
+              <span className="block text-[10px] text-muted-foreground">(cursos/diplomados)</span>
+            </Label>
+          </div>
+          <ExportButtons scope="academico" filters={filters} />
+        </div>
       </header>
 
       {loading ? (
