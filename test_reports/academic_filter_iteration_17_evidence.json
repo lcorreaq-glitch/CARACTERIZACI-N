@@ -1,0 +1,205 @@
+{
+  "failures": [
+    {
+      "check": "admin.docentes.grupos.non_academic_historico",
+      "detail": "non-academic groups returned with historico_notas/promedios: [{'codigo_grupo': 'PRECBH2602000_20005', 'asignatura_codigo': 'PREHUMCHU23003', 'programa': 'Inglés 5 (inglés Fuera de la Malla 2026-1 B2)', 'historico_notas': [{'periodo': '2026-1', 'promedio': 3.77, 'n': 87}]}, {'codigo_grupo': 'PRECBH2602000_20004', 'asignatura_codigo': 'PREHUMCHU23002', 'programa': 'Inglés 4 (inglés Fuera de la Malla 2026-1 B1)', 'historico_notas': [{'periodo': '2026-1', 'promedio': 3.76, 'n': 166}]}, {'codigo_grupo': 'PRECBH2602000_20002', 'asignatura_codigo': 'PREAEMBASI22006', 'programa': 'Inglés 2 (inglés Fuera de la Malla 2026-1 B2)', 'historico_notas': [{'periodo': '2026-1', 'promedio': 3.62, 'n': 198}]}, {'codigo_grupo': 'PRECBH2602000_20001', 'asignatura_codigo': 'PREAEMBASI22005', 'programa': 'Inglés 1 (inglés Fuera de la Malla 2026-1 B2)', 'historico_notas': [{'periodo': '2026-1', 'promedio': 3.54, 'n': 134}]}, {'codigo_grupo': 'PRECBH2602000_20003', 'asignatura_codigo': 'PREHUMCHU23001', 'programa': 'Inglés 3 (inglés Fuera de la Malla 2026-1 B2)', 'historico_notas': [{'periodo': '2026-1', 'promedio': 3.5, 'n': 190}]}]"
+    }
+  ],
+  "minor": [
+    {
+      "check": "admin.grupos.target.total",
+      "detail": "items=[] but total=1 (pagination count not post-filtered)"
+    }
+  ],
+  "evidence": {
+    "db_baseline": {
+      "raw_total": 169376,
+      "academic_total": 164191,
+      "non_academic_total": 5185,
+      "raw_avg": 3.29,
+      "academic_avg": 3.32,
+      "academic_period_stats": {
+        "2026-1": {
+          "n_notas": 82036,
+          "promedio": 3.17,
+          "tasa_aprobacion": 69.6,
+          "matriculados": 13194
+        },
+        "2025-2": {
+          "n_notas": 82155,
+          "promedio": 3.48,
+          "tasa_aprobacion": 76.9,
+          "matriculados": 13111
+        }
+      },
+      "raw_period_stats": {
+        "2026-1": {
+          "n_notas": 84505,
+          "promedio": 3.12,
+          "tasa_aprobacion": 68.6,
+          "matriculados": 13803
+        },
+        "2025-2": {
+          "n_notas": 84871,
+          "promedio": 3.45,
+          "tasa_aprobacion": 76.3,
+          "matriculados": 13628
+        }
+      }
+    },
+    "admin_grupos_target_list": {
+      "items": [],
+      "total": 1,
+      "limit": 500
+    },
+    "admin_grupos_target_detail": {
+      "grupo": {
+        "id": "9a511738-abae-43b2-844f-5a203e495dac",
+        "codigo_grupo": "PRECBH2602000_20003",
+        "id_grupo": "34399",
+        "asignatura_nombre": "Nivel III Inglés- Prehumchu23001",
+        "asignatura_codigo": "PREHUMCHU23001",
+        "bloque": "Bloque 2",
+        "dia": "Jueves",
+        "hora": "00:30-01:30",
+        "docente_id": "4f477aa5-8388-4620-aa42-9e8e37e381d6",
+        "docente_nombre": "Joana Andrea Tamayo Vásquez",
+        "docente_email": "joana22co@gmail.com",
+        "docente_correo_personal": "joana22co@gmail.com",
+        "docente_correo_institucional": "joana22co@gmail.com",
+        "docente_cedula": "43280439",
+        "programa": "Inglés 3 (inglés Fuera de la Malla 2026-1 B2)",
+        "facultad": "Extensión",
+        "periodo": "2026-2",
+        "periodicidad": "Mensual",
+        "created_at": "2026-08-06T03:50:22.768541"
+      },
+      "notas_por_periodo": []
+    },
+    "admin_grupos_extension_list": {
+      "items": [],
+      "total": 1,
+      "limit": 500
+    },
+    "historical_api_stats": {
+      "2025-2": {
+        "n_notas": 82155,
+        "promedio": 3.48
+      },
+      "2026-1": {
+        "n_notas": 82036,
+        "promedio": 3.17
+      }
+    },
+    "docente_student_history": {
+      "api_total_notes": 12,
+      "raw_bad_notes_in_db": 2
+    },
+    "executive_kpis": {
+      "promedio": 3.32,
+      "notas_2025_2": 82155,
+      "notas_2026_1": 82036,
+      "promedio_2025_2": 3.48,
+      "promedio_2026_1": 3.17
+    },
+    "academic": {
+      "default_total": 164191,
+      "include_extension_total": 169376,
+      "kpis": {
+        "en_riesgo": 1365,
+        "excelencia": 3317,
+        "tasa_aprob_global": 76.5,
+        "notas_evaluadas": 154716,
+        "tasa_habilitacion_exito": 72.8,
+        "total_habilitaciones": 1041,
+        "promedio_global": 3.47
+      }
+    },
+    "grupos_comparativa": {
+      "total_groups": 1268,
+      "target_count": 0,
+      "bad_group_count": 0
+    },
+    "admin_docente_grupos": {
+      "docente_id": "4f477aa5-8388-4620-aa42-9e8e37e381d6",
+      "total_groups": 5,
+      "target_rows": [
+        {
+          "codigo_grupo": "PRECBH2602000_20003",
+          "asignatura_codigo": "PREHUMCHU23001",
+          "programa": "Inglés 3 (inglés Fuera de la Malla 2026-1 B2)",
+          "historico_notas": [
+            {
+              "periodo": "2026-1",
+              "promedio": 3.5,
+              "n": 190
+            }
+          ]
+        }
+      ],
+      "non_academic_with_historico_count": 5,
+      "sample_bad": [
+        {
+          "codigo_grupo": "PRECBH2602000_20005",
+          "asignatura_codigo": "PREHUMCHU23003",
+          "programa": "Inglés 5 (inglés Fuera de la Malla 2026-1 B2)",
+          "historico_notas": [
+            {
+              "periodo": "2026-1",
+              "promedio": 3.77,
+              "n": 87
+            }
+          ]
+        },
+        {
+          "codigo_grupo": "PRECBH2602000_20004",
+          "asignatura_codigo": "PREHUMCHU23002",
+          "programa": "Inglés 4 (inglés Fuera de la Malla 2026-1 B1)",
+          "historico_notas": [
+            {
+              "periodo": "2026-1",
+              "promedio": 3.76,
+              "n": 166
+            }
+          ]
+        },
+        {
+          "codigo_grupo": "PRECBH2602000_20002",
+          "asignatura_codigo": "PREAEMBASI22006",
+          "programa": "Inglés 2 (inglés Fuera de la Malla 2026-1 B2)",
+          "historico_notas": [
+            {
+              "periodo": "2026-1",
+              "promedio": 3.62,
+              "n": 198
+            }
+          ]
+        },
+        {
+          "codigo_grupo": "PRECBH2602000_20001",
+          "asignatura_codigo": "PREAEMBASI22005",
+          "programa": "Inglés 1 (inglés Fuera de la Malla 2026-1 B2)",
+          "historico_notas": [
+            {
+              "periodo": "2026-1",
+              "promedio": 3.54,
+              "n": 134
+            }
+          ]
+        },
+        {
+          "codigo_grupo": "PRECBH2602000_20003",
+          "asignatura_codigo": "PREHUMCHU23001",
+          "programa": "Inglés 3 (inglés Fuera de la Malla 2026-1 B2)",
+          "historico_notas": [
+            {
+              "periodo": "2026-1",
+              "promedio": 3.5,
+              "n": 190
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

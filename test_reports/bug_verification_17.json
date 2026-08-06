@@ -1,0 +1,62 @@
+{
+  "verdict": "not_fixed",
+  "user_reported_bug": "EN LAS NOTAS Y PROMEDIOS NO PUEDEN CONSIDERARSE LOS CURSOS DE EXTENSIÓN, O INGLES FUERA DE LA MALLA, RECALCULA Y VALIDA EXCEPTUA ESOS DATOS PARA PROMEDIOS, POR CARRERA O FACULTAD REVISA EN TODOS LOS TABLEROS ESE CALCULO",
+  "summary": "No relevant testing skill found. Focused backend retest confirms the newly fixed admin group endpoints now pass: /api/admin/grupos?codigo_grupo=PRECBH2602000_20003 returns items=[] and /api/admin/grupos/PRECBH2602000_20003 returns notas_por_periodo=[]. Previously fixed endpoints also still pass with academic-only values: /historical 2025-2 n=82155 and 2026-1 n=82036, student historico has no fuera-de-malla notes, executive and academic totals match DB academic-only, and docente grupos-comparativa excludes the target. However, the fix is still not comprehensive across all tableros: Admin > Docentes detail endpoint /api/admin/docentes/{docente_id}/grupos still returns Inglés Fuera de la Malla groups with historico_notas/promedios, and the frontend displays those averages.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/admin/docentes/4f477aa5-8388-4620-aa42-9e8e37e381d6/grupos",
+        "issue": "Still returns non-academic Inglés Fuera de la Malla groups with historical averages. Examples: PRECBH2602000_20005 promedio=3.77 n=87, PRECBH2602000_20004 promedio=3.76 n=166, PRECBH2602000_20002 promedio=3.62 n=198, PRECBH2602000_20001 promedio=3.54 n=134, and target PRECBH2602000_20003 promedio=3.50 n=190. This violates 'todos los tableros' because Admin Docentes detail still considers outside-malla English in notas/promedios.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/admin/grupos?codigo_grupo=PRECBH2602000_20003",
+        "issue": "items=[] now passes, but total still returns 1 because total is counted before the post-query academic filter. This is a pagination/count consistency issue, not the main promedio calculation failure."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Admin > Docentes > detalle de docente > Grupos asignados",
+        "issue": "frontend/src/pages/Admin.jsx calls /admin/docentes/{id}/grupos and renders each historico_notas promedio in the Histórico column, so the backend failure is user-visible in the Admin Docentes tablero.",
+        "affected_selectors": ["data-testid=docentes-tab", "data-testid=docente-detail-{id}"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/test_academic_filter_bug_17.py",
+    "/app/test_reports/academic_filter_iteration_17_evidence.json",
+    "/app/test_reports/bug_verification_17.json",
+    "/app/test_reports/iteration_17.json"
+  ],
+  "action_items": [
+    "Fix /api/admin/docentes/{docente_id}/grupos to exclude non-academic groups or at minimum return historico_notas=[] for groups whose programa/facultad/codigo marks Extensión or Inglés Fuera de la Malla.",
+    "Use the shared is_academic_note() group metadata guard and academic_notes_match() note aggregation filter in that endpoint, matching the fixes already applied to /api/admin/grupos and /api/admin/grupos/{codigo_grupo}.",
+    "Optionally adjust /api/admin/grupos total to count post-filtered items so items=[] does not return total=1 for suppressed non-academic groups."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/routers/admin_router.py lines ~428-441: docente_grupos() returns all db.grupos for a docente and aggregates historico_notas with raw match {docente_id, codigo_asignatura}; it does not call is_academic_note() or academic_notes_match().",
+    "/app/frontend/src/pages/Admin.jsx lines ~1383 and ~1517-1519: Admin Docentes detail consumes this endpoint and displays h.promedio.toFixed(2), making the non-academic averages visible in the UI.",
+    "The last fix only covered /api/admin/grupos list/detail; a sibling Admin Docentes tablero still exposes the same class of non-academic notas/promedios."
+  ],
+  "updated_files": [
+    "/app/test_reports/test_academic_filter_bug_17.py",
+    "/app/test_reports/academic_filter_iteration_17_evidence.json",
+    "/app/test_reports/bug_verification_17.json",
+    "/app/test_reports/iteration_17.json"
+  ],
+  "success_rate": {
+    "backend": "88%",
+    "frontend": "N/A - backend only; frontend integration issue confirmed by code path"
+  },
+  "seed_data_creation": "No seed data created; used existing preview MongoDB iudigital data and superadmin credentials from /app/memory/test_credentials.md.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Mandatory skill lookup found no relevant testing skill. Backend base used: http://localhost:8001. Passing evidence: DB raw=169376 notes avg=3.29 vs academic=164191 avg=3.32; /api/admin/grupos?codigo_grupo=PRECBH2602000_20003 items=[]; /api/admin/grupos/PRECBH2602000_20003 notas_por_periodo=[]; /historical exact values 2025-2 n=82155 prom=3.48 and 2026-1 n=82036 prom=3.17; /executive academic-only KPIs; /academic default total=164191 and include_extension total=169376; /docente/estudiante/1000063303/historico returns 12 academic notes and 0 bad notes; /docente/grupos-comparativa excludes target and all bad group metadata. Remaining failure: /api/admin/docentes/4f477aa5-8388-4620-aa42-9e8e37e381d6/grupos returns 5 outside-malla groups with historico_notas/promedios, including target PRECBH2602000_20003 promedio=3.50 n=190.",
+  "rca_of_the_issue": "The final admin group fix was applied only to /api/admin/grupos and /api/admin/grupos/{codigo_grupo}. The Admin Docentes detail endpoint remains on the old raw aggregation path: it lists all docente groups and computes historico_notas by docente_id + codigo_asignatura without filtering group metadata or applying academic_notes_match(). Reproduction: login superadmin, get target group docente_id from /api/admin/grupos/PRECBH2602000_20003, then GET /api/admin/docentes/{docente_id}/grupos and observe Inglés Fuera de la Malla groups with historical promedio values."
+}

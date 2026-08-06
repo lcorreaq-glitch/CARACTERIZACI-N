@@ -245,6 +245,13 @@ async def list_grupos(
 
     grupos = await db.grupos.find(match, {"_id": 0}).sort("codigo_grupo", 1).limit(limit).to_list(limit)
 
+    # Excluir grupos NO académicos (extensión / inglés fuera de la malla / diplomados / cursos)
+    from academic_filter import is_academic_note
+    grupos = [g for g in grupos if is_academic_note({
+        "codigo_asignatura": g.get("asignatura_codigo", ""),
+        "programa": g.get("programa", ""),
+    })]
+
     # Enrich with estudiantes count + promedio
     codigos = [g["codigo_grupo"] for g in grupos]
     if codigos:
@@ -280,6 +287,13 @@ async def get_grupo_detail(codigo_grupo: str, user=Depends(require_roles("supera
     if not grupo:
         raise HTTPException(404, "Grupo no encontrado")
 
+    # Si el grupo es NO académico (extensión / inglés fuera de la malla), suprimir promedios/notas
+    from academic_filter import is_academic_note
+    is_non_academic = not is_academic_note({
+        "codigo_asignatura": grupo.get("asignatura_codigo", ""),
+        "programa": grupo.get("programa", ""),
+    })
+
     # Matriculados
     matriculas = await db.matriculas.find(
         {"codigo_grupo": codigo_grupo},
@@ -307,7 +321,7 @@ async def get_grupo_detail(codigo_grupo: str, user=Depends(require_roles("supera
     # Notas históricas del docente en esa asignatura (todos los periodos)
     # EXCLUYE cursos de extensión + inglés fuera de malla
     notas_periodos = []
-    if grupo.get("docente_id") and grupo.get("asignatura_codigo"):
+    if not is_non_academic and grupo.get("docente_id") and grupo.get("asignatura_codigo"):
         pipe = [
             {"$match": academic_notes_match({"docente_id": grupo["docente_id"], "codigo_asignatura": grupo["asignatura_codigo"]})},
             {"$group": {"_id": "$periodo", "prom": {"$avg": "$nota"}, "n": {"$sum": 1},
