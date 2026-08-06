@@ -76,10 +76,18 @@ function Block({ title, eyebrow, children, span = "" }) {
 }
 
 const fmtMoney = (n) => {
-  if (!n) return "$0";
-  if (n >= 1000000) return `$${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `$${(n / 1000).toFixed(0)}K`;
-  return `$${n}`;
+  if (!n || n <= 0) return "$0";
+  // Colombian Pesos formatting: no decimals, thousands separator with '.'
+  if (n >= 1_000_000) {
+    // e.g. 1400000 -> "$1,4 M COP"
+    const millones = n / 1_000_000;
+    const rounded = millones >= 10 ? millones.toFixed(0) : millones.toFixed(1).replace(".", ",");
+    return `$${rounded} M COP`;
+  }
+  if (n >= 1000) {
+    return `$${Math.round(n / 1000)} K COP`;
+  }
+  return `$${Math.round(n).toLocaleString("es-CO")} COP`;
 };
 
 export default function Caracterizacion() {

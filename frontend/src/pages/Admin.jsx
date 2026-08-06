@@ -9,7 +9,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, UserPlus, Globe, Download, Eye, Pencil, Save } from "lucide-react";
+import { Plus, Trash2, UserPlus, Globe, Download, Eye, Pencil, Save, Shield, ShieldOff, Key, Power, PowerOff, Settings2, CheckCircle2, XCircle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
@@ -26,7 +27,8 @@ export default function Admin() {
 
       <Tabs defaultValue="users">
         <TabsList className="rounded-sm flex-wrap h-auto">
-          <TabsTrigger value="users" data-testid="tab-users">Usuarios</TabsTrigger>
+          <TabsTrigger value="users" data-testid="tab-users">Usuarios & Roles</TabsTrigger>
+          <TabsTrigger value="settings" data-testid="tab-settings">Permisos globales</TabsTrigger>
           <TabsTrigger value="docentes" data-testid="tab-docentes">Docentes</TabsTrigger>
           <TabsTrigger value="facultades" data-testid="tab-facultades">Facultades</TabsTrigger>
           <TabsTrigger value="programas" data-testid="tab-programas">Programas</TabsTrigger>
@@ -36,6 +38,7 @@ export default function Admin() {
           <TabsTrigger value="divipola" data-testid="tab-divipola">DIVIPOLA</TabsTrigger>
         </TabsList>
         <TabsContent value="users"><ErrorBoundary><UsersTab /></ErrorBoundary></TabsContent>
+        <TabsContent value="settings"><ErrorBoundary><SystemSettingsTab /></ErrorBoundary></TabsContent>
         <TabsContent value="docentes"><ErrorBoundary><DocentesTab /></ErrorBoundary></TabsContent>
         <TabsContent value="facultades"><ErrorBoundary><CatalogTab name="facultades" label="Facultad" /></ErrorBoundary></TabsContent>
         <TabsContent value="programas"><ErrorBoundary><ProgramasTab /></ErrorBoundary></TabsContent>
@@ -51,36 +54,163 @@ export default function Admin() {
 function UsersTab() {
   const { user: current } = useAuth();
   const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", full_name: "", role: "viewer" });
+  const [editUser, setEditUser] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [resetTarget, setResetTarget] = useState(null);
+  const [resetPwd, setResetPwd] = useState("");
 
-  const load = () => { api.get("/admin/users").then((r) => setUsers(r.data)); };
+  const isSuperadmin = current?.role === "superadmin";
+
+  const load = () => {
+    setLoading(true);
+    api.get("/admin/users")
+      .then((r) => setUsers(r.data || []))
+      .finally(() => setLoading(false));
+  };
   useEffect(() => { load(); }, []);
 
   const create = async () => {
+    if (!form.email || !form.password || !form.full_name) return toast.error("Complete todos los campos");
+    if (form.password.length < 6) return toast.error("La contraseña debe tener al menos 6 caracteres");
     try {
       await api.post("/admin/users", form);
-      toast.success("Usuario creado");
+      toast.success("Usuario creado. Debe cambiar contraseña en el primer login.");
       setOpen(false);
       setForm({ email: "", password: "", full_name: "", role: "viewer" });
       load();
     } catch (e) { toast.error(e?.response?.data?.detail || "Error"); }
   };
 
-  const remove = async (id) => {
-    if (!window.confirm("¿Eliminar usuario?")) return;
-    try { await api.delete(`/admin/users/${id}`); toast.success("Eliminado"); load(); }
+  const startEdit = (u) => {
+    setEditUser(u);
+    setEditForm({
+      full_name: u.full_name || "",
+      role: u.role,
+      active: u.active !== false,
+      download_enabled: u.download_enabled === true,
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editUser) return;
+    try {
+      await api.patch(`/admin/users/${editUser.id}`, editForm);
+      toast.success("Usuario actualizado");
+      setEditUser(null);
+      load();
+    } catch (e) { toast.error(e?.response?.data?.detail || "Error"); }
+  };
+
+  const toggleActive = async (u) => {
+    if (u.id === current?.id) return toast.error("No puede desactivar su propio usuario");
+    try {
+      const r = await api.post(`/admin/users/${u.id}/toggle-active`);
+      toast.success(r.data.active ? "Usuario activado" : "Usuario desactivado");
+      load();
+    } catch (e) { toast.error(e?.response?.data?.detail || "Error"); }
+  };
+
+  const toggleDownload = async (u) => {
+    try {
+      const r = await api.post(`/admin/users/${u.id}/toggle-download`);
+      toast.success(r.data.download_enabled ? "Descargas habilitadas" : "Descargas deshabilitadas");
+      load();
+    } catch (e) { toast.error(e?.response?.data?.detail || "Error"); }
+  };
+
+  const doReset = async () => {
+    if (!resetTarget) return;
+    if (resetPwd && resetPwd.length < 6) return toast.error("Mínimo 6 caracteres");
+    try {
+      const r = await api.post(`/admin/users/${resetTarget.id}/reset-password`, { new_password: resetPwd || null });
+      toast.success(`Contraseña reseteada: ${r.data.new_password}`);
+      setResetTarget(null);
+      setResetPwd("");
+    } catch (e) { toast.error(e?.response?.data?.detail || "Error"); }
+  };
+
+  const remove = async (u) => {
+    if (!window.confirm(`¿Eliminar definitivamente al usuario ${u.email}? Esta acción no se puede deshacer.`)) return;
+    try { await api.delete(`/admin/users/${u.id}`); toast.success("Eliminado"); load(); }
     catch (e) { toast.error(e?.response?.data?.detail || "Error"); }
   };
 
+  const filtered = users.filter((u) => {
+    if (roleFilter !== "all" && u.role !== roleFilter) return false;
+    if (statusFilter === "active" && u.active === false) return false;
+    if (statusFilter === "inactive" && u.active !== false) return false;
+    if (query) {
+      const s = query.toLowerCase();
+      const hay = [u.email, u.full_name].filter(Boolean).some((v) => v.toLowerCase().includes(s));
+      if (!hay) return false;
+    }
+    return true;
+  });
+
+  const counts = {
+    total: users.length,
+    active: users.filter((u) => u.active !== false).length,
+    inactive: users.filter((u) => u.active === false).length,
+    superadmin: users.filter((u) => u.role === "superadmin").length,
+    admin: users.filter((u) => u.role === "admin").length,
+    docente: users.filter((u) => u.role === "docente").length,
+    viewer: users.filter((u) => u.role === "viewer").length,
+  };
+
+  const roleBadge = (r) => {
+    const cls = {
+      superadmin: "bg-[#E3000F]/10 text-[#E3000F] border-[#E3000F]/30",
+      admin: "bg-[#0033A0]/10 text-[#0033A0] border-[#0033A0]/30",
+      docente: "bg-[#FFCD00]/20 text-[#7A6300] border-[#FFCD00]/40",
+      viewer: "bg-slate-500/10 text-slate-700 border-slate-500/30",
+    }[r] || "bg-muted text-muted-foreground";
+    return <Badge variant="outline" className={`text-[9px] uppercase tracking-widest rounded-sm ${cls}`}>{r}</Badge>;
+  };
+
   return (
-    <div className="dense-card p-5 mt-4">
-      <div className="flex justify-between items-end mb-4">
-        <div>
-          <p className="label-eyebrow">Usuarios del sistema</p>
-          <h3 className="font-display font-bold text-lg tracking-tight">{users.length} registrados</h3>
+    <div className="dense-card p-5 mt-4" data-testid="users-tab-panel">
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-5">
+        <StatCard label="Total" value={counts.total} />
+        <StatCard label="Activos" value={counts.active} accent="text-emerald-700" />
+        <StatCard label="Inactivos" value={counts.inactive} accent="text-[#E3000F]" />
+        <StatCard label="Admin/Super" value={counts.superadmin + counts.admin} accent="text-[#0033A0]" />
+        <StatCard label="Docentes" value={counts.docente} accent="text-[#7A6300]" />
+        <StatCard label="Viewer" value={counts.viewer} />
+      </div>
+
+      <div className="flex flex-wrap gap-3 items-end justify-between mb-4">
+        <div className="flex flex-wrap gap-2 items-center">
+          <Input
+            placeholder="Buscar por nombre o correo…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="rounded-sm w-64"
+            data-testid="users-search"
+          />
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="rounded-sm w-40" data-testid="users-role-filter"><SelectValue placeholder="Rol" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los roles</SelectItem>
+              {ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="rounded-sm w-36" data-testid="users-status-filter"><SelectValue placeholder="Estado" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="active">Activos</SelectItem>
+              <SelectItem value="inactive">Inactivos</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        {current?.role === "superadmin" && (
+        {isSuperadmin && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button className="rounded-sm bg-[#0033A0] hover:bg-[#002A85] text-white" data-testid="admin-create-user-btn">
@@ -90,15 +220,21 @@ function UsersTab() {
             <DialogContent>
               <DialogHeader><DialogTitle className="font-display">Crear usuario</DialogTitle></DialogHeader>
               <div className="space-y-3">
-                <div><Label className="label-eyebrow">Nombre</Label><Input className="rounded-sm" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} data-testid="new-user-name" /></div>
-                <div><Label className="label-eyebrow">Email</Label><Input type="email" className="rounded-sm" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} data-testid="new-user-email" /></div>
-                <div><Label className="label-eyebrow">Contraseña inicial</Label><Input type="password" className="rounded-sm" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} data-testid="new-user-password" /></div>
+                <div><Label className="label-eyebrow">Nombre completo</Label><Input className="rounded-sm" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} data-testid="new-user-name" /></div>
+                <div><Label className="label-eyebrow">Email institucional</Label><Input type="email" className="rounded-sm" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} data-testid="new-user-email" /></div>
+                <div><Label className="label-eyebrow">Contraseña inicial</Label>
+                  <Input type="password" className="rounded-sm" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} data-testid="new-user-password" />
+                  <p className="text-[10px] text-muted-foreground mt-1">El usuario deberá cambiarla al primer login (política institucional).</p>
+                </div>
                 <div>
                   <Label className="label-eyebrow">Rol</Label>
                   <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                     <SelectTrigger className="rounded-sm" data-testid="new-user-role"><SelectValue /></SelectTrigger>
                     <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
                   </Select>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    <b>superadmin</b>: acceso total · <b>admin</b>: sin gestión de usuarios · <b>docente</b>: solo sus grupos · <b>viewer</b>: solo lectura.
+                  </p>
                 </div>
               </div>
               <DialogFooter><Button onClick={create} className="bg-[#0033A0] hover:bg-[#002A85] text-white rounded-sm" data-testid="new-user-submit">Crear</Button></DialogFooter>
@@ -106,36 +242,312 @@ function UsersTab() {
           </Dialog>
         )}
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Rol</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Creado</TableHead>
-            <TableHead></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.map((u) => (
-            <TableRow key={u.id}>
-              <TableCell className="text-xs font-medium">{u.full_name}</TableCell>
-              <TableCell className="text-xs">{u.email}</TableCell>
-              <TableCell><Badge variant="outline" className="text-[10px] uppercase tracking-widest rounded-sm">{u.role}</Badge></TableCell>
-              <TableCell><Badge variant={u.active ? "default" : "secondary"} className="text-[10px] rounded-sm">{u.active ? "Activo" : "Inactivo"}</Badge></TableCell>
-              <TableCell className="text-[10px] text-muted-foreground">{u.created_at?.slice(0, 10)}</TableCell>
-              <TableCell>
-                {current?.role === "superadmin" && current.id !== u.id && (
-                  <Button variant="ghost" size="sm" onClick={() => remove(u.id)} data-testid={`delete-user-${u.id}`}>
-                    <Trash2 className="w-3 h-3 text-[#E3000F]" />
-                  </Button>
-                )}
-              </TableCell>
+
+      <div className="text-xs text-muted-foreground mb-2">
+        Mostrando <b>{filtered.length}</b> de <b>{users.length}</b>
+      </div>
+
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-[10px] uppercase tracking-wider">Usuario</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider">Email</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider">Rol</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider">Estado</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider">Descargas</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider">Último ingreso</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider text-right">Acciones</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {loading && <TableRow><TableCell colSpan={7} className="text-center py-6 text-xs text-muted-foreground">Cargando…</TableCell></TableRow>}
+            {!loading && filtered.map((u) => (
+              <TableRow key={u.id} className={`hover:bg-muted/40 ${u.active === false ? "opacity-60" : ""}`} data-testid={`user-row-${u.id}`}>
+                <TableCell className="text-xs font-medium">
+                  {u.full_name}
+                  {u.must_change_password && <Badge variant="outline" className="ml-2 text-[8px] bg-amber-500/10 text-amber-700 border-amber-500/40 rounded-sm">Debe cambiar contraseña</Badge>}
+                  {u.id === current?.id && <Badge variant="outline" className="ml-2 text-[8px] rounded-sm">Tú</Badge>}
+                </TableCell>
+                <TableCell className="text-[11px]">{u.email}</TableCell>
+                <TableCell>{roleBadge(u.role)}</TableCell>
+                <TableCell>
+                  {isSuperadmin ? (
+                    <Switch
+                      checked={u.active !== false}
+                      onCheckedChange={() => toggleActive(u)}
+                      disabled={u.id === current?.id}
+                      data-testid={`toggle-active-${u.id}`}
+                    />
+                  ) : (
+                    u.active !== false
+                      ? <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-700 border-emerald-500/30 rounded-sm">Activo</Badge>
+                      : <Badge variant="outline" className="text-[9px] bg-slate-500/10 text-slate-600 rounded-sm">Inactivo</Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {isSuperadmin ? (
+                    <Switch
+                      checked={u.download_enabled === true}
+                      onCheckedChange={() => toggleDownload(u)}
+                      data-testid={`toggle-download-${u.id}`}
+                    />
+                  ) : (
+                    u.download_enabled
+                      ? <CheckCircle2 className="w-4 h-4 text-emerald-600 inline" />
+                      : <XCircle className="w-4 h-4 text-muted-foreground inline" />
+                  )}
+                </TableCell>
+                <TableCell className="text-[10px] text-muted-foreground">
+                  {u.last_login ? u.last_login.slice(0, 16).replace("T", " ") : <span className="italic">nunca</span>}
+                </TableCell>
+                <TableCell className="text-right">
+                  {isSuperadmin && (
+                    <>
+                      <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => startEdit(u)} title="Editar" data-testid={`edit-user-${u.id}`}>
+                        <Pencil className="w-3.5 h-3.5 text-[#0033A0]" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setResetTarget(u)} title="Resetear contraseña" data-testid={`reset-pwd-${u.id}`}>
+                        <Key className="w-3.5 h-3.5 text-amber-600" />
+                      </Button>
+                      {u.id !== current?.id && (
+                        <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => remove(u)} title="Eliminar" data-testid={`delete-user-${u.id}`}>
+                          <Trash2 className="w-3 h-3 text-[#E3000F]" />
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+            {!loading && filtered.length === 0 && (
+              <TableRow><TableCell colSpan={7} className="text-center py-6 text-xs text-muted-foreground">Sin usuarios con esos criterios</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editUser} onOpenChange={(v) => !v && setEditUser(null)}>
+        <DialogContent data-testid="edit-user-dialog">
+          <DialogHeader><DialogTitle className="font-display">Editar {editUser?.full_name}</DialogTitle></DialogHeader>
+          {editUser && (
+            <div className="space-y-3">
+              <div><Label className="label-eyebrow">Nombre completo</Label>
+                <Input className="rounded-sm" value={editForm.full_name || ""} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} data-testid="edit-user-name" />
+              </div>
+              <div><Label className="label-eyebrow">Email</Label>
+                <Input className="rounded-sm bg-muted" value={editUser.email} disabled />
+                <p className="text-[10px] text-muted-foreground mt-1">El correo no se puede modificar. Cree un usuario nuevo si es necesario.</p>
+              </div>
+              <div><Label className="label-eyebrow">Rol</Label>
+                <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v })}>
+                  <SelectTrigger className="rounded-sm" data-testid="edit-user-role"><SelectValue /></SelectTrigger>
+                  <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between border-t border-border pt-3">
+                <div>
+                  <Label className="label-eyebrow">Cuenta activa</Label>
+                  <p className="text-[10px] text-muted-foreground">Puede iniciar sesión</p>
+                </div>
+                <Switch checked={editForm.active} onCheckedChange={(v) => setEditForm({ ...editForm, active: v })} disabled={editUser.id === current?.id} data-testid="edit-user-active" />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="label-eyebrow">Descargas habilitadas</Label>
+                  <p className="text-[10px] text-muted-foreground">Permite exportar Excel/CSV desde la app</p>
+                </div>
+                <Switch checked={editForm.download_enabled} onCheckedChange={(v) => setEditForm({ ...editForm, download_enabled: v })} data-testid="edit-user-download" />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" className="rounded-sm" onClick={() => setEditUser(null)}>Cancelar</Button>
+            <Button onClick={saveEdit} className="bg-[#0033A0] hover:bg-[#002A85] text-white rounded-sm" data-testid="save-user-edit">
+              <Save className="w-3.5 h-3.5 mr-1" /> Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset password dialog */}
+      <Dialog open={!!resetTarget} onOpenChange={(v) => { if (!v) { setResetTarget(null); setResetPwd(""); } }}>
+        <DialogContent data-testid="reset-password-dialog">
+          <DialogHeader><DialogTitle className="font-display">Resetear contraseña de {resetTarget?.full_name}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="label-eyebrow">Nueva contraseña (opcional)</Label>
+              <Input type="text" className="rounded-sm" value={resetPwd} onChange={(e) => setResetPwd(e.target.value)} placeholder="Dejar vacío para usar la predeterminada" data-testid="reset-pwd-input" />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Si se deja vacío, se asignará <span className="font-mono">IUDigital2026!</span>. El usuario será forzado a cambiarla al iniciar sesión.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-sm" onClick={() => setResetTarget(null)}>Cancelar</Button>
+            <Button onClick={doReset} className="bg-amber-600 hover:bg-amber-700 text-white rounded-sm" data-testid="reset-pwd-confirm">
+              <Key className="w-3.5 h-3.5 mr-1" /> Resetear
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function StatCard({ label, value, accent }) {
+  return (
+    <div className="border border-border rounded-sm p-3">
+      <p className="label-eyebrow">{label}</p>
+      <p className={`kpi-num text-2xl mt-1 ${accent || ""}`}>{(value || 0).toLocaleString("es-CO")}</p>
+    </div>
+  );
+}
+
+function SystemSettingsTab() {
+  const { user } = useAuth();
+  const isSuperadmin = user?.role === "superadmin";
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = () => {
+    setLoading(true);
+    api.get("/admin/system-settings")
+      .then((r) => setSettings(r.data))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, []);
+
+  const toggle = async (key) => {
+    if (!isSuperadmin) return toast.error("Solo el superadministrador puede modificar estos ajustes");
+    try {
+      const r = await api.patch("/admin/system-settings", { [key]: !settings[key] });
+      setSettings(r.data);
+      toast.success("Ajuste actualizado");
+    } catch (e) { toast.error(e?.response?.data?.detail || "Error"); }
+  };
+
+  const SWITCHES = [
+    {
+      key: "docente_downloads_globally_enabled",
+      title: "Descargas globales para docentes",
+      desc: "Cuando está encendido, TODOS los docentes pueden descargar Excel/CSV de sus grupos, aunque su permiso individual esté apagado. Recomendado: dejar apagado y habilitar caso a caso.",
+      icon: Download,
+    },
+    {
+      key: "docente_ai_insights_enabled",
+      title: "IA — Insights para docentes",
+      desc: "Permite que los docentes accedan al módulo de Alertas tempranas y resúmenes con IA sobre sus propios estudiantes.",
+      icon: Shield,
+    },
+    {
+      key: "docente_can_see_all_periods",
+      title: "Docente puede ver periodos anteriores",
+      desc: "Si está apagado, el docente solo verá el periodo activo (2026-2). Enciéndalo para dar acceso al histórico completo de sus asignaciones.",
+      icon: Eye,
+    },
+    {
+      key: "allow_public_landing",
+      title: "Landing pública sin login (futuro)",
+      desc: "Si se activa, se mostrará una página pública institucional con indicadores agregados. Requiere una vista dedicada (no implementada aún).",
+      icon: Globe,
+    },
+  ];
+
+  return (
+    <div className="space-y-4 mt-4" data-testid="system-settings-tab">
+      <div className="dense-card p-5">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <p className="label-eyebrow text-[#0033A0]"><Settings2 className="w-3 h-3 inline mr-1" /> Permisos y controles globales</p>
+            <h3 className="font-display font-bold text-lg tracking-tight mt-1">Configuración institucional</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Estos toggles aplican a toda la plataforma. Los permisos individuales por usuario tienen prioridad sobre los globales apagados.
+            </p>
+          </div>
+          {!isSuperadmin && (
+            <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/40 rounded-sm">
+              Solo lectura — se requiere rol superadmin para modificar
+            </Badge>
+          )}
+        </div>
+
+        {loading && <p className="text-xs text-muted-foreground">Cargando ajustes…</p>}
+        {!loading && settings && (
+          <div className="space-y-3">
+            {SWITCHES.map((s) => (
+              <div key={s.key} className="flex items-start justify-between gap-4 p-4 border border-border rounded-sm hover:border-[#0033A0]/40 transition-soft">
+                <div className="flex items-start gap-3 flex-1">
+                  <div className={`h-9 w-9 grid place-items-center rounded ${settings[s.key] ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
+                    <s.icon className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-display font-bold text-sm">{s.title}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{s.desc}</p>
+                    <p className="text-[9px] text-muted-foreground mt-2 font-mono">{s.key}</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={settings[s.key] === true}
+                  onCheckedChange={() => toggle(s.key)}
+                  disabled={!isSuperadmin}
+                  data-testid={`setting-${s.key}`}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+        {!loading && settings?.updated_at && (
+          <p className="text-[10px] text-muted-foreground mt-4 border-t border-border pt-3">
+            Última actualización: {settings.updated_at.slice(0, 19).replace("T", " ")}
+            {settings.updated_by && <> · por <b>{settings.updated_by}</b></>}
+          </p>
+        )}
+      </div>
+
+      <div className="dense-card p-5">
+        <p className="label-eyebrow text-[#0033A0]">Matriz de permisos por rol</p>
+        <h3 className="font-display font-bold text-lg tracking-tight mt-1 mb-3">Referencia</h3>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-[10px] uppercase tracking-wider">Acción</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-center">Superadmin</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-center">Admin</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-center">Docente</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-center">Viewer</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[
+                ["Dashboards ejecutivo/académico/territorial", true, true, false, true],
+                ["Ver caracterización global", true, true, false, true],
+                ["Ver Mi Panel (solo sus grupos)", true, false, true, false],
+                ["Cargas de Excel", true, true, false, false],
+                ["Editar catálogos (facultades, programas, materias)", true, true, false, false],
+                ["Crear/editar/eliminar usuarios", true, false, false, false],
+                ["Permisos globales del sistema", true, false, false, false],
+                ["Descargar Excel/CSV", true, true, "config", false],
+                ["Ver estudiantes de otros docentes", true, true, false, true],
+                ["Cambiar propia contraseña", true, true, true, true],
+              ].map((row, idx) => (
+                <TableRow key={idx}>
+                  <TableCell className="text-xs">{row[0]}</TableCell>
+                  {row.slice(1).map((v, i) => (
+                    <TableCell key={i} className="text-center">
+                      {v === true && <CheckCircle2 className="w-4 h-4 text-emerald-600 inline" />}
+                      {v === false && <XCircle className="w-3.5 h-3.5 text-muted-foreground inline" />}
+                      {v === "config" && <Badge variant="outline" className="text-[9px] rounded-sm bg-amber-500/10 text-amber-700 border-amber-500/40">Configurable</Badge>}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     </div>
   );
 }

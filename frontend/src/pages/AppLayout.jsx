@@ -332,23 +332,54 @@ export function buildQuery(filters) {
 
 function DocenteCursosPanel() {
   const { filters, setFilter, opts } = useFilters();
+  const { user } = useAuth();
   const docente = (opts.docentes || []).find((d) => d.id === filters.docente_id);
   const cursos = (opts.grupos || []).filter((g) => g.docente_id === filters.docente_id);
   const activo = filters.codigo_grupo;
 
+  // Superadmin/admin always can. Docente needs explicit permission.
+  const canDownload = user?.role === "superadmin" || user?.role === "admin" || user?.download_enabled === true;
+
   const descargarEstudiantes = async (codigo_grupo) => {
+    if (!canDownload) {
+      alert("No tiene permiso de descarga. Contacte al administrador.");
+      return;
+    }
     try {
       const url = `/api/exports/students?fmt=xlsx${codigo_grupo ? `&codigo_grupo=${encodeURIComponent(codigo_grupo)}` : ""}${filters.docente_id ? `&docente_id=${encodeURIComponent(filters.docente_id)}` : ""}`;
-      const token = localStorage.getItem("token");
-      const separator = url.includes("?") ? "&" : "?";
-      const resp = await fetch(`${url}${separator}_auth=${encodeURIComponent(token)}`, {
+      const token = localStorage.getItem("iud_token");
+      const resp = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!resp.ok) throw new Error("Error al descargar");
+      if (!resp.ok) {
+        const errText = resp.status === 403 ? "Sin permiso de descarga" : `Error ${resp.status}`;
+        throw new Error(errText);
+      }
       const blob = await resp.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = codigo_grupo ? `estudiantes_${codigo_grupo}.xlsx` : `estudiantes_docente_${(docente?.nombre || "").replace(/\s+/g, "_")}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      alert("Error al descargar: " + e.message);
+    }
+  };
+
+  const descargarGrupoDetalle = async (codigo_grupo) => {
+    if (!canDownload) {
+      alert("No tiene permiso de descarga. Contacte al administrador.");
+      return;
+    }
+    try {
+      const url = `/api/exports/grupo/${encodeURIComponent(codigo_grupo)}?fmt=xlsx`;
+      const token = localStorage.getItem("iud_token");
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!resp.ok) throw new Error(resp.status === 403 ? "Sin permiso" : `Error ${resp.status}`);
+      const blob = await resp.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `grupo_${codigo_grupo}_detalle.xlsx`;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch (e) {
@@ -370,9 +401,15 @@ function DocenteCursosPanel() {
           <Button size="sm" variant={!activo ? "default" : "outline"} onClick={() => setFilter("codigo_grupo", null)} className="rounded-sm text-xs h-8" data-testid="ver-todos-cursos">
             Ver todos los cursos
           </Button>
-          <Button size="sm" variant="outline" onClick={() => descargarEstudiantes(null)} className="rounded-sm text-xs h-8" data-testid="descargar-todos-est">
-            <Download className="w-3 h-3 mr-1" /> Descargar todos los estudiantes
-          </Button>
+          {canDownload ? (
+            <Button size="sm" variant="outline" onClick={() => descargarEstudiantes(null)} className="rounded-sm text-xs h-8" data-testid="descargar-todos-est">
+              <Download className="w-3 h-3 mr-1" /> Descargar todos los estudiantes
+            </Button>
+          ) : (
+            <span className="text-[10px] text-muted-foreground italic self-center" data-testid="download-disabled-msg">
+              Descargas deshabilitadas por el administrador
+            </span>
+          )}
         </div>
       </div>
       <div className="flex flex-wrap gap-1.5">
@@ -388,14 +425,26 @@ function DocenteCursosPanel() {
               <span className="text-xs ml-1.5">{c.nombre}</span>
               <span className="text-[9px] text-muted-foreground ml-2">{c.dia} {c.hora}</span>
             </button>
-            <button
-              onClick={() => descargarEstudiantes(c.id)}
-              title="Descargar estudiantes de este curso"
-              data-testid={`descargar-curso-${c.id}`}
-              className="ml-1 p-0.5 hover:bg-[#0033A0]/10 rounded"
-            >
-              <Download className="w-3 h-3 text-[#0033A0]" />
-            </button>
+            {canDownload && (
+              <>
+                <button
+                  onClick={() => descargarEstudiantes(c.id)}
+                  title="Descargar estudiantes de este curso (Excel)"
+                  data-testid={`descargar-curso-${c.id}`}
+                  className="ml-1 p-0.5 hover:bg-[#0033A0]/10 rounded"
+                >
+                  <Download className="w-3 h-3 text-[#0033A0]" />
+                </button>
+                <button
+                  onClick={() => descargarGrupoDetalle(c.id)}
+                  title="Descargar detalle completo del grupo (Asignación × Caracterización × Notas)"
+                  data-testid={`descargar-grupo-detalle-${c.id}`}
+                  className="p-0.5 hover:bg-[#0033A0]/10 rounded"
+                >
+                  <BookOpen className="w-3 h-3 text-[#0033A0]" />
+                </button>
+              </>
+            )}
           </div>
         ))}
       </div>

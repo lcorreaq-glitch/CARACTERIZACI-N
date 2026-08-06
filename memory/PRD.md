@@ -24,7 +24,17 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - IA: resúmenes automáticos vía OpenAI GPT-5.4 (Emergent LLM Key)
 - Exportación PDF/Excel
 
-## Últimos ajustes (2026-08 · última iteración)
+## Latest session (2026-08-06)
+- ✅ **Ingreso familiar** formateado en pesos colombianos (COP) — antes mostraba "$1.4M" ambiguo, ahora "$1,7 M COP".
+- ✅ **Descarga por grupo (cruce Asignación × Caracterización × Notas)** — nuevo endpoint `GET /api/exports/grupo/{codigo}` que retorna un Excel con 3 hojas (Grupo, Estudiantes, Notas). Botón por curso en el panel "Docente seleccionado".
+- ✅ **Permiso de descarga configurable** — nuevo campo `download_enabled` por usuario. Los docentes NO pueden descargar por defecto; el superadmin habilita caso a caso o globalmente.
+- ✅ **System settings globales** (colección `system_settings`) — 4 toggles: `docente_downloads_globally_enabled`, `docente_ai_insights_enabled`, `docente_can_see_all_periods`, `allow_public_landing`. Endpoints `GET/PATCH /api/admin/system-settings`.
+- ✅ **Admin → Usuarios & Roles** rediseñado con: KPI strip (Total/Activos/Inactivos/Roles), búsqueda + filtros por rol y estado, switches en línea para Estado y Descargas, edición completa (rol, nombre, active, download_enabled), reset de contraseña con vuelta a `must_change_password=true`, badges de rol coloreados, protección contra auto-desactivación/eliminación.
+- ✅ **Admin → Permisos globales** (nueva pestaña) con toggles descritos y matriz de permisos por rol.
+- ✅ **Enforcement en backend**: `/api/exports/students`, `/api/exports/notas`, `/api/exports/grupo/{}` bloquean 403 si el docente no tiene permiso; además fuerzan scope al propio docente (no puede exportar grupos ajenos).
+- ✅ **Startup backfill** idempotente: `download_enabled=true` para superadmin/admin existentes; `false` para docentes/viewers sin el campo.
+
+
 - ✅ **Dashboard académico rediseñado desde cero** — 100% derivado de `historico_notas` (2025-2 + 2026-1, 169.376 notas) y el campo `nivel` de students. Sin datos inventados ni antiguos.
   - **KPIs**: En riesgo (1.418), Excelencia (3.017), Tasa aprobación global (76.5%), Habilitación exitosa (72.8%).
   - **Sección 1 — Comparativo periodos**: Estados de notas apilados (Aprobada/Reprobada/Cancelada/Habilitada/Matriculada/Prematriculada/Homologada), distribución de notas por rangos 2025-2 vs 2026-1, tabla bloques × periodo con promedio y % aprobación.
@@ -66,14 +76,18 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - ✅ **Exportaciones nuevas**: /api/exports/notas y /api/exports/docente-materia
 - ✅ **Filtro por docente/materia** resuelve cédulas vía historico_notas en dashboards/caracterizacion/exports
 
-## Backlog
-- P1: Dashboard Docente con vista filtrada por materia/periodo
-- P1: Exportación PDF profesional con marca institucional
-- P1: Histórico académico real (notas multi-periodo)
-- P2: Auditoría/logs de acceso
-- P2: Geocoding con API DANE para municipios no mapeados
-- P2: Materias críticas con alertas automáticas
-- P2: PostgreSQL + PostGIS migration (si requerido)
+## Backlog (actualizado)
+- P0: **Alertas tempranas con IA** (OpenAI GPT-5.4 + Emergent LLM Key) para estudiantes en riesgo (promedio < 3.0 + factores de vulnerabilidad). PENDIENTE.
+- P0: Edit funcional de "Grupos" (más allá de solo lectura).
+- P0: Detalle y edición rica de "Facultades" (similar a Programas).
+- P1: Exportación PDF profesional con marca institucional.
+- P1: Histórico académico real (notas multi-periodo).
+- P2: Auditoría/logs de acceso (logins, uploads, exports).
+- P2: Geocoding con API DANE para municipios no mapeados.
+- P2: Materias críticas con alertas automáticas.
+- P2: PostgreSQL + PostGIS migration (si requerido).
 
 ## Test Credentials
 Ver `/app/memory/test_credentials.md`
+
+## Últimos ajustes (2026-08 · iteración previa)

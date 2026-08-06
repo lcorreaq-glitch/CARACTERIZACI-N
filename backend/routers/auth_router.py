@@ -27,6 +27,7 @@ async def login(data: LoginIn):
             "full_name": user["full_name"],
             "role": user["role"],
             "must_change_password": user.get("must_change_password", False),
+            "download_enabled": user.get("download_enabled", user["role"] in ("superadmin", "admin")),
             "facultad_id": user.get("facultad_id"),
             "programa_id": user.get("programa_id"),
         },

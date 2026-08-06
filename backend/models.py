@@ -28,6 +28,7 @@ class UserUpdate(BaseModel):
     facultad_id: Optional[str] = None
     programa_id: Optional[str] = None
     active: Optional[bool] = None
+    download_enabled: Optional[bool] = None
 
 
 class UserOut(BaseModel):
@@ -40,7 +41,9 @@ class UserOut(BaseModel):
     programa_id: Optional[str] = None
     active: bool = True
     must_change_password: bool = False
+    download_enabled: bool = False
     created_at: str
+    last_login: Optional[str] = None
 
 
 class LoginIn(BaseModel):

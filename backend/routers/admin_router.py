@@ -30,6 +30,7 @@ async def create_user(payload: UserCreate, user=Depends(require_roles("superadmi
         "programa_id": payload.programa_id,
         "active": True,
         "must_change_password": True,
+        "download_enabled": payload.role in ("superadmin", "admin"),
         "created_at": datetime.utcnow().isoformat(),
     }
     await db.users.insert_one(new)
@@ -56,6 +57,72 @@ async def delete_user(user_id: str, user=Depends(require_roles("superadmin"))):
         raise HTTPException(400, "No puedes eliminar tu propio usuario")
     await db.users.delete_one({"id": user_id})
     return {"ok": True}
+
+
+@router.post("/users/{user_id}/toggle-active")
+async def toggle_active(user_id: str, user=Depends(require_roles("superadmin"))):
+    if user_id == user["id"]:
+        raise HTTPException(400, "No puedes desactivar tu propio usuario")
+    u = await db.users.find_one({"id": user_id}, {"_id": 0, "active": 1})
+    if not u:
+        raise HTTPException(404, "Usuario no encontrado")
+    new_state = not u.get("active", True)
+    await db.users.update_one({"id": user_id}, {"$set": {"active": new_state}})
+    return {"ok": True, "active": new_state}
+
+
+@router.post("/users/{user_id}/toggle-download")
+async def toggle_download(user_id: str, user=Depends(require_roles("superadmin"))):
+    u = await db.users.find_one({"id": user_id}, {"_id": 0, "download_enabled": 1})
+    if not u:
+        raise HTTPException(404, "Usuario no encontrado")
+    new_state = not u.get("download_enabled", False)
+    await db.users.update_one({"id": user_id}, {"$set": {"download_enabled": new_state}})
+    return {"ok": True, "download_enabled": new_state}
+
+
+@router.post("/users/{user_id}/reset-password")
+async def reset_password(user_id: str, payload: dict, user=Depends(require_roles("superadmin"))):
+    new_password = (payload or {}).get("new_password") or "IUDigital2026!"
+    if len(new_password) < 6:
+        raise HTTPException(400, "La contraseña debe tener al menos 6 caracteres")
+    r = await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"password": hash_password(new_password), "must_change_password": True}},
+    )
+    if not r.matched_count:
+        raise HTTPException(404, "Usuario no encontrado")
+    return {"ok": True, "message": "Contraseña reseteada", "new_password": new_password}
+
+
+# ---------- System settings (global permissions/toggles) ----------
+DEFAULT_SETTINGS = {
+    "docente_downloads_globally_enabled": False,
+    "docente_ai_insights_enabled": True,
+    "docente_can_see_all_periods": False,
+    "allow_public_landing": False,
+}
+
+
+@router.get("/system-settings")
+async def get_system_settings(user=Depends(require_roles("superadmin", "admin"))):
+    doc = await db.system_settings.find_one({"_id": "global"}, {"_id": 0}) or {}
+    return {**DEFAULT_SETTINGS, **doc}
+
+
+@router.patch("/system-settings")
+async def update_system_settings(payload: dict, user=Depends(require_roles("superadmin"))):
+    allowed = set(DEFAULT_SETTINGS.keys())
+    upd = {k: bool(v) for k, v in (payload or {}).items() if k in allowed}
+    if not upd:
+        raise HTTPException(400, "Nada que actualizar")
+    upd["updated_at"] = datetime.utcnow().isoformat()
+    upd["updated_by"] = user.get("email")
+    await db.system_settings.update_one(
+        {"_id": "global"}, {"$set": upd}, upsert=True
+    )
+    doc = await db.system_settings.find_one({"_id": "global"}, {"_id": 0}) or {}
+    return {**DEFAULT_SETTINGS, **doc}
 
 
 # ---------- Catalog helpers ----------

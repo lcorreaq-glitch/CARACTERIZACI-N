@@ -64,6 +64,16 @@ app.add_middleware(
 async def startup():
     await ensure_indexes()
     await seed_superadmin()
+    # Backfill download_enabled on existing users (idempotent)
+    from database import db as _db
+    await _db.users.update_many(
+        {"role": {"$in": ["superadmin", "admin"]}, "download_enabled": {"$exists": False}},
+        {"$set": {"download_enabled": True}},
+    )
+    await _db.users.update_many(
+        {"role": {"$in": ["docente", "viewer"]}, "download_enabled": {"$exists": False}},
+        {"$set": {"download_enabled": False}},
+    )
     if os.environ.get("SEED_DEMO_DATA", "false").lower() == "true":
         # Run seed in background to avoid blocking startup
         asyncio.create_task(seed_students())

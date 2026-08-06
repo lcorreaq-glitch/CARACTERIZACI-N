@@ -2,13 +2,46 @@
 import io
 from datetime import datetime
 import pandas as pd
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Optional
 from auth import get_current_user
 from database import db
 
 router = APIRouter(prefix="/api/exports", tags=["exports"])
+
+
+async def _can_download(user) -> bool:
+    """Docentes need explicit permission (per-user OR global)."""
+    role = user.get("role")
+    if role in ("superadmin", "admin"):
+        return True
+    if role == "docente":
+        if user.get("download_enabled") is True:
+            return True
+        settings = await db.system_settings.find_one({"_id": "global"}, {"_id": 0}) or {}
+        return bool(settings.get("docente_downloads_globally_enabled", False))
+    return False
+
+
+async def _enforce_download(user):
+    if not await _can_download(user):
+        raise HTTPException(
+            status_code=403,
+            detail="No tiene permiso de descarga. Contacte al administrador.",
+        )
+
+
+async def _enforce_docente_scope(user, codigo_grupo: Optional[str], docente_id: Optional[str]):
+    """A docente can only export their own groups."""
+    if user.get("role") != "docente":
+        return
+    if codigo_grupo:
+        g = await db.grupos.find_one({"codigo_grupo": codigo_grupo}, {"_id": 0, "docente_id": 1})
+        if not g or g.get("docente_id") != user["id"]:
+            raise HTTPException(403, "No puede exportar grupos de otros docentes")
+    elif docente_id and docente_id != user["id"]:
+        raise HTTPException(403, "No puede exportar datos de otros docentes")
 
 
 def _build_match(args):
@@ -100,6 +133,11 @@ async def export_students(
     user=Depends(get_current_user),
 ):
     """Descarga la base completa de estudiantes según filtros aplicados."""
+    await _enforce_download(user)
+    await _enforce_docente_scope(user, codigo_grupo, docente_id)
+    # Force docente scope
+    if user.get("role") == "docente" and not codigo_grupo and not docente_id:
+        docente_id = user["id"]
     match = _build_match(locals())
     match = await _apply_docente_materia(match, docente_id, materia_id, codigo_grupo)
     cursor = db.students.find(match, {"_id": 0, "id": 0, "created_at": 0,
@@ -219,6 +257,10 @@ async def export_notas(
     user=Depends(get_current_user),
 ):
     """Descarga histórico de notas con filtros opcionales."""
+    await _enforce_download(user)
+    await _enforce_docente_scope(user, codigo_grupo, docente_id)
+    if user.get("role") == "docente" and not codigo_grupo and not docente_id:
+        docente_id = user["id"]
     m = {}
     if periodo and periodo != "all":
         m["periodo"] = periodo
@@ -258,3 +300,97 @@ async def export_docente_materia(fmt: str = Query("xlsx", regex="^(xlsx|csv)$"),
     ts = datetime.utcnow().strftime("%Y%m%d")
     fname = f"docente_materia_{ts}.{fmt}"
     return _stream_xlsx(df, "DocenteMateria", fname) if fmt == "xlsx" else _stream_csv(df, fname)
+
+
+
+@router.get("/grupo/{codigo_grupo}")
+async def export_grupo_detail(
+    codigo_grupo: str,
+    fmt: str = Query("xlsx", regex="^(xlsx|csv)$"),
+    user=Depends(get_current_user),
+):
+    """Descarga el detalle completo de un grupo (cruce asignación × caracterización × notas).
+    Un docente solo puede descargar sus propios grupos y requiere permiso habilitado."""
+    await _enforce_download(user)
+    await _enforce_docente_scope(user, codigo_grupo, None)
+
+    grupo = await db.grupos.find_one({"codigo_grupo": codigo_grupo}, {"_id": 0})
+    if not grupo:
+        raise HTTPException(404, "Grupo no encontrado")
+
+    # 1) Metadata del grupo
+    resumen = [{
+        "Código grupo": grupo.get("codigo_grupo"),
+        "Asignatura": grupo.get("asignatura_nombre"),
+        "Código asignatura": grupo.get("asignatura_codigo"),
+        "Docente": grupo.get("docente_nombre"),
+        "Cédula docente": grupo.get("docente_cedula"),
+        "Email docente": grupo.get("docente_email"),
+        "Programa": grupo.get("programa"),
+        "Facultad": grupo.get("facultad"),
+        "Periodo": grupo.get("periodo"),
+        "Día": grupo.get("dia"),
+        "Hora": grupo.get("hora"),
+        "Bloque": grupo.get("bloque"),
+    }]
+
+    # 2) Matriculados
+    matriculas = await db.matriculas.find(
+        {"codigo_grupo": codigo_grupo}, {"_id": 0}
+    ).to_list(2000)
+    cedulas = [m["cedula"] for m in matriculas]
+
+    # 3) Estudiantes con caracterización completa
+    estudiantes_df = []
+    if cedulas:
+        est_docs = await db.students.find(
+            {"cedula": {"$in": cedulas}},
+            {"_id": 0, "id": 0, "created_at": 0, "hobbies_cat": 0,
+             "actividades_cat": 0, "lat": 0, "lon": 0},
+        ).to_list(2000)
+        est_map = {e["cedula"]: e for e in est_docs}
+        for m in matriculas:
+            e = est_map.get(m["cedula"], {})
+            estudiantes_df.append({
+                **e,
+                "estado_matricula": m.get("estado"),
+            })
+
+    # 4) Notas históricas del grupo (por cédula del grupo + asignatura del grupo)
+    notas_docs = []
+    if cedulas and grupo.get("asignatura_codigo"):
+        notas_docs = await db.historico_notas.find(
+            {"cedula": {"$in": cedulas},
+             "codigo_asignatura": grupo["asignatura_codigo"]},
+            {"_id": 0, "id": 0, "created_at": 0, "upload_id": 0},
+        ).to_list(5000)
+
+    ts = datetime.utcnow().strftime("%Y%m%d")
+    fname = f"grupo_{codigo_grupo}_{ts}.{fmt}"
+
+    if fmt == "csv":
+        # CSV: solo estudiantes
+        df = pd.DataFrame(estudiantes_df or [{"info": "Sin estudiantes matriculados"}])
+        return _stream_csv(df, fname)
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        pd.DataFrame(resumen).to_excel(writer, sheet_name="Grupo", index=False)
+        pd.DataFrame(estudiantes_df or [{"info": "Sin estudiantes"}]).to_excel(
+            writer, sheet_name="Estudiantes", index=False
+        )
+        pd.DataFrame(notas_docs or [{"info": "Sin notas registradas"}]).to_excel(
+            writer, sheet_name="Notas", index=False
+        )
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+@router.get("/permission")
+async def download_permission(user=Depends(get_current_user)):
+    """Endpoint público para el frontend: dice si el usuario actual puede descargar."""
+    return {"can_download": await _can_download(user), "role": user.get("role")}
