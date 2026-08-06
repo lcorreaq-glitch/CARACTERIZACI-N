@@ -63,6 +63,51 @@ def _bool_from_text(v):
 
 
 # ---- Parsers específicos ----
+def _title(s):
+    """Title Case respetando siglas cortas y espacios múltiples."""
+    n = _norm(s)
+    if not n:
+        return ""
+    n = " ".join(n.split())  # colapsa dobles espacios
+    # Convertir a Title Case pero conservar palabras que ya son 2-3 letras en mayúsculas (siglas)
+    words = n.split(" ")
+    out = []
+    for w in words:
+        if 2 <= len(w) <= 3 and w.isupper():
+            out.append(w)  # sigla
+        else:
+            out.append(w.capitalize())
+    return " ".join(out)
+
+
+def parse_tipo_vivienda(s):
+    """Del archivo real 'Tipo de vivienda' → Urbana/Rural/Semiurbana/Semirural/Sin dato."""
+    n = _norm(s).lower()
+    if not n or n == "sin dato":
+        return "Sin dato"
+    if "semirural" in n: return "Semirural"
+    if "semiurbana" in n or "semi urbana" in n: return "Semiurbana"
+    if "rural" in n: return "Rural"
+    if "urbana" in n: return "Urbana"
+    return "Sin dato"
+
+
+def parse_grupo_etario(s, edad_fallback=None):
+    """Del archivo real 'Gruopo etario' → Adolescencia/Juventud/Adultez joven/Adultez media/Persona mayor."""
+    n = _norm(s)
+    if n and n.lower() != "sin dato":
+        # Title case
+        return n.capitalize() if n[0].islower() else n
+    # Fallback por edad
+    e = _int(edad_fallback)
+    if not e: return "Sin dato"
+    if e < 18: return "Adolescencia"
+    if e <= 26: return "Juventud"
+    if e <= 40: return "Adultez joven"
+    if e <= 59: return "Adultez media"
+    return "Persona mayor"
+
+
 def parse_edad(fecha_nac, edad_directa=None):
     e = _int(edad_directa)
     if e > 0:
@@ -152,36 +197,12 @@ def parse_genero(s):
 
 
 def parse_ubicacion(pais_res, ciudad, dep):
-    """Clasifica Urbana/Rural. Como el archivo no trae columna directa,
-    usamos una lista de las ~130 ciudades principales de Colombia."""
-    URBANAS = {
-        'MEDELLIN','MEDELLÍN','BOGOTA','BOGOTÁ','BOGOTA D.C.','CALI','SANTIAGO DE CALI','BARRANQUILLA',
-        'CARTAGENA','CARTAGENA DE INDIAS','BUCARAMANGA','PEREIRA','MANIZALES','IBAGUE','IBAGUÉ',
-        'CUCUTA','CÚCUTA','SAN JOSÉ DE CÚCUTA','MONTERIA','MONTERÍA','SANTA MARTA','VILLAVICENCIO',
-        'NEIVA','ARMENIA','PASTO','POPAYAN','POPAYÁN','VALLEDUPAR','SINCELEJO','TUNJA','QUIBDO','QUIBDÓ',
-        'FLORENCIA','RIOHACHA','YOPAL','MOCOA','LETICIA','ARAUCA','INIRIDA','INÍRIDA','MITU','MITÚ',
-        'PUERTO CARREÑO','SAN ANDRES','SAN ANDRÉS','ITAGUI','ITAGÜÍ','ENVIGADO','BELLO','SOACHA','SOLEDAD',
-        'MALAMBO','APARTADO','APARTADÓ','TURBO','RIONEGRO','SABANETA','LA ESTRELLA','COPACABANA',
-        'GIRARDOTA','CALDAS','CAUCASIA','GUARNE','PALMIRA','BUENAVENTURA','TULUÁ','TULUA','CARTAGO',
-        'JAMUNDÍ','JAMUNDI','YUMBO','FLORIDABLANCA','GIRÓN','GIRON','PIEDECUESTA','DOSQUEBRADAS',
-        'SANTA ROSA DE CABAL','LA DORADA','CHINCHINÁ','CHIA','CHÍA','ZIPAQUIRÁ','ZIPAQUIRA',
-        'FACATATIVÁ','FACATATIVA','MOSQUERA','MADRID','CAJICÁ','CAJICA','FUSAGASUGÁ','FUSAGASUGA','FUNZA',
-        'DUITAMA','SOGAMOSO','MONTELÍBANO','MONTELIBANO','CERETÉ','CERETE','LORICA','MAGANGUÉ','MAGANGUE',
-        'TURBACO','BARRANCABERMEJA','MALAGA','MÁLAGA','SOCORRO','SAN GIL','AGUACHICA','MAICAO','FONSECA',
-        'SAN ANDRÉS DE TUMACO','TUMACO','IPIALES','OCAÑA','PAMPLONA','LOS PATIOS','VILLA DEL ROSARIO',
-        'BOSCONIA','CIÉNAGA','CIENAGA','ESPINAL','FLANDES','MARIQUITA','HONDA','GIRARDOT','MELGAR',
-        'LA MESA','LA CEJA',
-    }
+    """DEPRECATED — ahora se usa parse_tipo_vivienda directo del campo 'Tipo de vivienda'.
+    Kept as fallback: si pais != Colombia => Urbana."""
     p = _upper(pais_res)
-    ciudad_u = _upper(ciudad)
-    if not ciudad_u or ciudad_u == "SIN DATO":
-        return "Sin dato"
     if p and p != "COLOMBIA":
-        return "Urbana"  # residentes en el exterior se asumen urbanos
-    RURAL_KEYS = ("VEREDA", "CORREGIMIENTO", "RURAL")
-    if any(k in ciudad_u for k in RURAL_KEYS):
-        return "Rural"
-    return "Urbana" if ciudad_u in URBANAS else "Rural"
+        return "Urbana"
+    return "Sin dato"
 
 
 # =============================================================================
@@ -199,7 +220,6 @@ async def main():
         "email": {"$nin": ["docente.demo@iudigital.edu.co"]}
     })
     print(f"  users(docentes): eliminados {r.deleted_count}")
-
     # =========================================================================
     print("\n=== 2) Cargar PROGRAMAS (catálogo) ===")
     progs = pd.read_excel(f"{BASE}/progs.xlsx", sheet_name=0)
@@ -245,7 +265,6 @@ async def main():
 
     docente_by_cedula = {}  # cedula -> user_id
     docente_by_email = {}   # email -> user_id
-    docente_meta = {}       # uid -> {correo_personal, correo_institucional, iddoc}
     # Pre-populate with existing users to avoid dupes (superadmin, demo)
     async for u in db.users.find({}, {"_id": 0, "id": 1, "email": 1}):
         if u.get("email"):
@@ -275,47 +294,45 @@ async def main():
         email_personal = _norm(row.get("DOCENTE_EMAIL")).lower()
         email_inst = _norm(row.get("DOCENTE_EMAIL_INSTITUCIONAL")).lower()
         doc_email = email_inst or email_personal  # priorizar institucional para login
-        doc_name = " ".join(_norm(row.get("DOCENTE_NOMBRE")).split())  # limpia dobles espacios
+        doc_name = _title(row.get("DOCENTE_NOMBRE"))
         iddoc = _norm(row.get("IDDOC"))
         if doc_ced and doc_ced not in docente_by_cedula:
-            # Deduplicate by email
-            existing_uid = docente_by_email.get(doc_email) if doc_email else None
-            if existing_uid:
-                docente_by_cedula[doc_ced] = existing_uid
-                docente_meta[existing_uid] = {
-                    "correo_personal": email_personal,
-                    "correo_institucional": email_inst,
-                    "iddoc": iddoc,
-                    "cedula": doc_ced,
-                }
-            else:
-                uid = str(uuid.uuid4())
-                docente_by_cedula[doc_ced] = uid
-                if doc_email:
-                    docente_by_email[doc_email] = uid
-                docente_users.append({
-                    "id": uid,
-                    "email": doc_email or f"docente_{doc_ced}@iudigital.edu.co",
-                    "password": hash_pwd("IUDigital2026"),
-                    "full_name": doc_name or f"Docente {doc_ced}",
-                    "role": "docente",
-                    "documento": doc_ced,
-                    "cedula": doc_ced,
-                    "iddoc": iddoc,
-                    "correo_personal": email_personal,
-                    "correo_institucional": email_inst,
-                    "active": True,
-                    "must_change_password": True,
-                    "created_at": datetime.utcnow().isoformat(),
-                })
+            # Deduplicar por CÉDULA únicamente (no por email, para no fusionar docentes
+            # distintos que compartan el mismo correo).
+            uid = str(uuid.uuid4())
+            docente_by_cedula[doc_ced] = uid
+            # Fallback de login: usa email institucional si existe, si no personal, si no
+            # sintetiza uno único por cédula. Los duplicados de email se resuelven
+            # anteponiendo la cédula al local-part.
+            login_email = doc_email or f"docente_{doc_ced}@iudigital.edu.co"
+            if login_email in docente_by_email:
+                # Colisión de email → hacer único con cedula
+                local, _, dom = login_email.partition("@")
+                login_email = f"{local}+{doc_ced}@{dom or 'iudigital.edu.co'}"
+            docente_by_email[login_email] = uid
+            docente_users.append({
+                "id": uid,
+                "email": login_email,
+                "password": hash_pwd("IUDigital2026"),
+                "full_name": doc_name or f"Docente {doc_ced}",
+                "role": "docente",
+                "documento": doc_ced,
+                "cedula": doc_ced,
+                "iddoc": iddoc,
+                "correo_personal": email_personal,
+                "correo_institucional": email_inst,
+                "active": True,
+                "must_change_password": True,
+                "created_at": datetime.utcnow().isoformat(),
+            })
 
         # Grupo (upsert: enriquecer si ya existe con datos faltantes)
         codigo_grupo = _norm(row.get("CODIGO_GRUPO"))
         if codigo_grupo:
-            programa = _norm(row.get("PROGRAMA")).upper()
-            asig_nombre = _norm(row.get("ASIGNATURA_NOMBRE"))
-            asig_codigo = _extract_asig_codigo(_norm(row.get("CODIGO_ASIGATURA")), asig_nombre)
-            prog_info = prog_by_name.get(programa, {})
+            programa = _title(row.get("PROGRAMA"))
+            asig_nombre = _title(row.get("ASIGNATURA_NOMBRE"))
+            asig_codigo = _extract_asig_codigo(_norm(row.get("CODIGO_ASIGATURA")), _norm(row.get("ASIGNATURA_NOMBRE")))
+            prog_info = prog_by_name.get(programa.upper(), {})
             if codigo_grupo not in grupos_map:
                 grupos_map[codigo_grupo] = {
                     "id": str(uuid.uuid4()),
@@ -323,8 +340,8 @@ async def main():
                     "id_grupo": _norm(row.get("IDGRUPO")),
                     "asignatura_nombre": asig_nombre,
                     "asignatura_codigo": asig_codigo,
-                    "bloque": _norm(row.get("BLOQUE")),
-                    "dia": _norm(row.get("DIA")),
+                    "bloque": _title(row.get("BLOQUE")),
+                    "dia": _title(row.get("DIA")),
                     "hora": _norm(row.get("HORA")),
                     "docente_id": docente_by_cedula.get(doc_ced),
                     "docente_nombre": doc_name,
@@ -335,7 +352,7 @@ async def main():
                     "programa": programa,
                     "facultad": prog_info.get("facultad_nombre", ""),
                     "periodo": f"{_norm(row.get('ANIO'))}-{_norm(row.get('PERIODO')).strip()}",
-                    "periodicidad": _norm(row.get("PERIODICIDAD")),
+                    "periodicidad": _title(row.get("PERIODICIDAD")),
                     "created_at": datetime.utcnow().isoformat(),
                 }
             else:
@@ -363,15 +380,15 @@ async def main():
                 "cedula": ced_est,
                 "codigo_grupo": codigo_grupo,
                 "asignatura_codigo": _extract_asig_codigo(_norm(row.get("CODIGO_ASIGATURA")), _norm(row.get("ASIGNATURA_NOMBRE"))),
-                "asignatura_nombre": _norm(row.get("ASIGNATURA_NOMBRE")),
+                "asignatura_nombre": _title(row.get("ASIGNATURA_NOMBRE")),
                 "docente_id": docente_by_cedula.get(doc_ced),
                 "docente_cedula": doc_ced,
                 "docente_nombre": doc_name,
-                "programa": _norm(row.get("PROGRAMA")).upper(),
+                "programa": _title(row.get("PROGRAMA")),
                 "periodo": f"{_norm(row.get('ANIO'))}-{_norm(row.get('PERIODO')).strip()}",
-                "estado": _norm(row.get("ESTADO_ASIGNATURA")),
-                "email_estudiante": _norm(row.get("EMAIL  PERSONAL ESTUDIANTE")),
-                "email_institucional_estudiante": _norm(row.get("EMAIL_INSTITUCIONAL ESTUDIANTE")),
+                "estado": _title(row.get("ESTADO_ASIGNATURA")),
+                "email_estudiante": _norm(row.get("EMAIL  PERSONAL ESTUDIANTE")).lower(),
+                "email_institucional_estudiante": _norm(row.get("EMAIL_INSTITUCIONAL ESTUDIANTE")).lower(),
                 "created_at": datetime.utcnow().isoformat(),
             })
 
@@ -379,12 +396,6 @@ async def main():
         await db.users.insert_many(docente_users)
     print(f"  Docentes creados: {len(docente_users)}")
 
-    # Actualizar meta en docentes ya existentes (deduplicados por email)
-    for uid, meta in docente_meta.items():
-        await db.users.update_one(
-            {"id": uid},
-            {"$set": {k: v for k, v in meta.items() if v}}
-        )
     if grupos_map:
         await db.grupos.insert_many(list(grupos_map.values()))
     print(f"  Grupos: {len(grupos_map)}")
@@ -393,6 +404,33 @@ async def main():
         for i in range(0, len(matriculas), 5000):
             await db.matriculas.insert_many(matriculas[i:i+5000])
     print(f"  Matrículas: {len(matriculas)}")
+
+    # Poblar docente_materia (relaciones únicas)
+    await db.docente_materia.delete_many({})
+    dm_seen = set()
+    dm_docs = []
+    for g in grupos_map.values():
+        if not g.get("docente_id") or not g.get("asignatura_codigo"):
+            continue
+        key = (g["docente_id"], g["asignatura_codigo"], g["periodo"])
+        if key in dm_seen:
+            continue
+        dm_seen.add(key)
+        dm_docs.append({
+            "id": str(uuid.uuid4()),
+            "docente_id": g["docente_id"],
+            "docente_nombre": g.get("docente_nombre", ""),
+            "materia_codigo": g["asignatura_codigo"],
+            "materia_nombre": g.get("asignatura_nombre", ""),
+            "codigo_grupo": g["codigo_grupo"],
+            "programa": g.get("programa", ""),
+            "facultad": g.get("facultad", ""),
+            "periodo": g["periodo"],
+            "created_at": datetime.utcnow().isoformat(),
+        })
+    if dm_docs:
+        await db.docente_materia.insert_many(dm_docs)
+    print(f"  Relaciones docente-materia: {len(dm_docs)}")
 
     # Build estado_matricula por estudiante (más reciente)
     est_estado = {}
@@ -422,9 +460,9 @@ async def main():
         edad = parse_edad(row.get("Fecha nacimiento"), row.get("Edad"))
         sisben_nivel, sisben_tiene, grupo_sisben = parse_sisben(row.get("Sisben"))
         ingresos = parse_ingresos(row.get("Ingresos familiares"))
-        programa = _norm(row.get("Programa académico")).upper()
-        prog_info = prog_by_name.get(programa, {})
-        facultad = _norm(row.get("Facultad")) or prog_info.get("facultad_nombre", "")
+        programa = _title(row.get("Programa académico"))
+        prog_info = prog_by_name.get(programa.upper(), {})
+        facultad = _title(row.get("Facultad")) or prog_info.get("facultad_nombre", "")
 
         # Geolocalización
         ciudad = _norm(row.get("Ciudad/Municipio residencia"))
@@ -443,47 +481,57 @@ async def main():
         vt_lower = vulnerable_txt.lower()
         victima = vulnerable and any(k in vt_lower for k in ("victim", "víctim", "desplaz", "conflict"))
 
+        # Etnias/grupos étnicos: usar Title Case y priorizar autorreconocimiento
+        auto_reconoce = _norm(row.get("Grupo étnico con el cual se autorreconoce"))
+        etnia_general = _norm(row.get("Grupo étnico"))
+        etnia_especifica = _norm(row.get("Etnia"))
+        # grupo_etnia principal para KPIs = autorreconocimiento (o general si no hay)
+        grupo_etnia = auto_reconoce or etnia_general or "Sin dato"
+        # etnia detallada
+        etnia = etnia_especifica or grupo_etnia
+
         students.append({
             "id": str(uuid.uuid4()),
             "cedula": ced,
-            "tipo_documento": _upper(row.get("Tipo documento")) or "CEDULA",
-            "nombre": _norm(row.get("Nombre")),
-            "apellidos": _norm(row.get("Apellidos")),
-            "nombre_completo": _norm(row.get("nombre_estudiante")),
-            "correo": _norm(row.get("Correo electrónico")),
-            "correo_institucional": _norm(row.get("Correo Institucional Estudiante")),
+            "tipo_documento": _title(row.get("Tipo documento")) or "Cédula",
+            "nombre": _title(row.get("Nombre")),
+            "apellidos": _title(row.get("Apellidos")),
+            "nombre_completo": _title(row.get("nombre_estudiante")),
+            "correo": _norm(row.get("Correo electrónico")).lower(),
+            "correo_institucional": _norm(row.get("Correo Institucional Estudiante")).lower(),
             "telefono": _norm(row.get("Teléfono")) or _norm(row.get("Número de celular")),
             "fecha_nacimiento": _norm(row.get("Fecha nacimiento")),
             "edad": edad,
-            "rango_edad": rango_edad(edad),
+            "rango_edad": rango_edad(edad),  # rango numérico
+            "grupo_etario": parse_grupo_etario(row.get("Gruopo etario"), edad),  # categoría cualitativa del archivo
             "genero": parse_genero(row.get("Sexo biológico")),
-            "estado_civil": _upper(row.get("Estado civil")) or "NO INFORMA",
+            "estado_civil": _title(row.get("Estado civil")) or "No informa",
             "estrato": parse_estrato(row.get("Estrato socioeconómico")),
             "sisben_nivel": sisben_nivel,
             "sisben_tiene": sisben_tiene,
             "grupo_sisben": grupo_sisben,
             "etnia": etnia,
-            "etnia_institucional": _norm(row.get("Etnia indígena a la cual pertenece")),
+            "etnia_institucional": _title(row.get("Etnia indígena a la cual pertenece")),
             "grupo_etnia": grupo_etnia,
             "resguardo_indigena": bool(_norm(row.get("Nombre del resguardo indígena (si pertenece a uno)"))),
             "discapacidad_flag": discap_flag,
-            "discapacidad_tipo": discap_tipo,
-            "capacidad_excepcional": _upper(row.get("Posee capacidades excepcionales")) or "NINGUNA",
+            "discapacidad_tipo": _title(discap_tipo),
+            "capacidad_excepcional": _title(row.get("Posee capacidades excepcionales")) or "Ninguna",
             "grupo_vulnerable": vulnerable,
-            "tipo_grupo_vulnerable": vulnerable_txt.upper() if vulnerable else "SIN DATO",
+            "tipo_grupo_vulnerable": _title(vulnerable_txt) if vulnerable else "Sin dato",
             "victima_conflicto": victima,
-            "veterano": _upper(row.get("Veteranos y/o núcleo familiar")) or "NO APLICA",
-            "tipo_ubicacion": parse_ubicacion(pais, ciudad, depto),
-            "zona_frontera": _upper(row.get("¿Vive en alguna frontera?")) or "NO APLICA",
+            "veterano": _title(row.get("Veteranos y/o núcleo familiar")) or "No aplica",
+            "tipo_ubicacion": parse_tipo_vivienda(row.get("Tipo de vivienda")),  # Urbana/Rural/Semiurbana/Semirural/Sin dato
+            "tipo_vivienda": parse_tipo_vivienda(row.get("Tipo de vivienda")),   # alias explícito
+            "zona_frontera": _title(row.get("¿Vive en alguna frontera?")) or "No aplica",
             "ingresos_flia": ingresos,
             "rango_ingresos": rango_ingresos(ingresos),
             "num_personas_flia": _int(row.get("Número de personas en la familia")),
             "num_aportantes": _int(row.get("Número de aportantes a la familia")),
             "hnos_educ_superior": _int(row.get("Nº de hermanos con educación superior")),
-            "vivienda_propia": _upper(row.get("Tipo de vivienda")) in ("PROPIA", "PROPIA CON HIPOTECA"),
-            "nivel_educ_madre": _upper(row.get("Nivel educativo Madre")) or "NO INFORMA",
-            "nivel_educ_padre": _upper(row.get("Nivel educativo Padre")) or "NO INFORMA",
-            "parentesco_emergencia": _upper(row.get("Parentesco")),
+            "nivel_educ_madre": _title(row.get("Nivel educativo Madre")) or "No informa",
+            "nivel_educ_padre": _title(row.get("Nivel educativo Padre")) or "No informa",
+            "parentesco_emergencia": _title(row.get("Parentesco")),
             "razon_carrera_cat": _norm(row.get("categoria Razón para estudiar el programa")) or _norm(row.get("Razón para estudiar el programa")),
             "razon_institucion": _norm(row.get("categoria ¿Por qué decidió estudiar en la institución?")) or _norm(row.get("¿Por qué decidió estudiar en la institución?")),
             "hobbies": _norm(row.get("Hobbies")),
@@ -495,10 +543,10 @@ async def main():
             "facultad": facultad,
             "nivel": _int(row.get("Nivel (semestre)")),
             "estado_matricula": est_estado.get(ced, "Sin matrícula 2026-2"),
-            "ciudad_nombre": muni["nombre"] if muni else (ciudad.upper() if ciudad else "SIN DATO"),
+            "ciudad_nombre": muni["nombre"] if muni else (_title(ciudad) if ciudad else "Sin dato"),
             "ciudad_codigo": muni["codigo"] if muni else "",
-            "departamento": muni["departamento"] if muni else (depto.upper() if depto else ""),
-            "pais": pais.upper(),
+            "departamento": muni["departamento"] if muni else (_title(depto) if depto else ""),
+            "pais": _title(pais) or "Colombia",
             "lat": muni["lat"] if muni else 0,
             "lon": muni["lon"] if muni else 0,
             "periodo": "2026-2",

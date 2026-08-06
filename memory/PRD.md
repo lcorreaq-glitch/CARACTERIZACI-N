@@ -25,26 +25,26 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - Exportación PDF/Excel
 
 ## Últimos ajustes (2026-08)
-- ✅ **Fix crítico de mapeo de datos vs archivo real**:
-  - **Víctimas conflicto**: 1.427 (8.7%) — antes 4.852 (falso). Ahora deriva solo de "Grupo vulnerable" con palabras clave víctima/desplazado/conflicto. Ya no del campo "Ubicación de conflicto" (que solo indica lugar geográfico).
-  - **Estudiantes rurales**: 7.551 (45.9%) — antes 0. Heurística basada en lista de 130 ciudades urbanas de Colombia (todas las capitales + área metro + ciudades intermedias > 100k hab).
-  - **Vulnerables**: 2.853 (17.3%) — antes 100% al no filtrar "Sin dato".
-  - **Discapacidad**: 202 (1.2%) — antes 70% por no filtrar "Ninguno" (masculino).
-  - **Tipo vulnerabilidad**: "SIN DATO" en vez de "NINGUNO" para no vulnerables (mejor claridad en gráfico).
-- ✅ **Chart programas mejorado**: nombres completos visibles (260px de ancho), altura dinámica según cantidad de programas, etiquetas de valor al final de cada barra.
-- ✅ **Docentes con datos completos**: 398 docentes con `documento`, `cedula`, `iddoc`, `correo_institucional` y `correo_personal` separados. `asignatura_codigo` extraído automáticamente del nombre.
-- ✅ **Periodos coherentes**: notas del archivo `notas_26_2.xlsx` se cargan como periodo real `2026-1` (leído de ANO/PERIODO en el propio archivo). Dashboard muestra 2025-2 (3.45, 84.871 notas) y 2026-1 (3.12, 84.505 notas).
-- ✅ **Nueva pestaña Admin → Docentes**: tabla enriquecida con documento, correos, grupos, materias, estudiantes, programas + buscador + exportación CSV + modal detalle con histórico académico. Endpoints `/api/admin/docentes` y `/api/admin/docentes/{id}/grupos`.
-- ✅ **Vista /grupos**: 1.311 grupos filtrables + modal detalle con estudiantes y notas históricas.
+- ✅ **Datos totalmente coherentes con archivo cargado**: 
+  - `tipo_ubicacion` ahora viene DIRECTAMENTE del campo "Tipo de vivienda" del archivo (Urbana 12.455, Rural 3.261, Semiurbana 306, Semirural 143, Sin dato 296) — antes se inferían mal por ciudad.
+  - `grupo_etario` usa el campo "Gruopo etario" del archivo (Adolescencia, Juventud, Adultez joven, Adultez media, Persona mayor) — antes se calculaba con rangos numéricos.
+  - Docentes: **399 reales** (antes 398, se dedupeaban mal por email compartido). Todos con `documento`, `iddoc`, `correo_personal`, `correo_institucional`.
+  - `docente_materia`: **737 relaciones** consolidadas automáticamente (antes 0).
+- ✅ **KPI "Vivienda rural"** (Rural + Semirural = 3.404, 20.7%) — renombrado y ahora coincide con el "Tipo de vivienda" del archivo. No se duplica con otro campo territorial.
+- ✅ **Víctimas conflicto**: 1.382 (8.4%) — deriva de tipos consolidados "Víctima del Conflicto Armado" y "Desplazado por la Violencia".
+- ✅ **Normalización Title Case español**: preposiciones/artículos (de, del, la, los, en, y, o…) en minúsculas dentro del título. Ejemplos: `Administración de Empresas`, `Ingeniería de Software y Datos`, `Licenciatura en Educación Básica Primaria`. Aplicado a students, grupos, docente_materia, matriculas y docentes.
+- ✅ **Consolidación de tipo_grupo_vulnerable**: variaciones ortográficas del archivo (Victima/Víctima/Desplazado/Desplazada/Afrocolombiano/Afrodecendiente) fusionadas en 9 categorías canónicas.
+- ✅ **Grupos etarios** usan cronología (Adolescencia → Persona mayor) no orden alfabético.
+- ✅ **Docente demo** con 8 grupos reales, 252 matrículas, 450 notas históricas para pruebas.
 
-## Datos reales cargados (2026-08 · última verificación)
-- **16.461 estudiantes** reales
-- **1.311 grupos** activos periodo 2026-2
-- **92.439 matrículas**
-- **169.376 notas** — 2025-2 (84.871, prom 3.45) + **2026-1** (84.505, prom 3.12) · Promedio ponderado general: **3.29**
-- **398 docentes** con documento, correo institucional, correo personal, IDDOC
-- **5 facultades**, **59 programas** (21 con estudiantes activos)
-- **KPIs verificados**: Rurales 45.9% · Vulnerables 17.3% · Víctimas 8.7% · Discapacidad 1.2%
+## Datos reales cargados (2026-08 · única fuente de verdad)
+- **16.461 estudiantes** (CARACTERIZACION_2026.xlsx)
+- **1.311 grupos** activos periodo 2026-2 (ASIGNACION_GRUPO_2026_2)
+- **92.439 matrículas** · **737 relaciones docente-materia**
+- **169.376 notas** — 2025-2 (84.871, prom 3.45) + **2026-1** (84.505, prom 3.12) · Promedio ponderado: **3.29**
+- **399 docentes** reales + demo = 400
+- **5 facultades**, **59 programas** SNIES (21 con estudiantes activos)
+- **KPIs auditados**: Vivienda rural 20.7% · Vulnerables 17.3% · Víctimas 8.4% · Discapacidad 1.2%
 - ✅ **Endpoint /en-riesgo**: score de riesgo combinado (nota bajo + factores vulnerabilidad)
 
 ## Implemented (2026-02)

@@ -107,7 +107,7 @@ export default function Executive() {
           <KPI label="Promedio general" value={(k.promedio ?? 0).toFixed(2)} sub="Última nota disponible" icon={GraduationCap} accent="bg-[#FFCD00]/15 text-[#7A6300]" />
           <KPI label="Programas" value={fmt(k.programas)} sub={`${k.facultades} facultades`} icon={Building2} accent="bg-emerald-500/10 text-emerald-700" />
           <KPI label="Avance curricular" value={`${(k.avance_pct ?? 0).toFixed(0)}%`} sub="% aprobadas del estudiante" icon={TrendingUp} accent="bg-blue-500/10 text-blue-700" />
-          <KPI label="Estudiantes rurales" value={fmt(k.rurales)} sub={`${((k.rurales / (k.total || 1)) * 100).toFixed(1)}% del total`} icon={Trees} accent="bg-green-700/10 text-green-800" />
+          <KPI label="Vivienda rural" value={fmt(k.rurales)} sub={`${((k.rurales / (k.total || 1)) * 100).toFixed(1)}% (Rural + Semirural)`} icon={Trees} accent="bg-green-700/10 text-green-800" />
           <KPI label="Víctimas conflicto" value={fmt(k.victimas)} sub={`${((k.victimas / (k.total || 1)) * 100).toFixed(1)}% del total`} icon={Heart} accent="bg-[#E3000F]/10 text-[#E3000F]" />
           <KPI label="Grupo vulnerable" value={fmt(k.vulnerables)} sub="Auto identificación" icon={AlertTriangle} accent="bg-amber-500/10 text-amber-700" />
           <KPI label="Discapacidad" value={fmt(k.discapacidad)} sub="Reportada por el estudiante" icon={Accessibility} accent="bg-purple-500/10 text-purple-700" />

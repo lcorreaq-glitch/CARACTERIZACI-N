@@ -147,10 +147,12 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
     ]).to_list(10)
 
     by_edad = await coll.aggregate(pipeline + [
-        {"$group": {"_id": "$rango_edad", "n": {"$sum": 1}}},
-        {"$sort": {"_id": 1}},
+        {"$group": {"_id": "$grupo_etario", "n": {"$sum": 1}}},
         {"$project": {"_id": 0, "rango": "$_id", "n": 1}}
     ]).to_list(10)
+    # Orden cronológico de grupos etarios
+    _ORDEN = {"Adolescencia": 1, "Juventud": 2, "Adultez joven": 3, "Adultez media": 4, "Persona mayor": 5, "Sin dato": 6}
+    by_edad.sort(key=lambda x: _ORDEN.get(x.get("rango", ""), 99))
 
     by_vulnerabilidad = await coll.aggregate(pipeline + [
         {"$match": {"grupo_vulnerable": True}},
