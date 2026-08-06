@@ -251,7 +251,12 @@ async def academic(
         cedulas_match = await db.students.distinct("cedula", match)
         hn_base["cedula"] = {"$in": cedulas_match}
     if not include_extension:
-        hn_base["area_formacion"] = {"$not": {"$regex": "extension", "$options": "i"}}
+        # Excluir tanto por área de formación como por prefijo de programa
+        # (los "CURSO …" y "DIPLOMADO …" son de extensión aunque tengan otra área)
+        hn_base["$and"] = [
+            {"area_formacion": {"$not": {"$regex": "extension", "$options": "i"}}},
+            {"programa": {"$not": {"$regex": "^(CURSO |DIPLOMADO |DPLOMADO |DIPOMADO |HERRAMIENTAS BÁSICAS|TRABAJO EN L[IÍ]NEA)", "$options": "i"}}},
+        ]
 
     # ============================================================
     # SECCIÓN 1 · Comparativo por periodo
@@ -343,35 +348,31 @@ async def academic(
         {"$limit": 10},
     ]).to_list(10)
 
-    # 2c) Promedio por área de formación (facultad de la asignatura)
-    area_match = dict(hn_base)
-    # Combinar filtros de area_formacion (extensión + no-vacío)
-    if "area_formacion" in hn_base:
-        area_match["area_formacion"] = {**hn_base["area_formacion"], "$nin": [None, ""]}
-    else:
-        area_match["area_formacion"] = {"$nin": [None, ""]}
-    by_area = await db.historico_notas.aggregate([
-        {"$match": area_match},
-        {"$group": {
-            "_id": "$area_formacion", "n": {"$sum": 1},
-            "prom": {"$avg": "$nota"},
-            "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}},
-        }},
-        {"$project": {"_id": 0, "area": "$_id", "n": 1,
-                      "prom": {"$round": ["$prom", 2]},
-                      "pct_aprob": {"$round": [{"$multiply": [{"$divide": ["$aprob", "$n"]}, 100]}, 1]}}},
-        {"$sort": {"n": -1}},
-    ]).to_list(20)
+    # 2c) Facultad de la asignatura — DEPRECATED (dato anormal, no confiable)
+    by_area = []
 
-    # 2d) Promedio por programa (ponderado desde notas reales, no promedio de promedios)
-    by_program_avg = await db.historico_notas.aggregate([
+    # 2d) Promedio por PROGRAMA — segmentado en 3 categorías:
+    #     REGULAR (pregrados, tecnologías, especializaciones, convenios)
+    #     INGLÉS (cursos de inglés fuera de la malla)
+    #     EXTENSIÓN (cursos y diplomados)
+    def _cat(nombre):
+        if not nombre:
+            return "regular"
+        u = nombre.upper()
+        if "INGLÉS" in u or "INGLES" in u:
+            return "ingles"
+        if u.startswith("CURSO ") or u.startswith("DIPLOMADO ") or u.startswith("DPLOMADO ") or u.startswith("DIPOMADO ") or "HERRAMIENTAS BÁSICAS" in u or "TRABAJO EN LINEA" in u or "TRABAJO EN LÍNEA" in u:
+            return "extension"
+        return "regular"
+
+    prog_raw = await db.historico_notas.aggregate([
         {"$match": {**hn_base, "programa": {"$nin": [None, ""]}}},
         {"$group": {
             "_id": "$programa", "n": {"$sum": 1},
             "prom": {"$avg": "$nota"},
+            "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}},
             "prom_2025_2": {"$avg": {"$cond": [{"$eq": ["$periodo", "2025-2"]}, "$nota", None]}},
             "prom_2026_1": {"$avg": {"$cond": [{"$eq": ["$periodo", "2026-1"]}, "$nota", None]}},
-            "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}},
         }},
         {"$project": {"_id": 0, "programa": "$_id", "n": 1,
                       "prom": {"$round": [{"$ifNull": ["$prom", 0]}, 2]},
@@ -379,7 +380,20 @@ async def academic(
                       "prom_2026_1": {"$round": [{"$ifNull": ["$prom_2026_1", 0]}, 2]},
                       "pct_aprob": {"$round": [{"$multiply": [{"$divide": ["$aprob", "$n"]}, 100]}, 1]}}},
         {"$sort": {"n": -1}},
-    ]).to_list(50)
+    ]).to_list(500)
+
+    by_program_regular, by_program_ingles, by_program_extension = [], [], []
+    for p in prog_raw:
+        cat = _cat(p["programa"])
+        if cat == "ingles":
+            by_program_ingles.append(p)
+        elif cat == "extension":
+            by_program_extension.append(p)
+        else:
+            by_program_regular.append(p)
+
+    # Compat: by_program_avg = regular únicamente (para no romper otros consumidores)
+    by_program_avg = by_program_regular
 
     # ============================================================
     # SECCIÓN 3 · Trayectoria estudiantil (nivel 2026-2)
@@ -472,6 +486,9 @@ async def academic(
         "top_aprobadas": top_aprobadas,
         "by_area": by_area,
         "by_program_avg": by_program_avg,
+        "by_program_regular": by_program_regular,
+        "by_program_ingles": by_program_ingles,
+        "by_program_extension": by_program_extension,
         "by_nivel": by_nivel,
         "creditos": creditos,
         "habilitaciones": habilitaciones,
@@ -516,25 +533,60 @@ async def territorial(match: dict = Depends(_common_params), user=Depends(get_cu
 
 @router.get("/historical")
 async def historical(programa: Optional[str] = None, user=Depends(get_current_user)):
-    match = {}
+    """Histórico académico. Solo periodos con notas reales cargadas (2025-2 y 2026-1).
+    Deriva TODO desde historico_notas (nota, aprobada, programa) y matriculas para el
+    conteo de matriculados únicos por periodo."""
+    hn_match = {}
     if programa:
-        match["programa"] = programa
-    items = await db.historico.find(match, {"_id": 0}).sort([("programa", 1), ("periodo", 1)]).to_list(2000)
-    # Group by periodo for charts
-    by_periodo = {}
-    for it in items:
-        by_periodo.setdefault(it["periodo"], []).append(it)
+        hn_match["programa"] = programa
+
+    # ---- Series por periodo (promedio ponderado + tasa aprobación + matriculados únicos)
     series_periodo = []
-    for per, items_p in sorted(by_periodo.items()):
-        avg_prom = sum(i["promedio"] for i in items_p) / max(1, len(items_p))
-        avg_apr = sum(i["tasa_aprobacion"] for i in items_p) / max(1, len(items_p))
-        series_periodo.append({
-            "periodo": per,
-            "promedio": round(avg_prom, 2),
-            "tasa_aprobacion": round(avg_apr, 1),
-            "matriculados": sum(i["matriculados"] for i in items_p),
-        })
-    return {"by_program": items, "series_periodo": series_periodo}
+    async for r in db.historico_notas.aggregate([
+        {"$match": hn_match},
+        {"$group": {
+            "_id": "$periodo",
+            "prom": {"$avg": "$nota"},
+            "n_notas": {"$sum": 1},
+            "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}},
+            "cedulas": {"$addToSet": "$cedula"},
+        }},
+        {"$project": {
+            "_id": 0, "periodo": "$_id",
+            "promedio": {"$round": [{"$ifNull": ["$prom", 0]}, 2]},
+            "tasa_aprobacion": {"$round": [{"$multiply": [{"$divide": ["$aprob", "$n_notas"]}, 100]}, 1]},
+            "matriculados": {"$size": "$cedulas"},
+            "n_notas": 1,
+        }},
+        {"$sort": {"periodo": 1}},
+    ]):
+        series_periodo.append(r)
+
+    # ---- Por programa × periodo (para comparativo detallado)
+    by_program = []
+    async for r in db.historico_notas.aggregate([
+        {"$match": {**hn_match, "programa": {"$nin": [None, ""]}}},
+        {"$group": {
+            "_id": {"prog": "$programa", "per": "$periodo"},
+            "prom": {"$avg": "$nota"},
+            "n_notas": {"$sum": 1},
+            "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}},
+            "cedulas": {"$addToSet": "$cedula"},
+        }},
+        {"$project": {
+            "_id": 0,
+            "programa": "$_id.prog",
+            "periodo": "$_id.per",
+            "promedio": {"$round": [{"$ifNull": ["$prom", 0]}, 2]},
+            "tasa_aprobacion": {"$round": [{"$multiply": [{"$divide": ["$aprob", "$n_notas"]}, 100]}, 1]},
+            "matriculados": {"$size": "$cedulas"},
+            "n_notas": 1,
+        }},
+        {"$sort": {"programa": 1, "periodo": 1}},
+    ]):
+        by_program.append(r)
+
+    return {"by_program": by_program, "series_periodo": series_periodo}
 
 
 @router.get("/filters")

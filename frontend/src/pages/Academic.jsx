@@ -213,39 +213,72 @@ export default function Academic() {
                 </div>
               </ChartCard>
 
-              <ChartCard title="Rendimiento por área de formación" eyebrow="Facultad de la asignatura" span="lg:col-span-6"
-                note="Promedio ponderado y tasa de aprobación por área institucional.">
-                <ResponsiveContainer width="100%" height={280}>
-                  <ComposedChart data={data?.by_area || []} layout="vertical" margin={{ left: 8, right: 40 }}>
+              <ChartCard title="Promedio por programa académico" eyebrow="Pregrados, tecnologías y especializaciones" span="lg:col-span-12"
+                note="Promedio real de todas las notas del programa (no promedio de promedios). Excluye cursos, diplomados e inglés.">
+                <ResponsiveContainer width="100%" height={Math.max(280, (data?.by_program_regular?.length || 0) * 26)}>
+                  <BarChart data={data?.by_program_regular || []} layout="vertical" margin={{ left: 8, right: 60 }}>
                     <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
-                    <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                    <YAxis type="category" dataKey="area" width={200} tick={{ fontSize: 9, fill: "hsl(var(--foreground))" }}
-                      tickFormatter={(v) => v?.replace("Facultad de ", "").slice(0, 32) + (v?.length > 32 ? "…" : "")} interval={0} />
+                    <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                    <YAxis type="category" dataKey="programa" width={260} tick={{ fontSize: 10, fill: "hsl(var(--foreground))" }}
+                      tickFormatter={(v) => v?.length > 42 ? v.slice(0, 40) + "…" : v} interval={0} />
                     <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
-                    <Bar dataKey="n" fill="#0033A0" name="Notas" radius={[0, 2, 2, 0]}>
-                      <LabelList dataKey="pct_aprob" position="right" formatter={(v) => `${v}%`} style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                    <Bar dataKey="prom" radius={[0, 2, 2, 0]}>
+                      {(data?.by_program_regular || []).map((d, i) => (
+                        <Cell key={i} fill={d.prom < 3 ? "#E3000F" : d.prom < 3.5 ? "#FFCD00" : d.prom < 4 ? "#0052FF" : "#059669"} />
+                      ))}
+                      <LabelList dataKey="prom" position="right" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                      <LabelList dataKey="n" position="insideRight" formatter={(v) => `${(v/1000).toFixed(1)}k`} style={{ fontSize: 9, fill: "#fff" }} />
                     </Bar>
-                  </ComposedChart>
+                  </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
 
-              <ChartCard title="Promedio por programa" eyebrow="Rendimiento · ponderado desde notas" span="lg:col-span-6"
-                note="Promedio real de todas las notas del programa (no promedio de promedios).">
-                <ResponsiveContainer width="100%" height={Math.max(280, (data?.by_program_avg?.length || 0) * 22)}>
-                  <BarChart data={data?.by_program_avg || []} layout="vertical" margin={{ left: 8, right: 40 }}>
+              <ChartCard title="Cursos de inglés" eyebrow="Fuera de la malla · niveles 0 a 5" span="lg:col-span-6"
+                note="Cursos de inglés que los estudiantes toman por fuera del pénsum regular. Ordenados por volumen de notas.">
+                <ResponsiveContainer width="100%" height={Math.max(280, (data?.by_program_ingles?.length || 0) * 22)}>
+                  <BarChart data={data?.by_program_ingles || []} layout="vertical" margin={{ left: 8, right: 50 }}>
                     <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
                     <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                    <YAxis type="category" dataKey="programa" width={180} tick={{ fontSize: 9, fill: "hsl(var(--foreground))" }}
-                      tickFormatter={(v) => v?.length > 32 ? v.slice(0, 30) + "…" : v} interval={0} />
-                    <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
+                    <YAxis type="category" dataKey="programa" width={260} tick={{ fontSize: 9, fill: "hsl(var(--foreground))" }}
+                      tickFormatter={(v) => v?.replace(/\s*\(.*?\)/g, "").slice(0, 40)} interval={0} />
+                    <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }}
+                      formatter={(v, name, p) => [`${v} (${p.payload.n} notas · ${p.payload.pct_aprob}% aprob)`, "Promedio"]} />
                     <Bar dataKey="prom" radius={[0, 2, 2, 0]}>
-                      {(data?.by_program_avg || []).map((d, i) => (
+                      {(data?.by_program_ingles || []).map((d, i) => (
                         <Cell key={i} fill={d.prom < 3 ? "#E3000F" : d.prom < 3.5 ? "#FFCD00" : d.prom < 4 ? "#0052FF" : "#059669"} />
                       ))}
                       <LabelList dataKey="prom" position="right" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+              </ChartCard>
+
+              <ChartCard title="Cursos y diplomados (Extensión)" eyebrow={includeExtension ? "Educación continua" : "Activa el toggle para incluir Extensión"} span="lg:col-span-6"
+                note={includeExtension ? "Cursos y diplomados abiertos, opciones de grado y programas de extensión académica." : "Actualmente los cursos de Extensión están excluidos del cálculo global."}>
+                {(data?.by_program_extension || []).length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+                    <BookOpen className="w-8 h-8 mb-3 opacity-40" />
+                    <p className="text-xs">Ninguna extensión visible con el filtro actual.</p>
+                    <p className="text-[10px] mt-1">Activa "Incluir Extensión" arriba a la derecha para verlos.</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={Math.max(280, (data?.by_program_extension?.length || 0) * 22)}>
+                    <BarChart data={(data?.by_program_extension || []).slice(0, 25)} layout="vertical" margin={{ left: 8, right: 50 }}>
+                      <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
+                      <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                      <YAxis type="category" dataKey="programa" width={260} tick={{ fontSize: 9, fill: "hsl(var(--foreground))" }}
+                        tickFormatter={(v) => v?.slice(0, 42) + (v?.length > 42 ? "…" : "")} interval={0} />
+                      <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }}
+                        formatter={(v, name, p) => [`${v} (${p.payload.n} notas · ${p.payload.pct_aprob}% aprob)`, "Promedio"]} />
+                      <Bar dataKey="prom" radius={[0, 2, 2, 0]}>
+                        {(data?.by_program_extension || []).slice(0, 25).map((d, i) => (
+                          <Cell key={i} fill={d.prom < 3 ? "#E3000F" : d.prom < 3.5 ? "#FFCD00" : d.prom < 4 ? "#0052FF" : "#059669"} />
+                        ))}
+                        <LabelList dataKey="prom" position="right" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </ChartCard>
 
             </div>
