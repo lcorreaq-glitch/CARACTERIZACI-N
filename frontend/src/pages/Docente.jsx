@@ -13,7 +13,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, BookOpen, Users, TrendingUp, Heart, Accessibility, GraduationCap, MapPin, ArrowUpRight, ArrowDownRight, Minus, History } from "lucide-react";
+import { AlertTriangle, BookOpen, Users, TrendingUp, Heart, Accessibility, GraduationCap, MapPin, ArrowUpRight, ArrowDownRight, Minus, History, Brain, Sparkles, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 const PALETTE = ["#0033A0", "#0052FF", "#FFCD00", "#E3000F", "#059669", "#8B5CF6"];
 
@@ -43,6 +44,9 @@ export default function Docente() {
   const [onlyRiesgo, setOnlyRiesgo] = useState(false);
   const [historico, setHistorico] = useState(null);
   const [openHistorico, setOpenHistorico] = useState(false);
+  // AI Alerts state
+  const [aiAlert, setAiAlert] = useState(null);         // {loading, cedula, nombre, alerta}
+  const [aiGrupo, setAiGrupo] = useState(null);         // {loading, codigo_grupo, asignatura, resumen}
 
   useEffect(() => {
     setLoading(true);
@@ -66,6 +70,32 @@ export default function Docente() {
     setOpenHistorico(true); setHistorico(null);
     const r = await api.get(`/dashboards/docente/estudiante/${cedula}/historico`);
     setHistorico(r.data);
+  };
+
+  const generarAlertaIA = async (s) => {
+    const nombre = `${s.nombre || ""} ${s.apellidos || ""}`.trim();
+    setAiAlert({ loading: true, cedula: s.cedula, nombre });
+    try {
+      const payload = { cedula: s.cedula };
+      if (filtroGrupo !== "all") payload.codigo_grupo = filtroGrupo;
+      const r = await api.post("/ai/docente/alerta-estudiante", payload);
+      setAiAlert({ loading: false, cedula: s.cedula, nombre: r.data.estudiante_nombre || nombre, alerta: r.data.alerta });
+    } catch (e) {
+      const msg = e?.response?.data?.detail || "Error generando alerta";
+      toast.error(msg);
+      setAiAlert(null);
+    }
+  };
+
+  const generarResumenGrupoIA = async (codigo_grupo) => {
+    setAiGrupo({ loading: true, codigo_grupo });
+    try {
+      const r = await api.post("/ai/docente/resumen-grupo", { codigo_grupo });
+      setAiGrupo({ loading: false, codigo_grupo, asignatura: r.data.asignatura_nombre, resumen: r.data.resumen, context: r.data.context });
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Error generando resumen");
+      setAiGrupo(null);
+    }
   };
 
   const fmt = (n) => (n || 0).toLocaleString("es-CO");
@@ -170,12 +200,22 @@ export default function Docente() {
 
             <TabsContent value="riesgo" className="mt-4">
               <div className="dense-card p-5">
-                <div className="flex items-end justify-between mb-4">
+                <div className="flex items-end justify-between mb-4 flex-wrap gap-3">
                   <div>
                     <p className="label-eyebrow text-[#E3000F]">Alertas académicas</p>
                     <h3 className="font-display font-bold text-lg tracking-tight">Estudiantes que requieren atención ({enRiesgo.length})</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Ordenados por score de riesgo (nota + factores de vulnerabilidad). Bajo promedio, víctima, SISBEN A/B, discapacidad suman puntos.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Ordenados por score de riesgo (nota + factores de vulnerabilidad). Bajo promedio, víctima, SISBEN A/B, discapacidad suman puntos. Use el botón <b className="text-[#0033A0]">IA</b> por estudiante para un plan de intervención personalizado.</p>
                   </div>
+                  {filtroGrupo !== "all" && (
+                    <Button
+                      size="sm"
+                      onClick={() => generarResumenGrupoIA(filtroGrupo)}
+                      className="rounded-sm bg-[#0033A0] hover:bg-[#002A85] text-white text-xs h-9"
+                      data-testid="resumen-ia-grupo-btn"
+                    >
+                      <Brain className="w-3.5 h-3.5 mr-1.5" /> Resumen IA de este grupo
+                    </Button>
+                  )}
                 </div>
                 <div className="overflow-x-auto">
                   <Table>
@@ -226,9 +266,21 @@ export default function Docente() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openHist(s.cedula)} data-testid={`view-historico-${s.cedula}`}>
-                              <History className="w-3 h-3 mr-1" /> Histórico
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-[10px] text-[#0033A0] hover:bg-[#0033A0]/10"
+                                onClick={() => generarAlertaIA(s)}
+                                data-testid={`alerta-ia-${s.cedula}`}
+                                title="Generar alerta temprana con IA (diagnóstico + plan de intervención)"
+                              >
+                                <Sparkles className="w-3 h-3 mr-1" /> IA
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openHist(s.cedula)} data-testid={`view-historico-${s.cedula}`}>
+                                <History className="w-3 h-3 mr-1" /> Histórico
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -565,6 +617,160 @@ export default function Docente() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal Alerta IA Estudiante */}
+      <Dialog open={!!aiAlert} onOpenChange={(v) => !v && setAiAlert(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="ai-alert-dialog">
+          <DialogHeader>
+            <DialogTitle className="font-display tracking-tight flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-[#0033A0]" />
+              Alerta temprana IA
+            </DialogTitle>
+          </DialogHeader>
+          {aiAlert?.loading && (
+            <div className="py-12 flex flex-col items-center gap-3">
+              <Loader2 className="w-8 h-8 text-[#0033A0] animate-spin" />
+              <p className="text-sm text-muted-foreground">Analizando el perfil de <b>{aiAlert.nombre}</b>…</p>
+              <p className="text-[10px] text-muted-foreground italic">La IA está cruzando notas, vulnerabilidad y contexto.</p>
+            </div>
+          )}
+          {aiAlert && !aiAlert.loading && (
+            <div className="space-y-3">
+              <div className="border-l-4 border-[#0033A0] bg-[#0033A0]/5 pl-3 py-2 rounded-sm">
+                <p className="label-eyebrow text-[#0033A0]">Estudiante</p>
+                <p className="font-display font-bold text-base">{aiAlert.nombre}</p>
+                <p className="text-[10px] text-muted-foreground mono">CC {aiAlert.cedula}</p>
+              </div>
+              <div className="prose prose-sm max-w-none dark:prose-invert" data-testid="ai-alert-content">
+                <MarkdownLite text={aiAlert.alerta} />
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-border">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-sm text-xs"
+                  onClick={() => {
+                    navigator.clipboard.writeText(aiAlert.alerta || "");
+                    toast.success("Alerta copiada al portapapeles");
+                  }}
+                  data-testid="copy-ai-alert"
+                >
+                  Copiar texto
+                </Button>
+                <Button size="sm" className="rounded-sm text-xs bg-[#0033A0] hover:bg-[#002A85] text-white" onClick={() => setAiAlert(null)}>
+                  Cerrar
+                </Button>
+              </div>
+              <p className="text-[9px] text-muted-foreground italic text-center border-t border-border pt-2">
+                Generado con IA (GPT). Verifique siempre la información antes de tomar decisiones institucionales.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Resumen IA Grupo */}
+      <Dialog open={!!aiGrupo} onOpenChange={(v) => !v && setAiGrupo(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="ai-grupo-dialog">
+          <DialogHeader>
+            <DialogTitle className="font-display tracking-tight flex items-center gap-2">
+              <Brain className="w-5 h-5 text-[#0033A0]" />
+              Resumen IA del grupo
+            </DialogTitle>
+          </DialogHeader>
+          {aiGrupo?.loading && (
+            <div className="py-12 flex flex-col items-center gap-3">
+              <Loader2 className="w-8 h-8 text-[#0033A0] animate-spin" />
+              <p className="text-sm text-muted-foreground">Generando análisis para el grupo <span className="mono">{aiGrupo.codigo_grupo}</span>…</p>
+            </div>
+          )}
+          {aiGrupo && !aiGrupo.loading && (
+            <div className="space-y-3">
+              <div className="border-l-4 border-[#0033A0] bg-[#0033A0]/5 pl-3 py-2 rounded-sm">
+                <p className="label-eyebrow text-[#0033A0]">Grupo</p>
+                <p className="font-display font-bold text-base">{aiGrupo.asignatura}</p>
+                <p className="text-[10px] text-muted-foreground mono">{aiGrupo.codigo_grupo}</p>
+              </div>
+              {aiGrupo.context?.totales && (
+                <div className="grid grid-cols-4 gap-2 text-center border border-border rounded-sm p-3">
+                  <MiniStat label="Estudiantes" value={aiGrupo.context.totales.estudiantes} />
+                  <MiniStat label="Promedio" value={aiGrupo.context.totales.promedio?.toFixed?.(2) || "—"} />
+                  <MiniStat label="En riesgo" value={aiGrupo.context.totales.en_riesgo} accent="text-[#E3000F]" />
+                  <MiniStat label="Vulnerables" value={aiGrupo.context.totales.vulnerables} accent="text-amber-700" />
+                </div>
+              )}
+              <div className="prose prose-sm max-w-none dark:prose-invert" data-testid="ai-grupo-content">
+                <MarkdownLite text={aiGrupo.resumen} />
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-border">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-sm text-xs"
+                  onClick={() => {
+                    navigator.clipboard.writeText(aiGrupo.resumen || "");
+                    toast.success("Resumen copiado");
+                  }}
+                >
+                  Copiar
+                </Button>
+                <Button size="sm" className="rounded-sm text-xs bg-[#0033A0] hover:bg-[#002A85] text-white" onClick={() => setAiGrupo(null)}>
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+function MiniStat({ label, value, accent }) {
+  return (
+    <div>
+      <p className="label-eyebrow text-[9px]">{label}</p>
+      <p className={`kpi-num text-lg ${accent || ""}`}>{value ?? "—"}</p>
+    </div>
+  );
+}
+
+// Lightweight markdown renderer for the AI text (headings **bold**, bullets, numbered lists)
+function MarkdownLite({ text }) {
+  if (!text) return null;
+  const lines = text.split("\n");
+  return (
+    <div className="space-y-2 text-sm leading-relaxed">
+      {lines.map((raw, i) => {
+        const line = raw.trim();
+        if (!line) return <div key={i} className="h-1" />;
+        // Bold heading like **Diagnóstico**
+        const headingMatch = line.match(/^\*\*(.+?)\*\*$/);
+        if (headingMatch) {
+          return <h4 key={i} className="font-display font-bold text-[#0033A0] text-sm mt-3 mb-1 border-b border-border pb-1">{headingMatch[1]}</h4>;
+        }
+        // Bullet
+        if (line.startsWith("- ") || line.startsWith("• ")) {
+          return <div key={i} className="flex gap-2 ml-2"><span className="text-[#0033A0]">•</span><span>{renderInlineBold(line.slice(2))}</span></div>;
+        }
+        // Numbered
+        const numMatch = line.match(/^(\d+)\.\s+(.*)/);
+        if (numMatch) {
+          return <div key={i} className="flex gap-2 ml-2"><span className="text-[#0033A0] font-bold min-w-[16px]">{numMatch[1]}.</span><span>{renderInlineBold(numMatch[2])}</span></div>;
+        }
+        return <p key={i}>{renderInlineBold(line)}</p>;
+      })}
+    </div>
+  );
+}
+
+function renderInlineBold(text) {
+  // Split by **bold** and render
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((p, i) => {
+    if (p.startsWith("**") && p.endsWith("**")) {
+      return <b key={i} className="font-semibold">{p.slice(2, -2)}</b>;
+    }
+    return <span key={i}>{p}</span>;
+  });
 }

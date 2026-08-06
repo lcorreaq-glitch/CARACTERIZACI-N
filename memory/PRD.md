@@ -24,6 +24,13 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - IA: resúmenes automáticos vía OpenAI GPT-5.4 (Emergent LLM Key)
 - Exportación PDF/Excel
 
+## Latest session (2026-08-06 · iteración 2)
+- ✅ **Alertas Tempranas IA para Docentes** — Nuevo módulo integrado en `/mi-panel > En riesgo`.
+  - `POST /api/ai/docente/alerta-estudiante {cedula, codigo_grupo?}` → diagnóstico personalizado + factores de riesgo + plan de intervención en 3-4 acciones concretas. Máx 250 palabras. Model: gpt-4o vía Emergent LLM Key.
+  - `POST /api/ai/docente/resumen-grupo {codigo_grupo}` → resumen ejecutivo de todo el grupo con focos prioritarios y recomendaciones colectivas.
+  - Frontend: botón **IA** por estudiante en tabla "En riesgo" (20 estudiantes), botón **Resumen IA de este grupo** cuando hay filtro de grupo activo. Modales con MarkdownLite render, copy-to-clipboard, disclaimer.
+  - **Enforcement**: los docentes reciben 403 si `system_settings.docente_ai_insights_enabled=false` (probado con curl). Además solo pueden pedir alertas de estudiantes en sus propios grupos.
+
 ## Latest session (2026-08-06)
 - ✅ **Ingreso familiar** formateado en pesos colombianos (COP) — antes mostraba "$1.4M" ambiguo, ahora "$1,7 M COP".
 - ✅ **Descarga por grupo (cruce Asignación × Caracterización × Notas)** — nuevo endpoint `GET /api/exports/grupo/{codigo}` que retorna un Excel con 3 hojas (Grupo, Estudiantes, Notas). Botón por curso en el panel "Docente seleccionado".
@@ -77,14 +84,14 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - ✅ **Filtro por docente/materia** resuelve cédulas vía historico_notas en dashboards/caracterizacion/exports
 
 ## Backlog (actualizado)
-- P0: **Alertas tempranas con IA** (OpenAI GPT-5.4 + Emergent LLM Key) para estudiantes en riesgo (promedio < 3.0 + factores de vulnerabilidad). PENDIENTE.
 - P0: Edit funcional de "Grupos" (más allá de solo lectura).
 - P0: Detalle y edición rica de "Facultades" (similar a Programas).
-- P1: Exportación PDF profesional con marca institucional.
+- P1: Exportación PDF profesional con marca institucional (incluyendo alertas IA).
+- P1: Envío por email de las alertas IA al correo institucional del estudiante (con copia al docente).
+- P1: Batch/lote: generar alertas para todos los estudiantes en riesgo de un grupo en un solo click.
 - P1: Histórico académico real (notas multi-periodo).
-- P2: Auditoría/logs de acceso (logins, uploads, exports).
+- P2: Auditoría/logs de acceso (logins, uploads, exports, generación IA).
 - P2: Geocoding con API DANE para municipios no mapeados.
-- P2: Materias críticas con alertas automáticas.
 - P2: PostgreSQL + PostGIS migration (si requerido).
 
 ## Test Credentials
