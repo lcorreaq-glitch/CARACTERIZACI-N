@@ -25,17 +25,16 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - Exportación PDF/Excel
 
 ## Últimos ajustes (2026-08 · última iteración)
-- ✅ **Georreferenciación por departamento arreglada** — bug: el backend consultaba `departamento_residencia` (no existe) → corregido a `departamento`. Ahora muestra 15 departamentos: Antioquia (10.143), Magdalena (1.315), Nariño (642), Valle del Cauca (535), Cundinamarca (406), La Guajira, Bolívar, Bogotá D.C., etc.
-- ✅ **Rangos de edad numéricos añadidos**: Menor 18 (288), 18-22 (3.368), 23-27 (4.434), 28-32 (3.589), 33-40 (3.113), 41-50 (1.403), 51+ (266). Complementa el chart de "Grupos etarios" cualitativos.
-- ✅ **Departamentos normalizados**: Nariño (antes Narinio/Narino), Bolívar (Bolivar), Bogotá D.C. (Bogota D.c.), Atlántico, Córdoba, Chocó, Boyacá, Vaupés, Guainía, San Andrés y Providencia.
-- ✅ **"Víctimas" plural** consolidado a "Víctima del Conflicto Armado" (117 registros).
-- ✅ **Charts con etiquetas de valor** al final de cada barra (LabelList).
-- ✅ **Tipo de ubicación viene del "Tipo de vivienda"** del archivo real: Urbana 12.455, Rural 3.261, Semiurbana 306, Semirural 143, Sin dato 296.
-- ✅ **Grupo etario del campo "Gruopo etario"** del archivo. Grupos etarios cronológicos (Adolescencia → Persona mayor).
-- ✅ **399 docentes reales** con `documento`, `iddoc`, `correo_personal`, `correo_institucional` completos.
-- ✅ **737 relaciones docente-materia** consolidadas.
-- ✅ **Textos en Title Case español**: "Administración de Empresas", "Ingeniería de Software y Datos", "Víctima del Conflicto Armado", "Bogotá D.C.".
-- ✅ **Consolidación de vulnerabilidad**: 15+ variantes ortográficas fusionadas en 9-10 categorías canónicas.
+- ✅ **Dashboard académico rediseñado desde cero** — 100% derivado de `historico_notas` (2025-2 + 2026-1, 169.376 notas) y el campo `nivel` de students. Sin datos inventados ni antiguos.
+  - **KPIs**: En riesgo (1.418), Excelencia (3.017), Tasa aprobación global (76.5%), Habilitación exitosa (72.8%).
+  - **Sección 1 — Comparativo periodos**: Estados de notas apilados (Aprobada/Reprobada/Cancelada/Habilitada/Matriculada/Prematriculada/Homologada), distribución de notas por rangos 2025-2 vs 2026-1, tabla bloques × periodo con promedio y % aprobación.
+  - **Sección 2 — Materias críticas**: Top 10 asignaturas con mayor reprobación (Pensamiento Algorítmico 63.7%, Cálculo 62.6%…), Top 10 con mejor rendimiento (Ética 4.85, Desarrollo Vivienda 4.80…), rendimiento por área de formación (Ing. y Cs. Agropecuarias 72.7%, Educación 76.6%, Cs. Básicas y Humanidades 67.7%), promedio por programa ponderado desde notas reales.
+  - **Sección 3 — Trayectoria estudiantil (nivel 2026-2)**: Estudiantes por semestre (Pre-grado 630, Sem 1 5.738, Sem 2 1.455…), créditos aprobados vs reprobados por periodo (2025-2: 161.415 aprob vs 39.417 reprob), habilitaciones con % éxito, avance curricular por programa.
+- ✅ Endpoint `GET /api/dashboards/academic` completamente refactorizado con 10 nuevas agregaciones.
+- ✅ **Georreferenciación por departamento arreglada** — bug: consultaba campo inexistente. Ahora muestra Antioquia (10.143), Magdalena (1.315), Nariño (642), Valle del Cauca, Cundinamarca, La Guajira, Bolívar, Bogotá D.C., Cauca, Córdoba, Sucre, Atlántico, Cesar, Tolima, Boyacá.
+- ✅ **Rangos de edad numéricos añadidos** (Menor 18, 18-22, 23-27, 28-32, 33-40, 41-50, 51+) junto con "Grupos etarios" cualitativos.
+- ✅ **Charts con etiquetas de valor** (LabelList) en programas, departamentos, grupos etarios, avance, etc.
+- ✅ **Departamentos y "Víctimas" plural normalizados** (Nariño/Narinio, Bolívar/Bolivar, Bogotá D.C., etc.).
 
 ## Datos reales cargados (2026-08 · única fuente de verdad)
 - **16.461 estudiantes** (CARACTERIZACION_2026.xlsx)

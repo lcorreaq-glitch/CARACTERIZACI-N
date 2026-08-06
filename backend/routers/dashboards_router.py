@@ -232,67 +232,239 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
 
 @router.get("/academic")
 async def academic(match: dict = Depends(_common_params), user=Depends(get_current_user)):
+    """Dashboard académico basado 100% en historico_notas (2 periodos reales: 2025-2 y 2026-1)
+    + campo 'nivel' (semestre) del estudiante para trayectoria 2026-2."""
     coll = db.students
     pipeline = [{"$match": match}] if match else []
 
-    by_program_avg = await coll.aggregate(pipeline + [
-        {"$group": {
-            "_id": "$programa", "n": {"$sum": 1},
-            "prom": {"$avg": {"$cond": [{"$gt": ["$promedio", 0]}, "$promedio", None]}},
-            "prom_2025_2": {"$avg": {"$cond": [{"$gt": ["$promedio_2025_2", 0]}, "$promedio_2025_2", None]}},
-            "prom_2026_1": {"$avg": {"$cond": [{"$gt": ["$promedio_2026_1", 0]}, "$promedio_2026_1", None]}},
-            "con_notas": {"$sum": {"$cond": [{"$gt": ["$promedio", 0]}, 1, 0]}},
-        }},
-        {"$sort": {"n": -1}},
-        {"$project": {"_id": 0, "programa": "$_id", "n": 1,
-                      "con_notas": 1,
-                      "prom": {"$round": [{"$ifNull": ["$prom", 0]}, 2]},
-                      "prom_2025_2": {"$round": [{"$ifNull": ["$prom_2025_2", 0]}, 2]},
-                      "prom_2026_1": {"$round": [{"$ifNull": ["$prom_2026_1", 0]}, 2]}}}
-    ]).to_list(100)
+    # Restringir historico_notas a las cédulas del match global
+    if match:
+        cedulas_match = await db.students.distinct("cedula", match)
+        hn_base = {"cedula": {"$in": cedulas_match}}
+    else:
+        hn_base = {}
 
-    by_facultad = await coll.aggregate(pipeline + [
-        {"$group": {
-            "_id": "$facultad", "n": {"$sum": 1},
-            "prom": {"$avg": {"$cond": [{"$gt": ["$promedio", 0]}, "$promedio", None]}},
-            "prom_2025_2": {"$avg": {"$cond": [{"$gt": ["$promedio_2025_2", 0]}, "$promedio_2025_2", None]}},
-            "prom_2026_1": {"$avg": {"$cond": [{"$gt": ["$promedio_2026_1", 0]}, "$promedio_2026_1", None]}},
-            "con_notas": {"$sum": {"$cond": [{"$gt": ["$promedio", 0]}, 1, 0]}},
-        }},
-        {"$sort": {"n": -1}},
-        {"$project": {"_id": 0, "facultad": "$_id", "n": 1, "con_notas": 1,
-                      "prom": {"$round": [{"$ifNull": ["$prom", 0]}, 2]},
-                      "prom_2025_2": {"$round": [{"$ifNull": ["$prom_2025_2", 0]}, 2]},
-                      "prom_2026_1": {"$round": [{"$ifNull": ["$prom_2026_1", 0]}, 2]}}}
-    ]).to_list(50)
+    # ============================================================
+    # SECCIÓN 1 · Comparativo por periodo
+    # ============================================================
+    # 1a) Estados de notas por periodo (barras apiladas)
+    estados_por_periodo = {}
+    async for r in db.historico_notas.aggregate([
+        {"$match": hn_base},
+        {"$group": {"_id": {"p": "$periodo", "e": "$estado"}, "n": {"$sum": 1}}},
+    ]):
+        per = r["_id"]["p"]
+        est = r["_id"]["e"] or "Sin dato"
+        estados_por_periodo.setdefault(per, {})[est] = r["n"]
+    estados_periodo = []
+    for per in sorted(estados_por_periodo.keys()):
+        row = {"periodo": per, **estados_por_periodo[per]}
+        row["total"] = sum(estados_por_periodo[per].values())
+        estados_periodo.append(row)
 
-    distribucion = await coll.aggregate(pipeline + [
+    # 1b) Distribución de notas por rangos (0-1, 1-2, 2-3, 3-4, 4-5) para AMBOS periodos
+    distribucion_notas = {}
+    async for r in db.historico_notas.aggregate([
+        {"$match": hn_base},
         {"$bucket": {
-            "groupBy": "$promedio",
+            "groupBy": "$nota",
             "boundaries": [0, 1, 2, 3, 3.5, 4, 4.5, 5.01],
             "default": "Otros",
-            "output": {"n": {"$sum": 1}}
+            "output": {"n": {"$sum": 1}, "por_periodo": {"$push": "$periodo"}}
         }}
+    ]):
+        low = r["_id"] if r["_id"] != "Otros" else None
+        labels = {0: "0.0–1.0", 1: "1.0–2.0", 2: "2.0–3.0", 3: "3.0–3.5", 3.5: "3.5–4.0", 4: "4.0–4.5", 4.5: "4.5–5.0"}
+        label = labels.get(low, str(low))
+        p25 = sum(1 for p in r["por_periodo"] if p == "2025-2")
+        p26 = sum(1 for p in r["por_periodo"] if p == "2026-1")
+        distribucion_notas[label] = {"rango": label, "total": r["n"], "p_2025_2": p25, "p_2026_1": p26}
+    distribucion = [distribucion_notas[k] for k in sorted(distribucion_notas.keys(), key=lambda x: x)]
+
+    # 1c) Promedio + % aprobación por bloque × periodo
+    bloque_periodo = []
+    async for r in db.historico_notas.aggregate([
+        {"$match": {**hn_base, "bloque": {"$nin": [None, ""]}}},
+        {"$group": {"_id": {"b": "$bloque", "p": "$periodo"},
+                    "n": {"$sum": 1},
+                    "prom": {"$avg": "$nota"},
+                    "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}}}},
+        {"$sort": {"_id.p": 1, "_id.b": 1}},
+    ]):
+        bloque_periodo.append({
+            "bloque": r["_id"]["b"], "periodo": r["_id"]["p"],
+            "n": r["n"], "prom": round(r["prom"] or 0, 2),
+            "aprob_pct": round((r["aprob"] / r["n"] * 100) if r["n"] else 0, 1),
+        })
+
+    # ============================================================
+    # SECCIÓN 2 · Rendimiento por materia y facultad
+    # ============================================================
+    # 2a) Top 10 asignaturas con MÁS REPROBACIÓN (últimos 2 periodos)
+    top_reprobadas = await db.historico_notas.aggregate([
+        {"$match": {**hn_base, "asignatura_nombre": {"$nin": [None, ""]}}},
+        {"$group": {
+            "_id": "$asignatura_nombre",
+            "n": {"$sum": 1},
+            "prom": {"$avg": "$nota"},
+            "reprob": {"$sum": {"$cond": [{"$eq": ["$estado", "Reprobada"]}, 1, 0]}},
+            "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}},
+        }},
+        {"$match": {"n": {"$gte": 30}}},  # solo materias con muestra significativa
+        {"$project": {"_id": 0, "asignatura": "$_id", "n": 1, "reprob": 1,
+                      "prom": {"$round": ["$prom", 2]},
+                      "pct_reprob": {"$round": [{"$multiply": [{"$divide": ["$reprob", "$n"]}, 100]}, 1]}}},
+        {"$sort": {"pct_reprob": -1}},
+        {"$limit": 10},
+    ]).to_list(10)
+
+    # 2b) Top 10 asignaturas con MEJOR rendimiento
+    top_aprobadas = await db.historico_notas.aggregate([
+        {"$match": {**hn_base, "asignatura_nombre": {"$nin": [None, ""]}}},
+        {"$group": {
+            "_id": "$asignatura_nombre",
+            "n": {"$sum": 1}, "prom": {"$avg": "$nota"},
+            "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}},
+        }},
+        {"$match": {"n": {"$gte": 30}}},
+        {"$project": {"_id": 0, "asignatura": "$_id", "n": 1,
+                      "prom": {"$round": ["$prom", 2]},
+                      "pct_aprob": {"$round": [{"$multiply": [{"$divide": ["$aprob", "$n"]}, 100]}, 1]}}},
+        {"$sort": {"prom": -1}},
+        {"$limit": 10},
+    ]).to_list(10)
+
+    # 2c) Promedio por área de formación (facultad de la asignatura)
+    by_area = await db.historico_notas.aggregate([
+        {"$match": {**hn_base, "area_formacion": {"$nin": [None, ""]}}},
+        {"$group": {
+            "_id": "$area_formacion", "n": {"$sum": 1},
+            "prom": {"$avg": "$nota"},
+            "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}},
+        }},
+        {"$project": {"_id": 0, "area": "$_id", "n": 1,
+                      "prom": {"$round": ["$prom", 2]},
+                      "pct_aprob": {"$round": [{"$multiply": [{"$divide": ["$aprob", "$n"]}, 100]}, 1]}}},
+        {"$sort": {"n": -1}},
+    ]).to_list(20)
+
+    # 2d) Promedio por programa (ponderado desde notas reales, no promedio de promedios)
+    by_program_avg = await db.historico_notas.aggregate([
+        {"$match": {**hn_base, "programa": {"$nin": [None, ""]}}},
+        {"$group": {
+            "_id": "$programa", "n": {"$sum": 1},
+            "prom": {"$avg": "$nota"},
+            "prom_2025_2": {"$avg": {"$cond": [{"$eq": ["$periodo", "2025-2"]}, "$nota", None]}},
+            "prom_2026_1": {"$avg": {"$cond": [{"$eq": ["$periodo", "2026-1"]}, "$nota", None]}},
+            "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}},
+        }},
+        {"$project": {"_id": 0, "programa": "$_id", "n": 1,
+                      "prom": {"$round": [{"$ifNull": ["$prom", 0]}, 2]},
+                      "prom_2025_2": {"$round": [{"$ifNull": ["$prom_2025_2", 0]}, 2]},
+                      "prom_2026_1": {"$round": [{"$ifNull": ["$prom_2026_1", 0]}, 2]},
+                      "pct_aprob": {"$round": [{"$multiply": [{"$divide": ["$aprob", "$n"]}, 100]}, 1]}}},
+        {"$sort": {"n": -1}},
     ]).to_list(50)
 
-    en_riesgo = await coll.count_documents({**match, "promedio": {"$lt": 3.0, "$gt": 0}})
-    excelencia = await coll.count_documents({**match, "promedio": {"$gte": 4.5}})
+    # ============================================================
+    # SECCIÓN 3 · Trayectoria estudiantil (nivel 2026-2)
+    # ============================================================
+    # 3a) Estudiantes por nivel/semestre
+    by_nivel = await coll.aggregate(pipeline + [
+        {"$group": {"_id": "$nivel", "n": {"$sum": 1},
+                    "prom": {"$avg": {"$cond": [{"$gt": ["$promedio", 0]}, "$promedio", None]}}}},
+        {"$sort": {"_id": 1}},
+        {"$project": {"_id": 0, "nivel": "$_id", "n": 1,
+                      "prom": {"$round": [{"$ifNull": ["$prom", 0]}, 2]}}}
+    ]).to_list(15)
 
-    # Avance curricular por programa
+    # 3b) Créditos aprobados vs reprobados por periodo
+    creditos = []
+    async for r in db.historico_notas.aggregate([
+        {"$match": hn_base},
+        {"$group": {"_id": "$periodo",
+                    "cred_aprob": {"$sum": {"$cond": ["$aprobada", "$creditos", 0]}},
+                    "cred_reprob": {"$sum": {"$cond": [{"$eq": ["$estado", "Reprobada"]}, "$creditos", 0]}},
+                    "cred_cancel": {"$sum": {"$cond": [{"$eq": ["$estado", "Cancelada"]}, "$creditos", 0]}}}},
+        {"$sort": {"_id": 1}},
+    ]):
+        creditos.append({
+            "periodo": r["_id"],
+            "aprobados": r["cred_aprob"] or 0,
+            "reprobados": r["cred_reprob"] or 0,
+            "cancelados": r["cred_cancel"] or 0,
+        })
+
+    # 3c) Habilitaciones: total y % éxito por periodo
+    habilitaciones = []
+    async for r in db.historico_notas.aggregate([
+        {"$match": {**hn_base, "estado": {"$regex": "^Habilitada", "$options": "i"}}},
+        {"$group": {"_id": "$periodo",
+                    "total": {"$sum": 1},
+                    "exito": {"$sum": {"$cond": [{"$eq": ["$estado", "Habilitada-Aprobada"]}, 1, 0]}}}},
+        {"$sort": {"_id": 1}},
+    ]):
+        habilitaciones.append({
+            "periodo": r["_id"],
+            "total": r["total"],
+            "exito": r["exito"],
+            "pct_exito": round((r["exito"] / r["total"] * 100) if r["total"] else 0, 1),
+        })
+
+    # 3d) Avance curricular por programa
     avance = await coll.aggregate(pipeline + [
         {"$group": {"_id": "$programa", "avance": {"$avg": "$avance_pct"}, "n": {"$sum": 1}}},
         {"$sort": {"avance": -1}},
-        {"$limit": 15},
         {"$project": {"_id": 0, "programa": "$_id", "avance": {"$round": ["$avance", 1]}, "n": 1}}
-    ]).to_list(20)
+    ]).to_list(25)
+
+    # ============================================================
+    # KPIs generales
+    # ============================================================
+    en_riesgo = await coll.count_documents({**match, "promedio": {"$lt": 3.0, "$gt": 0}})
+    excelencia = await coll.count_documents({**match, "promedio": {"$gte": 4.5}})
+
+    # Tasa aprobación global (aprobadas / total notas evaluadas — excluye canceladas/prematriculadas/homologadas)
+    global_stats = await db.historico_notas.aggregate([
+        {"$match": {**hn_base, "estado": {"$in": ["Aprobada", "Reprobada", "Habilitada-Aprobada", "Habilitada-Reprobada"]}}},
+        {"$group": {"_id": None,
+                    "total": {"$sum": 1},
+                    "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}},
+                    "prom": {"$avg": "$nota"}}},
+    ]).to_list(1)
+    gs = global_stats[0] if global_stats else {"total": 0, "aprob": 0, "prom": 0}
+    tasa_aprob = round((gs["aprob"] / gs["total"] * 100) if gs["total"] else 0, 1)
+
+    # Habilitaciones agregadas
+    total_hab = sum(h["total"] for h in habilitaciones)
+    total_hab_exito = sum(h["exito"] for h in habilitaciones)
+    tasa_hab = round((total_hab_exito / total_hab * 100) if total_hab else 0, 1)
 
     return {
-        "by_program_avg": by_program_avg,
-        "by_facultad": by_facultad,
+        "kpis": {
+            "en_riesgo": en_riesgo,
+            "excelencia": excelencia,
+            "tasa_aprob_global": tasa_aprob,
+            "notas_evaluadas": gs["total"],
+            "tasa_habilitacion_exito": tasa_hab,
+            "total_habilitaciones": total_hab,
+            "promedio_global": round(gs["prom"] or 0, 2),
+        },
+        "estados_por_periodo": estados_periodo,
         "distribucion_notas": distribucion,
+        "bloque_periodo": bloque_periodo,
+        "top_reprobadas": top_reprobadas,
+        "top_aprobadas": top_aprobadas,
+        "by_area": by_area,
+        "by_program_avg": by_program_avg,
+        "by_nivel": by_nivel,
+        "creditos": creditos,
+        "habilitaciones": habilitaciones,
+        "avance": avance,
+        # Compatibilidad
         "en_riesgo": en_riesgo,
         "excelencia": excelencia,
-        "avance": avance,
+        "by_facultad": by_area,
     }
 
 
