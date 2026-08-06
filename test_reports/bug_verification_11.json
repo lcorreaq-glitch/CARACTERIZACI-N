@@ -1,0 +1,50 @@
+{
+  "verdict": "fixed",
+  "user_reported_bug": "creo no reemplazaste todos los datos debías limpiar y cargar los datos no me coinciden por ejemplo los promedios por semestre, las víctimas debes actualizar y rediseñar los dashboards con los datos que tenes, porque no coinciden datos de caracterización, las notas deben salir de los datos 2026-1 y 2026-2, promedios por estudiante y facultad",
+  "summary": "No relevant testing skill found. Verified the reported dashboard data inconsistency end to end: superadmin login works, executive/academic APIs match the loaded real source data and MongoDB, and the UI shows the new period cards and faculty period comparison chart/table. Runtime data is clean and uses 2025-2 plus 2026-1; no 2026-2 note period exists in historico_notas in this environment.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/bug_verification_dashboard_data.py",
+    "/app/test_reports/bug_verification_dashboard_data_output.json",
+    "/app/test_reports/bug_verification_ui_playwright.py",
+    "/app/test_reports/inspect_dashboard_data_samples.py",
+    "/app/test_reports/inspect_dashboard_data_samples_output.json",
+    "/app/test_reports/inspect_note_source_292827.py",
+    "/app/test_reports/inspect_note_source_292827_output.json"
+  ],
+  "action_items": [
+    "Optional durability cleanup: update /app/backend/load_real_data.py before any future reload; the inspected file still labels notas_26_2 as 2026-2 and lacks the current runtime period-average/rural parsing logic, although the live DB/API/UI are correct now.",
+    "Commit the currently uncommitted dashboard frontend/backend changes and review the unexpected untracked yarn.lock files."
+  ],
+  "critical_code_review_comments": [
+    "Live verification passed, but /app/backend/load_real_data.py is not aligned with the runtime fixed data state: it still hardcodes notas_26_2 as periodo 2026-2, computes general promedio from 2026-2, does not populate promedio_2025_2/promedio_2026_1, and parse_ubicacion in the file uses city text instead of Dirección residencia. Rerunning that loader as-is could recreate the original mismatch."
+  ],
+  "updated_files": [
+    "/app/test_reports/bug_verification_dashboard_data.py",
+    "/app/test_reports/bug_verification_dashboard_data_output.json",
+    "/app/test_reports/bug_verification_ui_playwright.py",
+    "/app/test_reports/inspect_dashboard_data_samples.py",
+    "/app/test_reports/inspect_dashboard_data_samples_output.json",
+    "/app/test_reports/inspect_note_source_292827.py",
+    "/app/test_reports/inspect_note_source_292827_output.json",
+    "/app/test_reports/bug_verification_11.json",
+    "/app/test_reports/iteration_11.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "No seed data created or modified; tests used current MongoDB state and uploaded source files only.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend script passed all assertions: executive KPIs total=16461, matriculados=14244, rurales=1918, victimas=4852, vulnerables=2853, discapacidad=202, programas=21, facultades=5; period metrics 2025-2 n=84871 prom=3.45 aprob=76.3%, 2026-1 n=84505 prom=3.12 aprob=68.6%; academic has 5 faculties and 21 programs with prom_2025_2/prom_2026_1 fields; a sample student 1042151916 has period averages matching historico_notas. UI automation verified login, executive period cards/KPIs, and academic green/red faculty lines plus table. Browser console only showed external RUM/font aborted requests, not app API failures.",
+  "rca_of_the_issue": "The previously reported mismatch appears resolved in the live data/API by reloading real records, relabeling the notes file whose ANO/PERIODO is 2026-1, excluding zero student averages from faculty/program averages, and exposing period-specific dashboard metrics. Note: source file contains a 'prueba' note row for cedula 292827 in notas_25_2.xlsx, but it is from the uploaded source file, not a generated demo residual. No APIs are mocked."
+}

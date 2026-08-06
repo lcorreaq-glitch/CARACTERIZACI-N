@@ -1,0 +1,102 @@
+{
+  "students_demo_like_samples": [
+    {
+      "cedula": "1114540473",
+      "nombre_completo": "Giraldo Yepes Estefania",
+      "correo": "stefanydemonaci@gmail.com",
+      "programa": "TECNOLOGÍA EN DESARROLLO DE SOFTWARE"
+    },
+    {
+      "cedula": "1038626401",
+      "nombre_completo": "Isaza Montes Monica Alejandra",
+      "correo": "monicaalejandramontestorres@gmail.com",
+      "programa": "LICENCIATURA EN EDUCACIÓN BÁSICA PRIMARIA"
+    },
+    {
+      "cedula": "1193442100",
+      "nombre_completo": "Acosta Mendoza Maidith Del Carmen",
+      "correo": "ronaldofuentestorrijo.21@gmail.com",
+      "programa": "TECNOLOGÍA EN GESTIÓN ADMINISTRATIVA"
+    }
+  ],
+  "notes_simulated_like_samples": [
+    {
+      "cedula": "292827",
+      "nombre_estudiante": "prueba liquidacon matricula inscripcion",
+      "asignatura_nombre": "Informática Básica",
+      "estado": "Matriculada",
+      "periodo": "2025-2"
+    },
+    {
+      "cedula": "292827",
+      "nombre_estudiante": "prueba liquidacon matricula inscripcion",
+      "asignatura_nombre": "Cátedra IU Digital: Humanismo Digital",
+      "estado": "Matriculada",
+      "periodo": "2025-2"
+    },
+    {
+      "cedula": "292827",
+      "nombre_estudiante": "prueba liquidacon matricula inscripcion",
+      "asignatura_nombre": "Habilidades Comunicativas",
+      "estado": "Reprobada",
+      "periodo": "2025-2"
+    },
+    {
+      "cedula": "292827",
+      "nombre_estudiante": "prueba liquidacon matricula inscripcion",
+      "asignatura_nombre": "Matemáticas",
+      "estado": "Reprobada",
+      "periodo": "2025-2"
+    },
+    {
+      "cedula": "292827",
+      "nombre_estudiante": "prueba liquidacon matricula inscripcion",
+      "asignatura_nombre": "Introducción a la Administración",
+      "estado": "Matriculada",
+      "periodo": "2025-2"
+    },
+    {
+      "cedula": "292827",
+      "nombre_estudiante": "prueba liquidacon matricula inscripcion",
+      "asignatura_nombre": "Lógica de Programación",
+      "estado": "Matriculada",
+      "periodo": "2025-2"
+    },
+    {
+      "cedula": "292827",
+      "nombre_estudiante": "prueba liquidacon matricula inscripcion",
+      "asignatura_nombre": "Pensamiento Algorítmico",
+      "estado": "Reprobada",
+      "periodo": "2025-2"
+    },
+    {
+      "cedula": "292827",
+      "nombre_estudiante": "prueba liquidacon matricula inscripcion",
+      "asignatura_nombre": "Introducción al Desarrollo de Software",
+      "estado": "Reprobada",
+      "periodo": "2025-2"
+    }
+  ],
+  "source_vulnerable_value_counts_head": {
+    "Sin dato": 13608,
+    "Victima Del Conflicto Armado": 190,
+    "Desplazado": 156,
+    "Victima": 152,
+    "Desplazados": 111,
+    "Indigena": 97,
+    "Pobreza Extrema": 69,
+    "Desplazada": 68,
+    "Madre Cabeza De Hogar": 63,
+    "Víctima Del Conflicto Armado": 52,
+    "Afrocolombiano": 52,
+    "Si": 51,
+    "Madre Cabeza De Familia": 49,
+    "Desplazamiento Forzado": 41,
+    "Victima Del Conflicto": 37,
+    "Jovenes Vulnerables": 33,
+    "Desplazado Por La Violencia": 33,
+    "Afrodecendiente": 30,
+    "Campesino": 28,
+    "Comunidades Negras": 28
+  }
+}

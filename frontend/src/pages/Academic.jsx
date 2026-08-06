@@ -104,18 +104,33 @@ export default function Academic() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Promedio por facultad" eyebrow="Facultades" span="lg:col-span-7">
-          <ResponsiveContainer width="100%" height={300}>
+        <ChartCard title="Promedio por facultad" eyebrow="Facultades · 2025-2 vs 2026-1" span="lg:col-span-7">
+          <ResponsiveContainer width="100%" height={340}>
             <ComposedChart data={data?.by_facultad || []}>
               <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
-              <XAxis dataKey="facultad" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval={0} angle={-12} textAnchor="end" height={70} />
-              <YAxis yAxisId="left" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+              <XAxis dataKey="facultad" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval={0} angle={-12} textAnchor="end" height={80}
+                     tickFormatter={(v) => v?.length > 24 ? v.slice(0, 22) + "…" : v} />
+              <YAxis yAxisId="left" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} label={{ value: "Estudiantes", angle: -90, position: "insideLeft", fontSize: 11 }} />
+              <YAxis yAxisId="right" orientation="right" domain={[0, 5]} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} label={{ value: "Promedio", angle: 90, position: "insideRight", fontSize: 11 }} />
               <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
               <Bar yAxisId="left" dataKey="n" fill="#0033A0" radius={[3, 3, 0, 0]} name="Estudiantes" />
-              <Line yAxisId="right" dataKey="prom" stroke="#E3000F" strokeWidth={2} dot={{ r: 4, fill: "#E3000F" }} name="Promedio" />
+              <Line yAxisId="right" dataKey="prom_2025_2" stroke="#059669" strokeWidth={2} dot={{ r: 4, fill: "#059669" }} name="Prom 2025-2" />
+              <Line yAxisId="right" dataKey="prom_2026_1" stroke="#E3000F" strokeWidth={2} dot={{ r: 4, fill: "#E3000F" }} name="Prom 2026-1" />
             </ComposedChart>
           </ResponsiveContainer>
+          <div className="mt-3 grid grid-cols-1 gap-1">
+            {(data?.by_facultad || []).map((f) => (
+              <div key={f.facultad} className="flex items-center justify-between text-[11px] py-1 border-b border-border last:border-0">
+                <span className="truncate flex-1 pr-2">{f.facultad?.length > 55 ? f.facultad.slice(0, 53) + "…" : f.facultad}</span>
+                <span className="text-muted-foreground mono">n={f.n?.toLocaleString("es-CO")} ({f.con_notas} con notas)</span>
+                <span className="ml-4 mono">
+                  <span className="text-[#059669]">2025-2: {f.prom_2025_2}</span>
+                  <span className="mx-2 text-muted-foreground">→</span>
+                  <span className={f.prom_2026_1 < 3 ? "text-[#E3000F]" : ""}>2026-1: {f.prom_2026_1}</span>
+                </span>
+              </div>
+            ))}
+          </div>
         </ChartCard>
 
         <ChartCard title="Avance curricular por programa" eyebrow="Permanencia" span="lg:col-span-5">

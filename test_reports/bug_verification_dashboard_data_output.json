@@ -1,0 +1,553 @@
+{
+  "ok": true,
+  "results": [
+    {
+      "name": "login_superadmin",
+      "ok": true,
+      "detail": {
+        "id": "9a20394a-20a0-4ae9-86f7-8e0e7f5b78ce",
+        "email": "lcorreaq@gmail.com",
+        "full_name": "Superadministrador IU Digital",
+        "role": "superadmin",
+        "must_change_password": false,
+        "facultad_id": null,
+        "programa_id": null
+      }
+    },
+    {
+      "name": "executive_kpi_total",
+      "ok": true,
+      "detail": {
+        "actual": 16461,
+        "expected": 16461
+      }
+    },
+    {
+      "name": "executive_kpi_matriculados",
+      "ok": true,
+      "detail": {
+        "actual": 14244,
+        "expected": 14244
+      }
+    },
+    {
+      "name": "executive_kpi_rurales",
+      "ok": true,
+      "detail": {
+        "actual": 1918,
+        "expected": 1918
+      }
+    },
+    {
+      "name": "executive_kpi_vulnerables",
+      "ok": true,
+      "detail": {
+        "actual": 2853,
+        "expected": 2853
+      }
+    },
+    {
+      "name": "executive_kpi_discapacidad",
+      "ok": true,
+      "detail": {
+        "actual": 202,
+        "expected": 202
+      }
+    },
+    {
+      "name": "executive_kpi_programas",
+      "ok": true,
+      "detail": {
+        "actual": 21,
+        "expected": 21
+      }
+    },
+    {
+      "name": "executive_kpi_facultades",
+      "ok": true,
+      "detail": {
+        "actual": 5,
+        "expected": 5
+      }
+    },
+    {
+      "name": "executive_kpi_victimas_review_expected_4852",
+      "ok": true,
+      "detail": {
+        "actual": 4852,
+        "expected": 4852
+      }
+    },
+    {
+      "name": "executive_notas_2025-2",
+      "ok": true,
+      "detail": {
+        "actual": 84871,
+        "expected": 84871
+      }
+    },
+    {
+      "name": "executive_promedio_2025-2",
+      "ok": true,
+      "detail": {
+        "actual": 3.45,
+        "expected_approx": 3.45
+      }
+    },
+    {
+      "name": "executive_aprob_pct_2025-2",
+      "ok": true,
+      "detail": {
+        "actual": 76.3,
+        "expected_approx": 76.0
+      }
+    },
+    {
+      "name": "executive_notas_2026-1",
+      "ok": true,
+      "detail": {
+        "actual": 84505,
+        "expected": 84505
+      }
+    },
+    {
+      "name": "executive_promedio_2026-1",
+      "ok": true,
+      "detail": {
+        "actual": 3.12,
+        "expected_approx": 3.12
+      }
+    },
+    {
+      "name": "executive_aprob_pct_2026-1",
+      "ok": true,
+      "detail": {
+        "actual": 68.6,
+        "expected_approx": 68.0
+      }
+    },
+    {
+      "name": "no_historico_notas_2026_2",
+      "ok": true,
+      "detail": {
+        "2025-2": {
+          "n": 84871,
+          "prom": 3.45,
+          "aprob_pct": 76.3
+        },
+        "2026-1": {
+          "n": 84505,
+          "prom": 3.12,
+          "aprob_pct": 68.6
+        }
+      }
+    },
+    {
+      "name": "api_matches_db_total",
+      "ok": true,
+      "detail": {
+        "api": 16461,
+        "db": 16461
+      }
+    },
+    {
+      "name": "api_matches_db_matriculados",
+      "ok": true,
+      "detail": {
+        "api": 14244,
+        "db": 14244
+      }
+    },
+    {
+      "name": "api_matches_db_rurales",
+      "ok": true,
+      "detail": {
+        "api": 1918,
+        "db": 1918
+      }
+    },
+    {
+      "name": "api_matches_db_victimas",
+      "ok": true,
+      "detail": {
+        "api": 4852,
+        "db": 4852
+      }
+    },
+    {
+      "name": "api_matches_db_vulnerables",
+      "ok": true,
+      "detail": {
+        "api": 2853,
+        "db": 2853
+      }
+    },
+    {
+      "name": "api_matches_db_discapacidad",
+      "ok": true,
+      "detail": {
+        "api": 202,
+        "db": 202
+      }
+    },
+    {
+      "name": "api_matches_db_programas",
+      "ok": true,
+      "detail": {
+        "api": 21,
+        "db": 21
+      }
+    },
+    {
+      "name": "api_matches_db_facultades",
+      "ok": true,
+      "detail": {
+        "api": 5,
+        "db": 5
+      }
+    },
+    {
+      "name": "no_extra_demo_docentes",
+      "ok": true,
+      "detail": {
+        "students": 16461,
+        "matriculados": 14244,
+        "rurales": 1918,
+        "victimas": 4852,
+        "vulnerables": 2853,
+        "discapacidad": 202,
+        "programas": 21,
+        "facultades": 5,
+        "docentes_demo_extra": 0,
+        "docente_demo_allowed": 1,
+        "students_demo_like": 0,
+        "notas_simuladas_like": 0
+      }
+    },
+    {
+      "name": "no_demo_students_like",
+      "ok": true,
+      "detail": {
+        "students": 16461,
+        "matriculados": 14244,
+        "rurales": 1918,
+        "victimas": 4852,
+        "vulnerables": 2853,
+        "discapacidad": 202,
+        "programas": 21,
+        "facultades": 5,
+        "docentes_demo_extra": 0,
+        "docente_demo_allowed": 1,
+        "students_demo_like": 0,
+        "notas_simuladas_like": 0
+      }
+    },
+    {
+      "name": "no_simulated_notes_like",
+      "ok": true,
+      "detail": {
+        "students": 16461,
+        "matriculados": 14244,
+        "rurales": 1918,
+        "victimas": 4852,
+        "vulnerables": 2853,
+        "discapacidad": 202,
+        "programas": 21,
+        "facultades": 5,
+        "docentes_demo_extra": 0,
+        "docente_demo_allowed": 1,
+        "students_demo_like": 0,
+        "notas_simuladas_like": 0
+      }
+    },
+    {
+      "name": "source_total_matches_api",
+      "ok": true,
+      "detail": {
+        "source": 16461,
+        "api": 16461
+      }
+    },
+    {
+      "name": "source_victimas_matches_api",
+      "ok": true,
+      "detail": {
+        "source": 4852,
+        "api": 4852
+      }
+    },
+    {
+      "name": "source_vulnerables_matches_api",
+      "ok": true,
+      "detail": {
+        "source": 2853,
+        "api": 2853
+      }
+    },
+    {
+      "name": "source_discapacidad_matches_api",
+      "ok": true,
+      "detail": {
+        "source": 202,
+        "api": 202
+      }
+    },
+    {
+      "name": "source_rurales_matches_api",
+      "ok": true,
+      "detail": {
+        "source": 1918,
+        "api": 1918
+      }
+    },
+    {
+      "name": "academic_facultad_count",
+      "ok": true,
+      "detail": {
+        "actual": 5,
+        "faculties": [
+          "Facultad de Ciencias Económicas Administrativas y Contables (FCEAC)",
+          "Facultad de Ciencias y Humanidades (FCyH)",
+          "Facultad de Educación (FE)",
+          "Facultad de Ingeniería y Ciencias Agropecuarias (FICA)",
+          "Sin facultad asignada"
+        ]
+      }
+    },
+    {
+      "name": "academic_facultad_real_names",
+      "ok": true,
+      "detail": {
+        "actual": [
+          "Facultad de Ciencias Económicas Administrativas y Contables (FCEAC)",
+          "Facultad de Ciencias y Humanidades (FCyH)",
+          "Facultad de Educación (FE)",
+          "Facultad de Ingeniería y Ciencias Agropecuarias (FICA)",
+          "Sin facultad asignada"
+        ],
+        "expected_abbrev_present": {
+          "FCEAC": true,
+          "FCyH": true,
+          "FICA": true,
+          "FE": true,
+          "Sin facultad asignada": true
+        }
+      }
+    },
+    {
+      "name": "academic_facultad_fields",
+      "ok": true,
+      "detail": [
+        {
+          "n": 7122,
+          "con_notas": 4747,
+          "facultad": "Facultad de Ciencias Económicas Administrativas y Contables (FCEAC)",
+          "prom": 3.8,
+          "prom_2025_2": 4.02,
+          "prom_2026_1": 3.85
+        },
+        {
+          "n": 3422,
+          "con_notas": 2319,
+          "facultad": "Facultad de Ciencias y Humanidades (FCyH)",
+          "prom": 3.92,
+          "prom_2025_2": 4.05,
+          "prom_2026_1": 3.99
+        }
+      ]
+    },
+    {
+      "name": "academic_program_count",
+      "ok": true,
+      "detail": {
+        "actual": 21
+      }
+    },
+    {
+      "name": "academic_program_fields",
+      "ok": true,
+      "detail": [
+        {
+          "n": 2424,
+          "con_notas": 1772,
+          "programa": "ADMINISTRACIÓN DE EMPRESAS",
+          "prom": 3.93,
+          "prom_2025_2": 4.12,
+          "prom_2026_1": 3.98
+        },
+        {
+          "n": 2286,
+          "con_notas": 1646,
+          "programa": "TRABAJO SOCIAL",
+          "prom": 3.95,
+          "prom_2025_2": 4.07,
+          "prom_2026_1": 4.03
+        }
+      ]
+    },
+    {
+      "name": "academic_facultad_excludes_zero_averages_matches_db",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "sample_student_period_averages_populated",
+      "ok": true,
+      "detail": {
+        "student": {
+          "cedula": "1042151916",
+          "promedio_2025_2": 4.86,
+          "promedio_2026_1": 4.64
+        },
+        "expected_from_notes": {
+          "2025-2": {
+            "avg": 4.86,
+            "n": 8
+          },
+          "2026-1": {
+            "avg": 4.64,
+            "n": 8
+          }
+        }
+      }
+    },
+    {
+      "name": "sample_student_2025_2_avg_matches_notes",
+      "ok": true,
+      "detail": {
+        "student": {
+          "cedula": "1042151916",
+          "promedio_2025_2": 4.86,
+          "promedio_2026_1": 4.64
+        },
+        "expected": {
+          "2025-2": {
+            "avg": 4.86,
+            "n": 8
+          },
+          "2026-1": {
+            "avg": 4.64,
+            "n": 8
+          }
+        }
+      }
+    },
+    {
+      "name": "sample_student_2026_1_avg_matches_notes",
+      "ok": true,
+      "detail": {
+        "student": {
+          "cedula": "1042151916",
+          "promedio_2025_2": 4.86,
+          "promedio_2026_1": 4.64
+        },
+        "expected": {
+          "2025-2": {
+            "avg": 4.86,
+            "n": 8
+          },
+          "2026-1": {
+            "avg": 4.64,
+            "n": 8
+          }
+        }
+      }
+    }
+  ],
+  "failures": [],
+  "artifacts": {
+    "api_kpis": {
+      "total": 16461,
+      "matriculados": 14244,
+      "programas": 21,
+      "facultades": 5,
+      "promedio": 3.8,
+      "avance_pct": 51.9,
+      "vulnerables": 2853,
+      "victimas": 4852,
+      "discapacidad": 202,
+      "rurales": 1918,
+      "promedio_2025_2": 3.45,
+      "promedio_2026_1": 3.12,
+      "notas_2025_2": 84871,
+      "notas_2026_1": 84505,
+      "aprob_pct_2025_2": 76.3,
+      "aprob_pct_2026_1": 68.6
+    },
+    "api_academic_facultades": [
+      {
+        "n": 7122,
+        "con_notas": 4747,
+        "facultad": "Facultad de Ciencias Económicas Administrativas y Contables (FCEAC)",
+        "prom": 3.8,
+        "prom_2025_2": 4.02,
+        "prom_2026_1": 3.85
+      },
+      {
+        "n": 3422,
+        "con_notas": 2319,
+        "facultad": "Facultad de Ciencias y Humanidades (FCyH)",
+        "prom": 3.92,
+        "prom_2025_2": 4.05,
+        "prom_2026_1": 3.99
+      },
+      {
+        "n": 2929,
+        "con_notas": 1821,
+        "facultad": "Facultad de Ingeniería y Ciencias Agropecuarias (FICA)",
+        "prom": 3.73,
+        "prom_2025_2": 3.99,
+        "prom_2026_1": 3.79
+      },
+      {
+        "n": 1607,
+        "con_notas": 1041,
+        "facultad": "Facultad de Educación (FE)",
+        "prom": 3.75,
+        "prom_2025_2": 4.05,
+        "prom_2026_1": 3.83
+      },
+      {
+        "n": 1381,
+        "con_notas": 320,
+        "facultad": "Sin facultad asignada",
+        "prom": 3.43,
+        "prom_2025_2": 3.43,
+        "prom_2026_1": 3.34
+      }
+    ],
+    "periods_in_historico_notas": {
+      "2025-2": {
+        "n": 84871,
+        "prom": 3.45,
+        "aprob_pct": 76.3
+      },
+      "2026-1": {
+        "n": 84505,
+        "prom": 3.12,
+        "aprob_pct": 68.6
+      }
+    },
+    "source_file_counts": {
+      "total_rows": 16461,
+      "victimas_from_file": 4852,
+      "vulnerables_from_file": 2853,
+      "discapacidad_from_file": 202,
+      "rurales_from_direccion_file": 1918
+    },
+    "db_counts": {
+      "students": 16461,
+      "matriculados": 14244,
+      "rurales": 1918,
+      "victimas": 4852,
+      "vulnerables": 2853,
+      "discapacidad": 202,
+      "programas": 21,
+      "facultades": 5,
+      "docentes_demo_extra": 0,
+      "docente_demo_allowed": 1,
+      "students_demo_like": 0,
+      "notas_simuladas_like": 0
+    }
+  }
+}

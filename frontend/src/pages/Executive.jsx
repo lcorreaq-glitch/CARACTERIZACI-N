@@ -101,16 +101,59 @@ export default function Executive() {
           {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KPI label="Total estudiantes" value={fmt(k.total)} sub={`${fmt(k.matriculados)} matriculados`} icon={Users} accent="bg-[#0033A0]/10 text-[#0033A0]" />
-          <KPI label="Promedio general" value={(k.promedio ?? 0).toFixed(2)} sub="Escala 0.0 – 5.0" icon={GraduationCap} accent="bg-[#FFCD00]/15 text-[#7A6300]" />
+          <KPI label="Promedio general" value={(k.promedio ?? 0).toFixed(2)} sub="Última nota disponible" icon={GraduationCap} accent="bg-[#FFCD00]/15 text-[#7A6300]" />
           <KPI label="Programas" value={fmt(k.programas)} sub={`${k.facultades} facultades`} icon={Building2} accent="bg-emerald-500/10 text-emerald-700" />
-          <KPI label="Avance curricular" value={`${(k.avance_pct ?? 0).toFixed(0)}%`} sub="Promedio del avance" icon={TrendingUp} accent="bg-blue-500/10 text-blue-700" />
+          <KPI label="Avance curricular" value={`${(k.avance_pct ?? 0).toFixed(0)}%`} sub="% aprobadas del estudiante" icon={TrendingUp} accent="bg-blue-500/10 text-blue-700" />
           <KPI label="Estudiantes rurales" value={fmt(k.rurales)} sub={`${((k.rurales / (k.total || 1)) * 100).toFixed(1)}% del total`} icon={Trees} accent="bg-green-700/10 text-green-800" />
           <KPI label="Víctimas conflicto" value={fmt(k.victimas)} sub={`${((k.victimas / (k.total || 1)) * 100).toFixed(1)}% del total`} icon={Heart} accent="bg-[#E3000F]/10 text-[#E3000F]" />
           <KPI label="Grupo vulnerable" value={fmt(k.vulnerables)} sub="Auto identificación" icon={AlertTriangle} accent="bg-amber-500/10 text-amber-700" />
           <KPI label="Discapacidad" value={fmt(k.discapacidad)} sub="Reportada por el estudiante" icon={Accessibility} accent="bg-purple-500/10 text-purple-700" />
         </div>
+
+        {/* Promedios por periodo histórico */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="dense-card p-5" data-testid="periodo-2025-2">
+            <p className="label-eyebrow text-[#0033A0]">Histórico académico</p>
+            <div className="flex items-end justify-between gap-4 mt-1">
+              <div>
+                <h3 className="font-display font-bold text-lg tracking-tight">Periodo 2025-2</h3>
+                <p className="text-xs text-muted-foreground">{fmt(k.notas_2025_2)} notas registradas</p>
+              </div>
+              <div className="text-right">
+                <div className={`kpi-num text-4xl ${(k.promedio_2025_2 || 0) < 3 ? "text-[#E3000F]" : "text-emerald-700"}`}>
+                  {(k.promedio_2025_2 ?? 0).toFixed(2)}
+                </div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{(k.aprob_pct_2025_2 ?? 0).toFixed(0)}% aprobación</div>
+              </div>
+            </div>
+          </div>
+          <div className="dense-card p-5" data-testid="periodo-2026-1">
+            <p className="label-eyebrow text-[#0033A0]">Periodo más reciente</p>
+            <div className="flex items-end justify-between gap-4 mt-1">
+              <div>
+                <h3 className="font-display font-bold text-lg tracking-tight">Periodo 2026-1</h3>
+                <p className="text-xs text-muted-foreground">{fmt(k.notas_2026_1)} notas registradas</p>
+              </div>
+              <div className="text-right">
+                <div className={`kpi-num text-4xl ${(k.promedio_2026_1 || 0) < 3 ? "text-[#E3000F]" : "text-emerald-700"}`}>
+                  {(k.promedio_2026_1 ?? 0).toFixed(2)}
+                </div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{(k.aprob_pct_2026_1 ?? 0).toFixed(0)}% aprobación</div>
+              </div>
+            </div>
+            {(k.promedio_2026_1 !== undefined && k.promedio_2025_2 !== undefined && k.promedio_2025_2 > 0) && (
+              <div className="mt-3 text-[11px] text-muted-foreground">
+                Variación: <span className={`font-semibold ${(k.promedio_2026_1 - k.promedio_2025_2) < 0 ? "text-[#E3000F]" : "text-emerald-700"}`}>
+                  {(k.promedio_2026_1 - k.promedio_2025_2) > 0 ? "+" : ""}{(k.promedio_2026_1 - k.promedio_2025_2).toFixed(2)}
+                </span> frente al periodo anterior
+              </div>
+            )}
+          </div>
+        </div>
+        </>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">

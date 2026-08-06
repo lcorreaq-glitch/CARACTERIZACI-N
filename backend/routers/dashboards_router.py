@@ -94,7 +94,7 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
             "_id": None,
             "total": {"$sum": 1},
             "matriculados": {"$sum": {"$cond": [{"$eq": ["$estado_matricula", "Estudiante Matriculado"]}, 1, 0]}},
-            "promedio": {"$avg": "$promedio"},
+            "promedio": {"$avg": {"$cond": [{"$gt": ["$promedio", 0]}, "$promedio", None]}},
             "avance_pct": {"$avg": "$avance_pct"},
             "vulnerables": {"$sum": {"$cond": ["$grupo_vulnerable", 1, 0]}},
             "victimas": {"$sum": {"$cond": ["$victima_conflicto", 1, 0]}},
@@ -103,10 +103,31 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
         }}
     ]).to_list(1)
 
+    # Notas per periodo from historico_notas (source of truth)
+    # Restringir por cédulas del match (si hay filtros que reducen students)
+    if match:
+        cedulas_match = await db.students.distinct("cedula", match)
+        hn_match = {"cedula": {"$in": cedulas_match}}
+    else:
+        hn_match = {}
+    notas_per_periodo = {}
+    async for r in db.historico_notas.aggregate([
+        {"$match": hn_match} if hn_match else {"$match": {}},
+        {"$group": {"_id": "$periodo", "n": {"$sum": 1},
+                    "prom": {"$avg": "$nota"},
+                    "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}}}}
+    ]):
+        p = r["_id"]
+        notas_per_periodo[p] = {
+            "n": r["n"], "prom": round(r["prom"] or 0, 2),
+            "aprob_pct": round((r["aprob"] / r["n"] * 100) if r["n"] else 0, 1),
+        }
+
     by_program = await coll.aggregate(pipeline + [
-        {"$group": {"_id": "$programa", "n": {"$sum": 1}, "prom": {"$avg": "$promedio"}}},
+        {"$group": {"_id": "$programa", "n": {"$sum": 1},
+                    "prom": {"$avg": {"$cond": [{"$gt": ["$promedio", 0]}, "$promedio", None]}}}},
         {"$sort": {"n": -1}},
-        {"$project": {"_id": 0, "programa": "$_id", "n": 1, "prom": {"$round": ["$prom", 2]}}}
+        {"$project": {"_id": 0, "programa": "$_id", "n": 1, "prom": {"$round": [{"$ifNull": ["$prom", 0]}, 2]}}}
     ]).to_list(100)
 
     by_genero = await coll.aggregate(pipeline + [
@@ -141,6 +162,12 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
             "victimas": k.get("victimas", 0),
             "discapacidad": k.get("discapacidad", 0),
             "rurales": k.get("rurales", 0),
+            "promedio_2025_2": (notas_per_periodo.get("2025-2") or {}).get("prom", 0),
+            "promedio_2026_1": (notas_per_periodo.get("2026-1") or {}).get("prom", 0),
+            "notas_2025_2": (notas_per_periodo.get("2025-2") or {}).get("n", 0),
+            "notas_2026_1": (notas_per_periodo.get("2026-1") or {}).get("n", 0),
+            "aprob_pct_2025_2": (notas_per_periodo.get("2025-2") or {}).get("aprob_pct", 0),
+            "aprob_pct_2026_1": (notas_per_periodo.get("2026-1") or {}).get("aprob_pct", 0),
         },
         "by_program": by_program,
         "by_genero": by_genero,
@@ -155,19 +182,34 @@ async def academic(match: dict = Depends(_common_params), user=Depends(get_curre
     pipeline = [{"$match": match}] if match else []
 
     by_program_avg = await coll.aggregate(pipeline + [
-        {"$group": {"_id": "$programa", "prom": {"$avg": "$promedio"}, "n": {"$sum": 1},
-                    "reprobadas": {"$avg": "$reprobadas"}, "aprobadas": {"$avg": "$aprobadas"}}},
+        {"$group": {
+            "_id": "$programa", "n": {"$sum": 1},
+            "prom": {"$avg": {"$cond": [{"$gt": ["$promedio", 0]}, "$promedio", None]}},
+            "prom_2025_2": {"$avg": {"$cond": [{"$gt": ["$promedio_2025_2", 0]}, "$promedio_2025_2", None]}},
+            "prom_2026_1": {"$avg": {"$cond": [{"$gt": ["$promedio_2026_1", 0]}, "$promedio_2026_1", None]}},
+            "con_notas": {"$sum": {"$cond": [{"$gt": ["$promedio", 0]}, 1, 0]}},
+        }},
         {"$sort": {"n": -1}},
         {"$project": {"_id": 0, "programa": "$_id", "n": 1,
-                      "prom": {"$round": ["$prom", 2]},
-                      "reprobadas": {"$round": ["$reprobadas", 1]},
-                      "aprobadas": {"$round": ["$aprobadas", 1]}}}
+                      "con_notas": 1,
+                      "prom": {"$round": [{"$ifNull": ["$prom", 0]}, 2]},
+                      "prom_2025_2": {"$round": [{"$ifNull": ["$prom_2025_2", 0]}, 2]},
+                      "prom_2026_1": {"$round": [{"$ifNull": ["$prom_2026_1", 0]}, 2]}}}
     ]).to_list(100)
 
     by_facultad = await coll.aggregate(pipeline + [
-        {"$group": {"_id": "$facultad", "prom": {"$avg": "$promedio"}, "n": {"$sum": 1}}},
+        {"$group": {
+            "_id": "$facultad", "n": {"$sum": 1},
+            "prom": {"$avg": {"$cond": [{"$gt": ["$promedio", 0]}, "$promedio", None]}},
+            "prom_2025_2": {"$avg": {"$cond": [{"$gt": ["$promedio_2025_2", 0]}, "$promedio_2025_2", None]}},
+            "prom_2026_1": {"$avg": {"$cond": [{"$gt": ["$promedio_2026_1", 0]}, "$promedio_2026_1", None]}},
+            "con_notas": {"$sum": {"$cond": [{"$gt": ["$promedio", 0]}, 1, 0]}},
+        }},
         {"$sort": {"n": -1}},
-        {"$project": {"_id": 0, "facultad": "$_id", "prom": {"$round": ["$prom", 2]}, "n": 1}}
+        {"$project": {"_id": 0, "facultad": "$_id", "n": 1, "con_notas": 1,
+                      "prom": {"$round": [{"$ifNull": ["$prom", 0]}, 2]},
+                      "prom_2025_2": {"$round": [{"$ifNull": ["$prom_2025_2", 0]}, 2]},
+                      "prom_2026_1": {"$round": [{"$ifNull": ["$prom_2026_1", 0]}, 2]}}}
     ]).to_list(50)
 
     distribucion = await coll.aggregate(pipeline + [
