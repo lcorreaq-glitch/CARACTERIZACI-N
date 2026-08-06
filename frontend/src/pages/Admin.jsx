@@ -9,7 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, UserPlus, Globe, Download } from "lucide-react";
+import { Plus, Trash2, UserPlus, Globe, Download, Eye } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
@@ -36,7 +36,7 @@ export default function Admin() {
         </TabsList>
         <TabsContent value="users"><ErrorBoundary><UsersTab /></ErrorBoundary></TabsContent>
         <TabsContent value="facultades"><ErrorBoundary><CatalogTab name="facultades" label="Facultad" /></ErrorBoundary></TabsContent>
-        <TabsContent value="programas"><ErrorBoundary><CatalogTab name="programas" label="Programa" showFacultad /></ErrorBoundary></TabsContent>
+        <TabsContent value="programas"><ErrorBoundary><ProgramasTab /></ErrorBoundary></TabsContent>
         <TabsContent value="materias"><ErrorBoundary><CatalogTab name="materias" label="Materia" showPrograma /></ErrorBoundary></TabsContent>
         <TabsContent value="periodos"><ErrorBoundary><CatalogTab name="periodos" label="Periodo" /></ErrorBoundary></TabsContent>
         <TabsContent value="docente-materia"><ErrorBoundary><DocenteMateriaTab /></ErrorBoundary></TabsContent>
@@ -214,6 +214,259 @@ function CatalogTab({ name, label, showFacultad, showPrograma }) {
           ))}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+
+// -------------- Programas: vista rica con detalle --------------
+function ProgramasTab() {
+  const [items, setItems] = useState([]);
+  const [facs, setFacs] = useState([]);
+  const [q, setQ] = useState("");
+  const [nivelFilter, setNivelFilter] = useState("all");
+  const [open, setOpen] = useState(false);
+  const [detail, setDetail] = useState(null);
+  const [form, setForm] = useState({
+    nombre: "", nombre_corto: "", codigo: "", facultad_id: "",
+    nivel: "Pregrado", modalidad: "Virtual", estado: "Activo",
+  });
+
+  const load = () => api.get("/admin/programas").then((r) => setItems(r.data || []));
+  useEffect(() => {
+    load();
+    api.get("/admin/facultades").then((r) => setFacs(r.data || []));
+  }, []);
+
+  const create = async () => {
+    if (!form.nombre) return toast.error("El nombre es obligatorio");
+    try {
+      await api.post("/admin/programas", form);
+      toast.success("Programa creado");
+      setOpen(false);
+      setForm({ nombre: "", nombre_corto: "", codigo: "", facultad_id: "", nivel: "Pregrado", modalidad: "Virtual", estado: "Activo" });
+      load();
+    } catch (e) { toast.error(e?.response?.data?.detail || "Error"); }
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm("¿Eliminar este programa?")) return;
+    await api.delete(`/admin/programas/${id}`);
+    toast.success("Eliminado"); load();
+  };
+
+  const filtered = items.filter((p) => {
+    if (nivelFilter !== "all" && (p.nivel || "").toLowerCase() !== nivelFilter.toLowerCase()) return false;
+    if (!q) return true;
+    const s = q.toLowerCase();
+    return (p.nombre || "").toLowerCase().includes(s) ||
+      (p.codigo || "").toLowerCase().includes(s) ||
+      (p.facultad_nombre || "").toLowerCase().includes(s);
+  });
+
+  const nivelBadge = (n) => {
+    const cls = {
+      "Pregrado": "bg-[#0033A0]/10 text-[#0033A0] border-[#0033A0]/30",
+      "Posgrado": "bg-purple-500/10 text-purple-700 border-purple-500/30",
+      "Extensión Académica": "bg-[#FFCD00]/20 text-[#7A6300] border-[#FFCD00]/40",
+    }[n] || "bg-muted text-muted-foreground border-border";
+    return <Badge variant="outline" className={`text-[9px] uppercase tracking-wider rounded-sm ${cls}`}>{n || "Sin nivel"}</Badge>;
+  };
+
+  return (
+    <div className="dense-card p-5 mt-4">
+      <div className="flex flex-wrap gap-3 justify-between items-end mb-4">
+        <div>
+          <p className="label-eyebrow">Catálogo</p>
+          <h3 className="font-display font-bold text-lg tracking-tight">
+            {filtered.length} <span className="text-muted-foreground text-sm font-normal">de {items.length} programas</span>
+          </h3>
+        </div>
+        <div className="flex flex-wrap gap-2 items-center">
+          <Input
+            placeholder="Buscar por nombre, código o facultad…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="rounded-sm w-72"
+            data-testid="programas-search"
+          />
+          <Select value={nivelFilter} onValueChange={setNivelFilter}>
+            <SelectTrigger className="rounded-sm w-48" data-testid="programas-nivel-filter">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los niveles</SelectItem>
+              <SelectItem value="Pregrado">Pregrado</SelectItem>
+              <SelectItem value="Posgrado">Posgrado</SelectItem>
+              <SelectItem value="Extensión Académica">Extensión Académica</SelectItem>
+            </SelectContent>
+          </Select>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="rounded-sm bg-[#0033A0] hover:bg-[#002A85] text-white" data-testid="create-programa-btn">
+                <Plus className="w-4 h-4 mr-2" /> Nuevo programa
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle className="font-display">Nuevo programa</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div><Label className="label-eyebrow">Nombre</Label><Input className="rounded-sm" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="label-eyebrow">Nombre corto</Label><Input className="rounded-sm" value={form.nombre_corto} onChange={(e) => setForm({ ...form, nombre_corto: e.target.value })} /></div>
+                  <div><Label className="label-eyebrow">Código SNIES</Label><Input className="rounded-sm" value={form.codigo} onChange={(e) => setForm({ ...form, codigo: e.target.value })} /></div>
+                </div>
+                <div>
+                  <Label className="label-eyebrow">Facultad</Label>
+                  <Select value={form.facultad_id} onValueChange={(v) => setForm({ ...form, facultad_id: v })}>
+                    <SelectTrigger className="rounded-sm"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                    <SelectContent>{facs.map((f) => <SelectItem key={f.id} value={f.id}>{f.nombre}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label className="label-eyebrow">Nivel</Label>
+                    <Select value={form.nivel} onValueChange={(v) => setForm({ ...form, nivel: v })}>
+                      <SelectTrigger className="rounded-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Pregrado">Pregrado</SelectItem>
+                        <SelectItem value="Posgrado">Posgrado</SelectItem>
+                        <SelectItem value="Extensión Académica">Extensión Académica</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="label-eyebrow">Modalidad</Label>
+                    <Select value={form.modalidad} onValueChange={(v) => setForm({ ...form, modalidad: v })}>
+                      <SelectTrigger className="rounded-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Virtual">Virtual</SelectItem>
+                        <SelectItem value="Presencial">Presencial</SelectItem>
+                        <SelectItem value="Distancia">Distancia</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="label-eyebrow">Estado</Label>
+                    <Select value={form.estado} onValueChange={(v) => setForm({ ...form, estado: v })}>
+                      <SelectTrigger className="rounded-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Activo">Activo</SelectItem>
+                        <SelectItem value="Inactivo">Inactivo</SelectItem>
+                        <SelectItem value="Suspendido">Suspendido</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter><Button onClick={create} className="bg-[#0033A0] hover:bg-[#002A85] text-white rounded-sm">Crear</Button></DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="text-[10px] uppercase tracking-wider">Nombre</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider">Código</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider">Facultad</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider">Nivel</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider">Modalidad</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider">Estado</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-right"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filtered.map((p) => (
+            <TableRow key={p.id} className="hover:bg-muted/40">
+              <TableCell className="text-xs font-medium">{p.nombre}</TableCell>
+              <TableCell className="text-[11px] mono text-muted-foreground">{p.codigo || "—"}</TableCell>
+              <TableCell className="text-[11px]">{p.facultad_corta || (p.facultad_nombre?.length > 30 ? p.facultad_nombre.slice(0, 28) + "…" : p.facultad_nombre) || "—"}</TableCell>
+              <TableCell>{nivelBadge(p.nivel)}</TableCell>
+              <TableCell className="text-[11px]">{p.modalidad || "—"}</TableCell>
+              <TableCell>
+                <Badge variant="outline" className={`text-[9px] uppercase tracking-wider rounded-sm ${p.estado === "Activo" ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" : "bg-muted text-muted-foreground"}`}>
+                  {p.estado || "—"}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right">
+                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setDetail(p)} data-testid={`programa-detail-${p.id}`} title="Ver detalle">
+                  <Eye className="w-3.5 h-3.5" />
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => remove(p.id)} title="Eliminar">
+                  <Trash2 className="w-3 h-3 text-[#E3000F]" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+          {filtered.length === 0 && (
+            <TableRow><TableCell colSpan={7} className="text-center text-xs text-muted-foreground py-6">Sin programas con esos criterios</TableCell></TableRow>
+          )}
+        </TableBody>
+      </Table>
+
+      {/* Detalle modal */}
+      <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
+        <DialogContent className="max-w-2xl" data-testid="programa-detail-dialog">
+          <DialogHeader>
+            <DialogTitle className="font-display tracking-tight">{detail?.nombre}</DialogTitle>
+          </DialogHeader>
+          {detail && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {nivelBadge(detail.nivel)}
+                <Badge variant="outline" className="text-[9px] uppercase tracking-wider rounded-sm">{detail.modalidad || "Sin modalidad"}</Badge>
+                <Badge variant="outline" className={`text-[9px] uppercase tracking-wider rounded-sm ${detail.estado === "Activo" ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" : ""}`}>{detail.estado || "—"}</Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <DetailRow label="Nombre completo" value={detail.nombre} />
+                <DetailRow label="Nombre corto" value={detail.nombre_corto} />
+                <DetailRow label="Código SNIES" value={detail.codigo} mono />
+                <DetailRow label="Nivel académico" value={detail.nivel} />
+                <DetailRow label="Modalidad" value={detail.modalidad} />
+                <DetailRow label="Estado" value={detail.estado} />
+                <DetailRow label="Facultad" value={detail.facultad_nombre} full />
+                <DetailRow label="Facultad (corta)" value={detail.facultad_corta} />
+                <DetailRow label="ID interno" value={detail.id} mono full />
+              </div>
+
+              <div className="pt-2 border-t border-border">
+                <p className="label-eyebrow mb-2">Estadísticas</p>
+                <ProgramaStats programa={detail.nombre} />
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, mono, full }) {
+  return (
+    <div className={full ? "col-span-2" : ""}>
+      <div className="label-eyebrow">{label}</div>
+      <div className={`text-sm mt-0.5 ${mono ? "font-mono text-xs" : ""}`}>{value || <span className="text-muted-foreground italic">Sin dato</span>}</div>
+    </div>
+  );
+}
+
+function ProgramaStats({ programa }) {
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    if (!programa) return;
+    api.get(`/dashboards/executive?programa=${encodeURIComponent(programa.toUpperCase())}`)
+      .then((r) => setStats(r.data?.kpis || null))
+      .catch(() => setStats({}));
+  }, [programa]);
+  if (!stats) return <div className="text-xs text-muted-foreground italic">Calculando…</div>;
+  return (
+    <div className="grid grid-cols-4 gap-3">
+      <div><span className="label-eyebrow block">Estudiantes</span><b className="kpi-num text-xl">{(stats.total || 0).toLocaleString("es-CO")}</b></div>
+      <div><span className="label-eyebrow block">Matriculados</span><b className="kpi-num text-xl">{(stats.matriculados || 0).toLocaleString("es-CO")}</b></div>
+      <div><span className="label-eyebrow block">Promedio</span><b className={`kpi-num text-xl ${(stats.promedio || 0) < 3 ? "text-[#E3000F]" : "text-emerald-700"}`}>{(stats.promedio || 0).toFixed(2)}</b></div>
+      <div><span className="label-eyebrow block">Avance</span><b className="kpi-num text-xl">{(stats.avance_pct || 0).toFixed(0)}%</b></div>
     </div>
   );
 }
