@@ -215,6 +215,7 @@ async def export_notas(
     periodo: Optional[str] = None,
     docente_id: Optional[str] = None,
     materia_id: Optional[str] = None,
+    codigo_grupo: Optional[str] = None,
     user=Depends(get_current_user),
 ):
     """Descarga histórico de notas con filtros opcionales."""
@@ -225,6 +226,8 @@ async def export_notas(
         m["docente_id"] = docente_id
     if materia_id and materia_id != "all":
         m["materia_id"] = materia_id
+    if codigo_grupo and codigo_grupo != "all":
+        m["codigo_grupo"] = codigo_grupo
     docs = await db.historico_notas.find(m, {"_id": 0, "id": 0, "created_at": 0, "upload_id": 0}).to_list(100000)
     if not docs:
         docs = [{"info": "Sin notas registradas"}]

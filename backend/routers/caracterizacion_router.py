@@ -59,18 +59,24 @@ async def _params(
     resguardo_indigena: Optional[str] = None,
     docente_id: Optional[str] = None,
     materia_id: Optional[str] = None,
+    codigo_grupo: Optional[str] = None,
 ):
     match = _build_match(locals())
-    # docente/materia: restrict by cédulas con notas en historico_notas
-    if docente_id or materia_id:
-        hn_match = {}
-        if docente_id and docente_id not in ("all", "todos", ""):
-            hn_match["docente_id"] = docente_id
-        if materia_id and materia_id not in ("all", "todos", ""):
-            hn_match["materia_id"] = materia_id
-        if hn_match:
-            cedulas = await db.historico_notas.distinct("cedula", hn_match)
-            match["cedula"] = {"$in": cedulas} if cedulas else "__NO_MATCH__"
+    # docente/materia/grupo: intersección de cédulas
+    cedulas_sets = []
+    if codigo_grupo and codigo_grupo not in ("all", "todos", ""):
+        cedulas_sets.append(set(await db.matriculas.distinct("cedula", {"codigo_grupo": codigo_grupo})))
+    if docente_id and docente_id not in ("all", "todos", ""):
+        c1 = set(await db.historico_notas.distinct("cedula", {"docente_id": docente_id}))
+        c2 = set(await db.matriculas.distinct("cedula", {"docente_id": docente_id}))
+        cedulas_sets.append(c1 | c2)
+    if materia_id and materia_id not in ("all", "todos", ""):
+        cedulas_sets.append(set(await db.historico_notas.distinct("cedula", {"materia_id": materia_id})))
+    if cedulas_sets:
+        final = cedulas_sets[0]
+        for s in cedulas_sets[1:]:
+            final = final & s
+        match["cedula"] = {"$in": list(final)} if final else "__NO_MATCH__"
     return match
 
 
