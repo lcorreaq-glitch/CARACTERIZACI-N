@@ -24,6 +24,22 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - IA: resúmenes automáticos vía OpenAI GPT-5.4 (Emergent LLM Key)
 - Exportación PDF/Excel
 
+## Latest session (2026-08-06 · iteración 8 — Filtro Materia removido + Descarga "Vista actual")
+- ✅ **Filtro Materia removido** del panel de filtros globales (era redundante con el filtro de Grupo). Ahora sólo aparecen: Docente y Grupo (cascada).
+- ✅ **Nuevo endpoint `GET /api/exports/grupo/{codigo}/vista`** que exporta solo los datos visibles en la vista del docente:
+  - Excel con 2 hojas: **Grupo** (metadata) y **Vista docente** (8 columnas exactas: Cédula, Nombre, Apellidos, Programa, Promedio, Estado matrícula, Flags de vulnerabilidad, N° flags)
+  - Columna "Flags de vulnerabilidad" consolidada como en la UI: `"SISBEN A5 | Rural | Víctima del conflicto"`.
+- ✅ **Botones nuevos**:
+  - AppLayout DocenteCursosPanel: ícono ojo por curso → descarga vista actual
+  - Grupos detail modal: 3 botones (Vista actual · Excel completo · CSV)
+- ✅ **Scope enforcement en /vista**: decano/coordinador reciben 403 si intentan descargar un grupo fuera de su facultad/programa asignado.
+- ✅ **Testing agent verdict: FIXED (100%)** iteración 19.
+
+## Latest session (2026-08-06 · iteración 7 — Exclusión Extensión/Inglés Fuera de Malla)
+- ✅ Helper `academic_filter.academic_notes_match()` aplicado en TODOS los endpoints agregados: /executive, /academic, /historical, /caracterizacion, /admin/grupos, /admin/grupos/{codigo}, /admin/docentes/{id}/grupos, /docente/grupos-comparativa, /docente/estudiante/{cedula}/historico.
+- ✅ Recompute automático de `students.promedio` al iniciar el servidor (13,194 estudiantes) usando solo notas académicas.
+- ✅ Testing agent verificado a lo largo de 5 iteraciones sucesivas hasta cerrar completamente el bug.
+
 ## Latest session (2026-08-06 · iteración 6 — Grupos: filtros globales, flags detallados y descarga)
 - ✅ **Filtros globales sincronizados**: La vista `/grupos` ahora respeta los chips de filtro globales (`docente_id`, `codigo_grupo`). Al filtrar por un docente en el panel superior, `/grupos` muestra solo sus grupos. Banner azul indica el filtro activo con botón "Limpiar filtro global".
 - ✅ **Backend**: `GET /api/admin/grupos` acepta ahora `codigo_grupo` como query param.
