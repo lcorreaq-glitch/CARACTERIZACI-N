@@ -31,8 +31,13 @@ def _build_match(args):
     return m
 
 
-async def _apply_docente_materia(match: dict, docente_id, materia_id) -> dict:
-    if not docente_id and not materia_id:
+async def _apply_docente_materia(match: dict, docente_id, materia_id, codigo_grupo=None) -> dict:
+    if not docente_id and not materia_id and not codigo_grupo:
+        return match
+    # Si hay codigo_grupo, filtrar por matriculas
+    if codigo_grupo and codigo_grupo not in ("all", "todos", ""):
+        cedulas = await db.matriculas.distinct("cedula", {"codigo_grupo": codigo_grupo})
+        match["cedula"] = {"$in": cedulas} if cedulas else "__NO_MATCH__"
         return match
     hn_match = {}
     if docente_id and docente_id not in ("all", "todos", ""):
@@ -40,7 +45,13 @@ async def _apply_docente_materia(match: dict, docente_id, materia_id) -> dict:
     if materia_id and materia_id not in ("all", "todos", ""):
         hn_match["materia_id"] = materia_id
     if hn_match:
-        cedulas = await db.historico_notas.distinct("cedula", hn_match)
+        # Buscar cedulas en historico_notas O en matriculas (más completo para docente_id)
+        cedulas_notas = await db.historico_notas.distinct("cedula", hn_match)
+        if docente_id:
+            cedulas_matriculas = await db.matriculas.distinct("cedula", {"docente_id": docente_id})
+            cedulas = list(set(cedulas_notas) | set(cedulas_matriculas))
+        else:
+            cedulas = cedulas_notas
         match["cedula"] = {"$in": cedulas} if cedulas else "__NO_MATCH__"
     return match
 
@@ -85,11 +96,12 @@ async def export_students(
     grupo_vulnerable: Optional[str] = None,
     docente_id: Optional[str] = None,
     materia_id: Optional[str] = None,
+    codigo_grupo: Optional[str] = None,
     user=Depends(get_current_user),
 ):
     """Descarga la base completa de estudiantes según filtros aplicados."""
     match = _build_match(locals())
-    match = await _apply_docente_materia(match, docente_id, materia_id)
+    match = await _apply_docente_materia(match, docente_id, materia_id, codigo_grupo)
     cursor = db.students.find(match, {"_id": 0, "id": 0, "created_at": 0,
                                        "hobbies_cat": 0, "actividades_cat": 0,
                                        "lat": 0, "lon": 0})

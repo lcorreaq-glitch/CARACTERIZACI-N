@@ -38,19 +38,19 @@ def _build_match(args: dict) -> dict:
 
 async def _apply_docente_materia(match: dict, docente_id, materia_id, codigo_grupo=None) -> dict:
     """If docente_id/materia_id/codigo_grupo are present, restrict match to intersection
-    of cédulas from historico_notas (docente/materia) and matriculas (grupo)."""
+    of cédulas from historico_notas (docente/materia) UNIÓN matriculas del docente y grupo."""
     cedulas_sets = []
     if codigo_grupo and codigo_grupo not in ("all", "todos", ""):
         cedulas = await db.matriculas.distinct("cedula", {"codigo_grupo": codigo_grupo})
         cedulas_sets.append(set(cedulas))
-    hn_match = {}
     if docente_id and docente_id not in ("all", "todos", ""):
-        hn_match["docente_id"] = docente_id
+        # UNIÓN: notas históricas del docente + matrículas activas del docente
+        c1 = set(await db.historico_notas.distinct("cedula", {"docente_id": docente_id}))
+        c2 = set(await db.matriculas.distinct("cedula", {"docente_id": docente_id}))
+        cedulas_sets.append(c1 | c2)
     if materia_id and materia_id not in ("all", "todos", ""):
-        hn_match["materia_id"] = materia_id
-    if hn_match:
-        cedulas = await db.historico_notas.distinct("cedula", hn_match)
-        cedulas_sets.append(set(cedulas))
+        c = set(await db.historico_notas.distinct("cedula", {"materia_id": materia_id}))
+        cedulas_sets.append(c)
     if cedulas_sets:
         final = cedulas_sets[0]
         for s in cedulas_sets[1:]:
@@ -667,14 +667,21 @@ async def filter_options(user=Depends(get_current_user)):
         grupos_query = {"docente_id": user["id"]}
     grupos_rows = await db.grupos.find(grupos_query, {
         "_id": 0, "codigo_grupo": 1, "asignatura_nombre": 1,
-        "programa": 1, "docente_nombre": 1, "periodo": 1
+        "asignatura_codigo": 1,
+        "programa": 1, "docente_nombre": 1, "docente_id": 1, "periodo": 1,
+        "dia": 1, "hora": 1,
     }).sort("codigo_grupo", 1).to_list(2000)
     grupos = [
         {"id": g["codigo_grupo"],
          "nombre": f"{g.get('asignatura_nombre', '')[:35]}",
          "codigo": g["codigo_grupo"],
+         "asignatura_codigo": g.get("asignatura_codigo", ""),
          "programa": g.get("programa", "")[:30],
-         "docente": g.get("docente_nombre", "")}
+         "docente": g.get("docente_nombre", ""),
+         "docente_id": g.get("docente_id", ""),
+         "periodo": g.get("periodo", ""),
+         "dia": g.get("dia", ""),
+         "hora": g.get("hora", "")}
         for g in grupos_rows
     ]
 

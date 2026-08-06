@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 import {
   LayoutDashboard, GraduationCap, Map, History, Upload, Settings, Brain,
-  LogOut, Sun, Moon, Filter, ChevronDown, X, Users, BookOpen
+  LogOut, Sun, Moon, Filter, ChevronDown, X, Users, BookOpen, Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -173,6 +173,7 @@ export default function AppLayout() {
                 ))}
               </div>
             )}
+            {filters.docente_id && <DocenteCursosPanel />}
           </header>
           <main className="p-5 md:p-7" data-testid="main-content">
             <Outlet />
@@ -216,10 +217,14 @@ function FiltersPanel() {
     { key: "tipo_ubicacion", label: "Ubicación", list: opts.ubicaciones || [] },
   ];
   // Docente + Materia + Grupo (estructura distinta: list de objetos {id, nombre})
+  // Cascade: si hay docente_id seleccionado, filtra la lista de grupos a los de ese docente.
+  const gruposDelDocente = filters.docente_id
+    ? (opts.grupos || []).filter((g) => g.docente_id === filters.docente_id)
+    : (opts.grupos || []);
   const objectGroups = [
     { key: "docente_id", label: `Docente${(opts.docentes || []).length ? ` (${opts.docentes.length})` : ""}`, list: opts.docentes || [] },
     { key: "materia_id", label: `Materia${(opts.materias || []).length ? ` (${opts.materias.length})` : ""}`, list: opts.materias || [] },
-    { key: "codigo_grupo", label: `Grupo${(opts.grupos || []).length ? ` (${opts.grupos.length})` : ""}`, list: opts.grupos || [] },
+    { key: "codigo_grupo", label: `Grupo${filters.docente_id ? ` (${gruposDelDocente.length} del docente)` : ` (${(opts.grupos || []).length})`}`, list: gruposDelDocente },
   ];
   const booleans = [
     { key: "sisben", label: "Beneficiario SISBEN" },
@@ -273,6 +278,14 @@ function FiltersPanel() {
                     >
                       {v.codigo ? <span className="mono text-[10px] mr-2 text-muted-foreground">{v.codigo}</span> : null}
                       {v.nombre}
+                      {g.key === "codigo_grupo" && (v.dia || v.hora || v.asignatura_codigo) && (
+                        <div className="text-[9px] text-muted-foreground mt-0.5">
+                          {v.asignatura_codigo && <span className="mono">{v.asignatura_codigo}</span>}
+                          {v.dia && <span className="ml-2">{v.dia}</span>}
+                          {v.hora && <span className="ml-1">{v.hora}</span>}
+                          {v.periodo && <span className="ml-2 uppercase">{v.periodo}</span>}
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -314,4 +327,78 @@ export function buildQuery(filters) {
     params.append(k, String(v));
   });
   return params.toString();
+}
+
+
+function DocenteCursosPanel() {
+  const { filters, setFilter, opts } = useFilters();
+  const docente = (opts.docentes || []).find((d) => d.id === filters.docente_id);
+  const cursos = (opts.grupos || []).filter((g) => g.docente_id === filters.docente_id);
+  const activo = filters.codigo_grupo;
+
+  const descargarEstudiantes = async (codigo_grupo) => {
+    try {
+      const url = `/api/exports/students?fmt=xlsx${codigo_grupo ? `&codigo_grupo=${encodeURIComponent(codigo_grupo)}` : ""}${filters.docente_id ? `&docente_id=${encodeURIComponent(filters.docente_id)}` : ""}`;
+      const token = localStorage.getItem("token");
+      const separator = url.includes("?") ? "&" : "?";
+      const resp = await fetch(`${url}${separator}_auth=${encodeURIComponent(token)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) throw new Error("Error al descargar");
+      const blob = await resp.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = codigo_grupo ? `estudiantes_${codigo_grupo}.xlsx` : `estudiantes_docente_${(docente?.nombre || "").replace(/\s+/g, "_")}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      alert("Error al descargar: " + e.message);
+    }
+  };
+
+  if (!docente) return null;
+
+  return (
+    <div className="mx-5 mb-3 rounded-sm border border-[#0033A0]/30 bg-[#0033A0]/5 p-3" data-testid="docente-cursos-panel">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+        <div>
+          <p className="label-eyebrow text-[#0033A0]">Docente seleccionado</p>
+          <p className="font-display font-bold text-sm">{docente.nombre}</p>
+          <p className="text-[10px] text-muted-foreground">{cursos.length} curso{cursos.length !== 1 ? "s" : ""} asignado{cursos.length !== 1 ? "s" : ""} periodo 2026-2</p>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant={!activo ? "default" : "outline"} onClick={() => setFilter("codigo_grupo", null)} className="rounded-sm text-xs h-8" data-testid="ver-todos-cursos">
+            Ver todos los cursos
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => descargarEstudiantes(null)} className="rounded-sm text-xs h-8" data-testid="descargar-todos-est">
+            <Download className="w-3 h-3 mr-1" /> Descargar todos los estudiantes
+          </Button>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {cursos.length === 0 && <span className="text-xs text-muted-foreground italic">Este docente no tiene cursos activos en la BD.</span>}
+        {cursos.map((c) => (
+          <div key={c.id} className={`flex items-center gap-1 rounded-sm border px-2 py-1 transition-soft ${activo === c.id ? "border-[#0033A0] bg-white" : "border-border bg-white/60 hover:border-[#0033A0]/50"}`}>
+            <button
+              onClick={() => setFilter("codigo_grupo", activo === c.id ? null : c.id)}
+              className="text-left"
+              data-testid={`curso-${c.id}`}
+            >
+              <span className="mono text-[10px] text-muted-foreground">{c.codigo}</span>
+              <span className="text-xs ml-1.5">{c.nombre}</span>
+              <span className="text-[9px] text-muted-foreground ml-2">{c.dia} {c.hora}</span>
+            </button>
+            <button
+              onClick={() => descargarEstudiantes(c.id)}
+              title="Descargar estudiantes de este curso"
+              data-testid={`descargar-curso-${c.id}`}
+              className="ml-1 p-0.5 hover:bg-[#0033A0]/10 rounded"
+            >
+              <Download className="w-3 h-3 text-[#0033A0]" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
