@@ -207,14 +207,30 @@ export default function Executive() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Grupos etarios" eyebrow="Demografía" span="lg:col-span-6">
+        <ChartCard title="Grupos etarios" eyebrow="Demografía (categoría)" span="lg:col-span-6">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={data?.by_edad || []}>
               <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
               <XAxis dataKey="rango" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
               <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
               <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
-              <Bar dataKey="n" fill="#0033A0" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="n" fill="#0033A0" radius={[3, 3, 0, 0]}>
+                <LabelList dataKey="n" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Rangos de edad" eyebrow="Demografía (numérico)" span="lg:col-span-6">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={data?.by_rango_edad || []}>
+              <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
+              <XAxis dataKey="rango" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+              <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
+              <Bar dataKey="n" fill="#FFCD00" radius={[3, 3, 0, 0]}>
+                <LabelList dataKey="n" position="top" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -232,13 +248,15 @@ export default function Executive() {
         </ChartCard>
 
         <ChartCard title="Georeferenciación · departamento de residencia" eyebrow="Territorial" span="lg:col-span-6">
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={data?.by_departamento || []} layout="vertical">
+          <ResponsiveContainer width="100%" height={Math.max(340, (data?.by_departamento?.length || 0) * 26)}>
+            <BarChart data={data?.by_departamento || []} layout="vertical" margin={{ left: 8, right: 40 }}>
               <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
               <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-              <YAxis type="category" dataKey="departamento" tick={{ fontSize: 10, fill: "hsl(var(--foreground))" }} width={130} />
+              <YAxis type="category" dataKey="departamento" tick={{ fontSize: 10, fill: "hsl(var(--foreground))" }} width={150} interval={0} />
               <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }} />
-              <Bar dataKey="n" fill="#8B5CF6" radius={[0, 2, 2, 0]} />
+              <Bar dataKey="n" fill="#8B5CF6" radius={[0, 2, 2, 0]}>
+                <LabelList dataKey="n" position="right" style={{ fontSize: 10, fill: "hsl(var(--foreground))" }} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>

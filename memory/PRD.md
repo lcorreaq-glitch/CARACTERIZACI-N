@@ -24,18 +24,18 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - IA: resúmenes automáticos vía OpenAI GPT-5.4 (Emergent LLM Key)
 - Exportación PDF/Excel
 
-## Últimos ajustes (2026-08)
-- ✅ **Datos totalmente coherentes con archivo cargado**: 
-  - `tipo_ubicacion` ahora viene DIRECTAMENTE del campo "Tipo de vivienda" del archivo (Urbana 12.455, Rural 3.261, Semiurbana 306, Semirural 143, Sin dato 296) — antes se inferían mal por ciudad.
-  - `grupo_etario` usa el campo "Gruopo etario" del archivo (Adolescencia, Juventud, Adultez joven, Adultez media, Persona mayor) — antes se calculaba con rangos numéricos.
-  - Docentes: **399 reales** (antes 398, se dedupeaban mal por email compartido). Todos con `documento`, `iddoc`, `correo_personal`, `correo_institucional`.
-  - `docente_materia`: **737 relaciones** consolidadas automáticamente (antes 0).
-- ✅ **KPI "Vivienda rural"** (Rural + Semirural = 3.404, 20.7%) — renombrado y ahora coincide con el "Tipo de vivienda" del archivo. No se duplica con otro campo territorial.
-- ✅ **Víctimas conflicto**: 1.382 (8.4%) — deriva de tipos consolidados "Víctima del Conflicto Armado" y "Desplazado por la Violencia".
-- ✅ **Normalización Title Case español**: preposiciones/artículos (de, del, la, los, en, y, o…) en minúsculas dentro del título. Ejemplos: `Administración de Empresas`, `Ingeniería de Software y Datos`, `Licenciatura en Educación Básica Primaria`. Aplicado a students, grupos, docente_materia, matriculas y docentes.
-- ✅ **Consolidación de tipo_grupo_vulnerable**: variaciones ortográficas del archivo (Victima/Víctima/Desplazado/Desplazada/Afrocolombiano/Afrodecendiente) fusionadas en 9 categorías canónicas.
-- ✅ **Grupos etarios** usan cronología (Adolescencia → Persona mayor) no orden alfabético.
-- ✅ **Docente demo** con 8 grupos reales, 252 matrículas, 450 notas históricas para pruebas.
+## Últimos ajustes (2026-08 · última iteración)
+- ✅ **Georreferenciación por departamento arreglada** — bug: el backend consultaba `departamento_residencia` (no existe) → corregido a `departamento`. Ahora muestra 15 departamentos: Antioquia (10.143), Magdalena (1.315), Nariño (642), Valle del Cauca (535), Cundinamarca (406), La Guajira, Bolívar, Bogotá D.C., etc.
+- ✅ **Rangos de edad numéricos añadidos**: Menor 18 (288), 18-22 (3.368), 23-27 (4.434), 28-32 (3.589), 33-40 (3.113), 41-50 (1.403), 51+ (266). Complementa el chart de "Grupos etarios" cualitativos.
+- ✅ **Departamentos normalizados**: Nariño (antes Narinio/Narino), Bolívar (Bolivar), Bogotá D.C. (Bogota D.c.), Atlántico, Córdoba, Chocó, Boyacá, Vaupés, Guainía, San Andrés y Providencia.
+- ✅ **"Víctimas" plural** consolidado a "Víctima del Conflicto Armado" (117 registros).
+- ✅ **Charts con etiquetas de valor** al final de cada barra (LabelList).
+- ✅ **Tipo de ubicación viene del "Tipo de vivienda"** del archivo real: Urbana 12.455, Rural 3.261, Semiurbana 306, Semirural 143, Sin dato 296.
+- ✅ **Grupo etario del campo "Gruopo etario"** del archivo. Grupos etarios cronológicos (Adolescencia → Persona mayor).
+- ✅ **399 docentes reales** con `documento`, `iddoc`, `correo_personal`, `correo_institucional` completos.
+- ✅ **737 relaciones docente-materia** consolidadas.
+- ✅ **Textos en Title Case español**: "Administración de Empresas", "Ingeniería de Software y Datos", "Víctima del Conflicto Armado", "Bogotá D.C.".
+- ✅ **Consolidación de vulnerabilidad**: 15+ variantes ortográficas fusionadas en 9-10 categorías canónicas.
 
 ## Datos reales cargados (2026-08 · única fuente de verdad)
 - **16.461 estudiantes** (CARACTERIZACION_2026.xlsx)
@@ -44,7 +44,7 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - **169.376 notas** — 2025-2 (84.871, prom 3.45) + **2026-1** (84.505, prom 3.12) · Promedio ponderado: **3.29**
 - **399 docentes** reales + demo = 400
 - **5 facultades**, **59 programas** SNIES (21 con estudiantes activos)
-- **KPIs auditados**: Vivienda rural 20.7% · Vulnerables 17.3% · Víctimas 8.4% · Discapacidad 1.2%
+- **KPIs auditados**: Vivienda rural 20.7% · Vulnerables 17.3% · Víctimas 8.5% · Discapacidad 1.2%
 - ✅ **Endpoint /en-riesgo**: score de riesgo combinado (nota bajo + factores vulnerabilidad)
 
 ## Implemented (2026-02)

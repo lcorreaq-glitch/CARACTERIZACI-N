@@ -154,6 +154,13 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
     _ORDEN = {"Adolescencia": 1, "Juventud": 2, "Adultez joven": 3, "Adultez media": 4, "Persona mayor": 5, "Sin dato": 6}
     by_edad.sort(key=lambda x: _ORDEN.get(x.get("rango", ""), 99))
 
+    by_rango_edad = await coll.aggregate(pipeline + [
+        {"$group": {"_id": "$rango_edad", "n": {"$sum": 1}}},
+        {"$project": {"_id": 0, "rango": "$_id", "n": 1}}
+    ]).to_list(15)
+    _ORDEN_R = {"Menor 18": 1, "18-22": 2, "23-27": 3, "28-32": 4, "33-40": 5, "41-50": 6, "51+": 7}
+    by_rango_edad.sort(key=lambda x: _ORDEN_R.get(x.get("rango", ""), 99))
+
     by_vulnerabilidad = await coll.aggregate(pipeline + [
         {"$match": {"grupo_vulnerable": True}},
         {"$group": {"_id": "$tipo_grupo_vulnerable", "n": {"$sum": 1}}},
@@ -170,8 +177,8 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
     ]).to_list(15)
 
     by_departamento = await coll.aggregate(pipeline + [
-        {"$match": {"departamento_residencia": {"$ne": None}}},
-        {"$group": {"_id": "$departamento_residencia", "n": {"$sum": 1}}},
+        {"$match": {"departamento": {"$nin": [None, "", "Sin Dato", "Sin dato"]}}},
+        {"$group": {"_id": "$departamento", "n": {"$sum": 1}}},
         {"$sort": {"n": -1}},
         {"$limit": 15},
         {"$project": {"_id": 0, "departamento": "$_id", "n": 1}}
@@ -216,6 +223,7 @@ async def executive(match: dict = Depends(_common_params), user=Depends(get_curr
         "by_estrato": by_estrato,
         "by_ubicacion": by_ubicacion,
         "by_edad": by_edad,
+        "by_rango_edad": by_rango_edad,
         "by_vulnerabilidad": by_vulnerabilidad,
         "by_pais": by_pais,
         "by_departamento": by_departamento,
