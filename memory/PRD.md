@@ -24,6 +24,12 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - IA: resúmenes automáticos vía OpenAI GPT-5.4 (Emergent LLM Key)
 - Exportación PDF/Excel
 
+## Últimos ajustes (2026-08)
+- ✅ **Vista /grupos NUEVA**: 1.311 grupos filtrables por código/asignatura/docente/programa + modal detalle con estudiantes, notas históricas por periodo y KPIs
+- ✅ Endpoints: `GET /api/admin/grupos` (con conteos), `GET /api/admin/grupos/{codigo}` (detalle), `PUT /api/admin/programas/{id}` (editar), `GET /api/admin/facultades-stats`
+- ✅ Vista rica de **Programas** con ojo/modal, buscador, filtro por nivel, badges coloreados
+- ✅ Datos limpios: nombres Title Case, códigos SNIES sin `.0`, nivel/modalidad rellenados
+
 ## Datos reales cargados (2026-08)
 - ✅ **16.461 estudiantes** reales (CARACTERIZACION_2026.xlsx) — homologados con schema institucional
 - ✅ **1.311 grupos** activos periodo 2026-2 (ASIGNACION_GRUPO_CONSOLIDADO_2026_2)

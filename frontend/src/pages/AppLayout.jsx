@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 import {
   LayoutDashboard, GraduationCap, Map, History, Upload, Settings, Brain,
-  LogOut, Sun, Moon, Filter, ChevronDown, X, Users
+  LogOut, Sun, Moon, Filter, ChevronDown, X, Users, BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -25,6 +25,7 @@ const NAV = [
   { to: "/historico", label: "Histórico", icon: History, hideForDocente: true },
   { to: "/insights", label: "Insights IA", icon: Brain, hideForDocente: true },
   { to: "/cargas", label: "Cargas Excel", icon: Upload, admin: true },
+  { to: "/grupos", label: "Grupos", icon: BookOpen, admin: true },
   { to: "/admin", label: "Administración", icon: Settings, admin: true },
 ];
 

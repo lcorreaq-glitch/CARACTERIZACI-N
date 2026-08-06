@@ -115,3 +115,138 @@ async def create_docente_materia(payload: DocenteMateriaIn, user=Depends(require
 async def delete_dm(item_id: str, user=Depends(require_roles("superadmin", "admin"))):
     await db.docente_materia.delete_one({"id": item_id})
     return {"ok": True}
+
+
+
+# ---------- Grupos (enriched with counts) ----------
+@router.get("/grupos")
+async def list_grupos(
+    programa: str | None = None,
+    facultad: str | None = None,
+    periodo: str | None = None,
+    docente_id: str | None = None,
+    q: str | None = None,
+    limit: int = 500,
+    user=Depends(require_roles("superadmin", "admin")),
+):
+    """Lista grupos enriquecidos con conteo de estudiantes matriculados y promedio del docente."""
+    match = {}
+    if programa: match["programa"] = programa
+    if facultad: match["facultad"] = facultad
+    if periodo: match["periodo"] = periodo
+    if docente_id: match["docente_id"] = docente_id
+    if q:
+        rx = {"$regex": q, "$options": "i"}
+        match["$or"] = [{"codigo_grupo": rx}, {"asignatura_nombre": rx}, {"docente_nombre": rx}, {"programa": rx}]
+
+    grupos = await db.grupos.find(match, {"_id": 0}).sort("codigo_grupo", 1).limit(limit).to_list(limit)
+
+    # Enrich with estudiantes count + promedio
+    codigos = [g["codigo_grupo"] for g in grupos]
+    if codigos:
+        matr_pipe = [
+            {"$match": {"codigo_grupo": {"$in": codigos}}},
+            {"$group": {"_id": "$codigo_grupo", "n": {"$sum": 1}}},
+        ]
+        matr_map = {r["_id"]: r["n"] async for r in db.matriculas.aggregate(matr_pipe)}
+        # Notes promedio (usando docente + asignatura para cruzar histórico)
+        for g in grupos:
+            g["total_estudiantes"] = matr_map.get(g["codigo_grupo"], 0)
+            # Promedio: buscar notas por (docente_id + codigo_asignatura)
+            if g.get("docente_id") and g.get("asignatura_codigo"):
+                notas_agg = await db.historico_notas.aggregate([
+                    {"$match": {"docente_id": g["docente_id"], "codigo_asignatura": g["asignatura_codigo"]}},
+                    {"$group": {"_id": None, "prom": {"$avg": "$nota"}, "n": {"$sum": 1}}}
+                ]).to_list(1)
+                if notas_agg:
+                    g["promedio_historico"] = round(notas_agg[0]["prom"] or 0, 2)
+                    g["notas_historico"] = notas_agg[0]["n"]
+                else:
+                    g["promedio_historico"] = None
+                    g["notas_historico"] = 0
+
+    total = await db.grupos.count_documents(match)
+    return {"items": grupos, "total": total, "limit": limit}
+
+
+@router.get("/grupos/{codigo_grupo}")
+async def get_grupo_detail(codigo_grupo: str, user=Depends(require_roles("superadmin", "admin"))):
+    """Detalle completo de un grupo: metadata + estudiantes + notas históricas."""
+    grupo = await db.grupos.find_one({"codigo_grupo": codigo_grupo}, {"_id": 0})
+    if not grupo:
+        raise HTTPException(404, "Grupo no encontrado")
+
+    # Matriculados
+    matriculas = await db.matriculas.find(
+        {"codigo_grupo": codigo_grupo},
+        {"_id": 0, "cedula": 1, "estado": 1, "email_estudiante": 1, "email_institucional_estudiante": 1}
+    ).to_list(500)
+    cedulas = [m["cedula"] for m in matriculas]
+
+    # Estudiantes enriquecidos
+    estudiantes = []
+    if cedulas:
+        est_docs = await db.students.find(
+            {"cedula": {"$in": cedulas}},
+            {"_id": 0, "cedula": 1, "nombre": 1, "apellidos": 1, "programa": 1,
+             "promedio": 1, "estrato": 1, "sisben_nivel": 1,
+             "grupo_vulnerable": 1, "victima_conflicto": 1, "tipo_ubicacion": 1}
+        ).to_list(500)
+        est_map = {e["cedula"]: e for e in est_docs}
+        for m in matriculas:
+            e = est_map.get(m["cedula"], {})
+            estudiantes.append({**e, "estado_matricula": m.get("estado")})
+
+    # Notas históricas del docente en esa asignatura (todos los periodos)
+    notas_periodos = []
+    if grupo.get("docente_id") and grupo.get("asignatura_codigo"):
+        pipe = [
+            {"$match": {"docente_id": grupo["docente_id"], "codigo_asignatura": grupo["asignatura_codigo"]}},
+            {"$group": {"_id": "$periodo", "prom": {"$avg": "$nota"}, "n": {"$sum": 1},
+                        "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}}}},
+            {"$sort": {"_id": -1}},
+            {"$project": {"_id": 0, "periodo": "$_id",
+                          "promedio": {"$round": ["$prom", 2]}, "total": "$n",
+                          "aprobadas": "$aprob",
+                          "tasa": {"$round": [{"$multiply": [{"$divide": ["$aprob", "$n"]}, 100]}, 1]}}}
+        ]
+        notas_periodos = await db.historico_notas.aggregate(pipe).to_list(20)
+
+    return {
+        "grupo": grupo,
+        "total_estudiantes": len(matriculas),
+        "estudiantes": estudiantes,
+        "notas_por_periodo": notas_periodos,
+    }
+
+
+# ---------- Facultades enriquecidas ----------
+@router.get("/facultades-stats")
+async def facultades_stats(user=Depends(require_roles("superadmin", "admin"))):
+    """Facultades con contadores de programas, estudiantes, docentes."""
+    facs = await db.facultades.find({}, {"_id": 0}).to_list(50)
+    for f in facs:
+        f["total_programas"] = await db.programas.count_documents({"facultad_id": f["id"]})
+        f["total_estudiantes"] = await db.students.count_documents({"facultad": f["nombre"]})
+        f["total_grupos"] = await db.grupos.count_documents({"facultad": f["nombre"]})
+        # Promedio
+        prom_agg = await db.students.aggregate([
+            {"$match": {"facultad": f["nombre"], "promedio": {"$gt": 0}}},
+            {"$group": {"_id": None, "prom": {"$avg": "$promedio"}}}
+        ]).to_list(1)
+        f["promedio"] = round(prom_agg[0]["prom"], 2) if prom_agg else 0
+    return facs
+
+
+@router.put("/programas/{item_id}")
+async def update_programa(item_id: str, payload: dict, user=Depends(require_roles("superadmin", "admin"))):
+    """Editar programa. Acepta campos parciales."""
+    allowed = {"nombre", "nombre_corto", "codigo", "facultad_id", "facultad_nombre",
+               "facultad_corta", "nivel", "modalidad", "estado"}
+    upd = {k: v for k, v in payload.items() if k in allowed}
+    if not upd:
+        raise HTTPException(400, "Nada que actualizar")
+    r = await db.programas.update_one({"id": item_id}, {"$set": upd})
+    if not r.matched_count:
+        raise HTTPException(404, "Programa no encontrado")
+    return {"ok": True, "modified": r.modified_count}
