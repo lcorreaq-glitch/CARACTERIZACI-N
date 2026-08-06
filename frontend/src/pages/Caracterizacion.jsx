@@ -131,8 +131,30 @@ export default function Caracterizacion() {
         </div>
       ) : (
         <>
+          {/* Aviso de matrículas cuando hay filtro por docente o grupo */}
+          {data.matriculas_total != null && data.matriculas_total !== total && (
+            <div className="dense-card p-3 border-l-4 border-l-[#0033A0] bg-[#0033A0]/5 flex items-start gap-3" data-testid="matriculas-vs-unicos">
+              <div className="h-8 w-8 grid place-items-center rounded bg-[#0033A0]/10 text-[#0033A0] text-xs font-bold">
+                {data.cursos_count}
+              </div>
+              <div className="text-xs">
+                <p className="font-semibold text-[#0033A0]">
+                  {data.matriculas_total} matrículas en {data.cursos_count} curso{data.cursos_count !== 1 ? "s" : ""} · {total} estudiantes únicos
+                </p>
+                <p className="text-muted-foreground mt-0.5">
+                  La diferencia ({data.matriculas_total - total}) corresponde a estudiantes que están matriculados en más de un curso del mismo docente. En caracterización cada persona cuenta una sola vez.
+                </p>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KPI label="Total filtrado" value={fmt(total)} sub="estudiantes" icon={Users} accent="bg-[#0033A0]/10 text-[#0033A0]" />
+            <KPI
+              label={data.matriculas_total != null && data.matriculas_total !== total ? "Estudiantes únicos" : "Total filtrado"}
+              value={fmt(total)}
+              sub={data.matriculas_total != null && data.matriculas_total !== total ? `${data.matriculas_total} matrículas` : "estudiantes"}
+              icon={Users}
+              accent="bg-[#0033A0]/10 text-[#0033A0]"
+            />
             <KPI label="Edad promedio" value={`${k.promedio_edad} años`} sub="grupo seleccionado" icon={Sparkles} accent="bg-purple-500/10 text-purple-700" />
             <KPI label="Ingreso familiar" value={fmtMoney(k.promedio_ingresos)} sub="promedio mensual" icon={Wallet} accent="bg-emerald-500/10 text-emerald-700" />
             <KPI label="Promedio académico" value={(k.promedio_academico ?? 0).toFixed(2)} sub="Escala 0–5" icon={Sparkles} accent="bg-[#FFCD00]/15 text-[#7A6300]" />

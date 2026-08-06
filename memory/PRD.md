@@ -24,6 +24,13 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - IA: resúmenes automáticos vía OpenAI GPT-5.4 (Emergent LLM Key)
 - Exportación PDF/Excel
 
+## Latest session (2026-08-06 · iteración 5 — Aclaración únicos vs matrículas)
+- 📋 **No era bug**: Fernaris tiene 85 + 44 = 129 matrículas pero **128 estudiantes únicos** porque 1 estudiante (Claudia López) está en ambos cursos. En caracterización se cuenta cada persona una sola vez (correcto).
+- ✅ **UI mejorada** para hacer transparente la distinción:
+  - Nuevo banner informativo azul aparece cuando `matriculas_total ≠ total`: "129 matrículas en 2 cursos · 128 estudiantes únicos" con explicación de la diferencia.
+  - El KPI cambia dinámicamente de etiqueta: "Total filtrado" → "Estudiantes únicos" cuando hay solapamiento, con subtítulo "129 matrículas".
+- ✅ **Backend**: `GET /api/caracterizacion/overview` ahora retorna `matriculas_total` y `cursos_count` cuando hay filtro por `docente_id` o `codigo_grupo`.
+
 ## Latest session (2026-08-06 · iteración 4 — Fix filtro docente)
 - 🐛 **Fix crítico**: al filtrar dashboards por `docente_id`, se estaba haciendo UNIÓN de matrículas activas + histórico de notas de periodos anteriores. Un docente con 145 estudiantes actuales pero 43 estudiantes en periodos 2025-2/2026-1 mostraba **187** en lugar de **145**.
 - ✅ **Solución**: `_apply_docente_materia` en `dashboards_router`, `caracterizacion_router` y `exports_router` ahora usa solo **matriculas activas** para filtrar por docente (el histórico se considera solo cuando se filtra por `materia_id`).

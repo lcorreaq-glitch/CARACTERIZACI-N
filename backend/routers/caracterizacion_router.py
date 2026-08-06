@@ -128,10 +128,25 @@ async def _group_array(match, field, limit=15):
 
 
 @router.get("/overview")
-async def overview(match: dict = Depends(_params), user=Depends(get_current_user)):
+async def overview(
+    match: dict = Depends(_params),
+    docente_id: Optional[str] = None,
+    codigo_grupo: Optional[str] = None,
+    user=Depends(get_current_user),
+):
     total = await db.students.count_documents(match)
+
+    # Contexto adicional cuando hay filtro de docente/grupo: total matrículas + cursos
+    meta = {}
+    if codigo_grupo and codigo_grupo not in ("all", "todos", ""):
+        meta["matriculas_total"] = await db.matriculas.count_documents({"codigo_grupo": codigo_grupo})
+        meta["cursos_count"] = 1
+    elif docente_id and docente_id not in ("all", "todos", ""):
+        meta["matriculas_total"] = await db.matriculas.count_documents({"docente_id": docente_id})
+        meta["cursos_count"] = await db.grupos.count_documents({"docente_id": docente_id})
+
     if total == 0:
-        return {"total": 0, "blocks": {}}
+        return {"total": 0, "blocks": {}, **meta}
 
     # Blocks of analysis
     blocks = {
@@ -202,6 +217,7 @@ async def overview(match: dict = Depends(_params), user=Depends(get_current_user
 
     return {
         "total": total,
+        **meta,
         "kpis": {
             "promedio_edad": round(k.get("promedio_edad", 0) or 0, 1),
             "promedio_ingresos": round(k.get("promedio_ingresos", 0) or 0, 0),
