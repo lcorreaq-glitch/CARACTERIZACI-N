@@ -45,20 +45,29 @@ export default function Territorial() {
   const resumen = data?.resumen || {};
   const isColombia = (m) => (m.pais || "").toLowerCase().includes("colombia");
 
-  // Opciones para los selectores locales
+  // Opciones para los selectores locales (respetan la vista Nacional/Internacional/Todo)
   const paisesUnicos = useMemo(() => {
     const s = new Set();
-    allMunis.forEach((m) => m.pais && s.add(m.pais));
+    allMunis.forEach((m) => {
+      if (!m.pais) return;
+      if (view === "nacional" && !isColombia(m)) return;
+      if (view === "internacional" && isColombia(m)) return;
+      s.add(m.pais);
+    });
     return Array.from(s).sort();
-  }, [allMunis]);
+  }, [allMunis, view]);
 
   const departamentosUnicos = useMemo(() => {
     const s = new Set();
     allMunis.forEach((m) => {
-      if (m.departamento && (pais === "all" || m.pais === pais)) s.add(m.departamento);
+      if (!m.departamento) return;
+      if (view === "nacional" && !isColombia(m)) return;
+      if (view === "internacional" && isColombia(m)) return;
+      if (pais !== "all" && m.pais !== pais) return;
+      s.add(m.departamento);
     });
     return Array.from(s).sort();
-  }, [allMunis, pais]);
+  }, [allMunis, pais, view]);
 
   // Municipios filtrados aplicando vista + filtros locales + búsqueda
   const munis = useMemo(() => {
@@ -122,13 +131,29 @@ export default function Territorial() {
     });
   };
 
-  // Sugerencias de búsqueda (matches parciales)
+  // Sugerencias de búsqueda: respetan país/departamento activos y desambiguan homónimos
   const suggestions = useMemo(() => {
     if (!search.trim() || search.trim().length < 2) return [];
     const q = search.trim().toLowerCase();
     return allMunis
-      .filter((m) => m.lat && m.lon && (m.nombre || "").toLowerCase().includes(q))
-      .slice(0, 8);
+      .filter((m) => {
+        if (!m.lat || !m.lon) return false;
+        if (view === "nacional" && !isColombia(m)) return false;
+        if (view === "internacional" && isColombia(m)) return false;
+        if (pais !== "all" && m.pais !== pais) return false;
+        if (departamento !== "all" && m.departamento !== departamento) return false;
+        return (m.nombre || "").toLowerCase().includes(q);
+      })
+      .slice(0, 12);
+  }, [allMunis, search, view, pais, departamento]);
+
+  // Coincidencias globales (sin filtros de país/depto) para pista cuando el filtro esconde resultados
+  const globalMatches = useMemo(() => {
+    if (!search.trim() || search.trim().length < 2) return [];
+    const q = search.trim().toLowerCase();
+    return allMunis
+      .filter((m) => m.lat && m.lon && (m.nombre || "").toLowerCase() === q)
+      .slice(0, 5);
   }, [allMunis, search]);
 
   return (
@@ -200,26 +225,63 @@ export default function Territorial() {
                     className="w-full text-left px-3 py-2 hover:bg-muted transition-soft border-b border-border/40 last:border-0"
                     data-testid={`sugg-${m.codigo}`}
                   >
-                    <div className="text-xs font-medium">{m.nombre}</div>
+                    <div className="text-xs font-medium">
+                      {m.nombre} <span className="text-muted-foreground font-normal">· {m.departamento}</span>
+                    </div>
                     <div className="text-[10px] text-muted-foreground flex justify-between">
-                      <span>{m.departamento} · {m.pais}</span>
+                      <span>{m.pais} · DIVIPOLA {m.codigo}</span>
                       <span>{m.n} est · prom {m.prom?.toFixed(2)}</span>
                     </div>
                   </button>
                 ))}
               </div>
             )}
+            {suggestions.length === 0 && search.length >= 2 && !selectedMuni && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-sm shadow-lg z-[500] px-3 py-2 text-[11px] text-muted-foreground">
+                <div>Sin coincidencias para &quot;{search}&quot; con los filtros actuales.</div>
+                {globalMatches.length > 0 && (departamento !== "all" || pais !== "all") && (
+                  <div className="mt-2 pt-2 border-t border-border/60">
+                    <div className="text-[10px] font-medium text-foreground mb-1">Este municipio existe en:</div>
+                    {globalMatches.map((m, i) => (
+                      <button
+                        key={`gm-${m.codigo}-${i}`}
+                        onClick={() => {
+                          setPais(m.pais);
+                          setDepartamento(m.departamento);
+                          setSelectedMuni(m);
+                          setSearch(m.nombre);
+                        }}
+                        className="w-full text-left px-2 py-1 hover:bg-muted rounded-sm"
+                        data-testid={`hint-${m.codigo}`}
+                      >
+                        <span className="font-medium text-foreground">{m.nombre}</span>
+                        <span> · {m.departamento} · {m.pais}</span>
+                        <span className="ml-1">({m.n} est)</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <Select value={pais} onValueChange={(v) => { setPais(v); setDepartamento("all"); }}>
-            <SelectTrigger className="rounded-sm" data-testid="filter-pais"><SelectValue placeholder="País" /></SelectTrigger>
+            <SelectTrigger className="rounded-sm" data-testid="filter-pais">
+              <SelectValue placeholder="País">
+                {pais === "all" ? `Todos los países (${paisesUnicos.length})` : pais}
+              </SelectValue>
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los países ({paisesUnicos.length})</SelectItem>
               {paisesUnicos.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={departamento} onValueChange={setDepartamento} disabled={pais === "all" && departamentosUnicos.length > 40}>
-            <SelectTrigger className="rounded-sm" data-testid="filter-departamento"><SelectValue placeholder="Departamento" /></SelectTrigger>
-            <SelectContent>
+          <Select value={departamento} onValueChange={setDepartamento}>
+            <SelectTrigger className="rounded-sm" data-testid="filter-departamento">
+              <SelectValue placeholder="Departamento">
+                {departamento === "all" ? `Todos los depto. (${departamentosUnicos.length})` : departamento}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="max-h-72">
               <SelectItem value="all">Todos los depto. ({departamentosUnicos.length})</SelectItem>
               {departamentosUnicos.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
             </SelectContent>
@@ -230,11 +292,13 @@ export default function Territorial() {
         </div>
         {selectedMuni && (
           <div className="mt-3 flex items-center gap-3 border-t border-border pt-3">
-            <Badge className="rounded-sm bg-[#0033A0]">{selectedMuni.nombre}</Badge>
+            <Badge className="rounded-sm bg-[#0033A0]">
+              {selectedMuni.nombre} · {selectedMuni.departamento}
+            </Badge>
             <span className="text-xs text-muted-foreground">
-              {selectedMuni.departamento} · {selectedMuni.pais} · <b>{selectedMuni.n}</b> estudiantes · promedio <b>{selectedMuni.prom?.toFixed(2)}</b>
+              {selectedMuni.pais} · DIVIPOLA <b>{selectedMuni.codigo}</b> · <b>{selectedMuni.n}</b> estudiantes · promedio <b>{selectedMuni.prom?.toFixed(2)}</b>
             </span>
-            <Button variant="ghost" size="sm" className="h-7 text-xs ml-auto" onClick={() => setSelectedMuni(null)}>
+            <Button variant="ghost" size="sm" className="h-7 text-xs ml-auto" onClick={() => { setSelectedMuni(null); setSearch(""); }}>
               <X className="w-3 h-3 mr-1" /> Deseleccionar
             </Button>
           </div>

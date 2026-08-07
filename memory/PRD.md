@@ -24,6 +24,14 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - IA: resúmenes automáticos vía OpenAI GPT-5.4 (Emergent LLM Key)
 - Exportación PDF/Excel
 
+## Latest session (2026-02-07 · iteración 10 — Territorial: fix filtro cascada + desambiguación homónimos)
+- ✅ **Bug fix**: filtro Departamento estaba deshabilitado cuando "país = todos" (regla `> 40` deshabilitaba el selector). Ahora siempre está habilitado.
+- ✅ **Búsqueda respeta cascada**: al filtrar Departamento y buscar un municipio, las sugerencias se filtran por el depto activo.
+- ✅ **Desambiguación de homónimos**: cuando la búsqueda no arroja resultados por filtros activos, el UI muestra: *"Este municipio existe en: Argelia · Valle del Cauca · Colombia (168 est)"*. Clic aplica los filtros correctos + fly-to.
+- ✅ **Chip mejorado**: badge del municipio seleccionado muestra `Nombre · Departamento` + código DIVIPOLA.
+- ✅ **SelectValue custom**: los dropdowns País y Departamento muestran valor actual en su trigger cuando hay uno seleccionado.
+- Verificación: screenshots muestran búsqueda de "Argelia" con Depto=Cauca → mensaje "Sin coincidencias" + hint clickeable → aplica País=Colombia, Depto=Valle del Cauca, fly-to correcto.
+
 ## Latest session (2026-08-06 · iteración 9 — Territorial: filtros + búsqueda + validación de promedios)
 - ✅ **Buscador de municipio por nombre** con autocomplete (muestra ubicación + estudiantes + promedio). Al seleccionar hace fly-to en el mapa.
 - ✅ **Filtros locales del mapa**: País (11) y Departamento (51 cascada). Con botón "Limpiar filtros".
