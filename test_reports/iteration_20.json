@@ -1,0 +1,54 @@
+{
+  "summary": "Iter20 — Tanda 1 (Configuración/SMTP/AI/envío credenciales, Ficha Facultad, filtros con búsqueda, Territorial no-match). Backend: 15/15 tests pass (1 destructivo intencionalmente omitido). Frontend: TODAS las UI clave funcionan (tabs SMTP/AI/Envíos con persistencia, RBAC profesor→redirect, 404 send-creds buttons, 5 ficha-fac buttons + dialog con 12 KPIs, búsqueda Docente/Grupo dentro del panel Filtros, Territorial 'Sin coincidencias' + hint 'Argelia · Valle del Cauca (168 est)' + overlay + botón 'Limpiar filtros' que restaura 305 municipios). Se encontraron 2 BUGS CRÍTICOS en el flujo de send-credentials.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/config/send-credentials/{user_id}",
+        "issue": "Reset de contraseña ocurre ANTES de verificar SMTP. Si SMTP está deshabilitado el endpoint responde 400 'SMTP no está habilitado' pero el usuario ya tiene una contraseña random hasheada en DB → queda BLOQUEADO permanentemente sin que nadie sepa la contraseña. Reproducido durante testing: el superadmin y todos los usuarios test quedaron con credenciales inválidas y hubo que restaurar manualmente vía MongoDB.",
+        "priority": "CRITICAL"
+      },
+      {
+        "endpoint": "POST /api/config/send-credentials-bulk",
+        "issue": "(1) Mismo defecto de orden: hace update_one con hash_password(pw) para CADA usuario antes de intentar enviar; si SMTP está deshabilitado todos los profesores quedan bloqueados. (2) El loop es secuencial y hace bcrypt (~300ms) + intento SMTP por cada usuario → con 400 profesores excede el timeout 60s de Cloudflare y devuelve 502; los cambios ya se aplicaron a decenas/cientos de filas antes del timeout. only_missing no protege en la 2ª llamada porque credentials_sent_at no se marca en fallos, pero la contraseña sí quedó cambiada.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {"endpoint": "GET /api/admin/users?role=profesor&limit=1", "issue": "Los query params 'role' y 'limit' son ignorados; devuelve todos los usuarios (404). No es de esta iteración pero afecta al UX del envío."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "FichaFacultadDialog", "issues": ["Warning React: DialogContent sin `Description` ni `aria-describedby` (accesibilidad)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_config_and_ficha.py",
+    "/app/test_reports/pytest/pytest_iter20.xml"
+  ],
+  "action_items": [
+    "CRITICAL: En /api/config/send-credentials/{user_id} y send-credentials-bulk, verificar SMTP habilitado y credenciales SMTP presentes ANTES de resetear la contraseña; o resetear+enviar en una transacción con rollback si falla el envío. Idea rápida: llamar a get_smtp_config() y devolver 400 si !enabled ANTES del hash_password.",
+    "CRITICAL: /api/config/send-credentials-bulk debe ejecutarse en background (Celery/asyncio task) y devolver un job_id, o al menos cortocircuitar rápidamente si SMTP no habilitado. Actualmente es imposible ejecutarlo con 400 usuarios sin 502.",
+    "MINOR: /api/admin/users no filtra por role ni respeta limit; agregar query params o documentar.",
+    "MINOR: Añadir <DialogDescription> al FichaFacultadDialog."
+  ],
+  "critical_code_review_comments": [
+    "config_router.send_credentials_one línea 147-159: reset de password DEBE ir después del check de SMTP. Es un defecto de orden que causa lockout silencioso.",
+    "config_router.send_credentials_bulk línea 199-207: mismo defecto, escalado a N usuarios. Además el bcrypt síncrono dentro del loop hace inviable el endpoint con >~150 usuarios via ingress.",
+    "email_service.send_credentials_email retorna 'SMTP no está habilitado' con 400 pero el password ya se modificó — coordinar contratos entre capas.",
+    "config_router / email_service: bcrypt es CPU-bound; usar await run_in_executor o similar para no bloquear el event loop.",
+    "config_router.smtp_test devuelve 400 correctamente; consistente con lo pedido."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_config_and_ficha.py (nuevo)"
+  ],
+  "success_rate": {"backend": "94% (15/16, 1 skipped por bug destructivo)", "frontend": "100% de features de Tanda 1"},
+  "test_credentials": "Usadas desde /app/memory/test_credentials.md. NOTA: Durante los primeros runs del test se clobberó la contraseña del superadmin y de docente.demo/direccion/decano/coord (efecto del bug crítico #1 y #2). Se restauraron vía MongoDB con hash_password. Los tests actuales ya no son destructivos (usan usuario TEST_credsend@example.com desechable).",
+  "seed_data_creation": "El test 'test_send_credentials_one_smtp_disabled' crea y elimina TEST_credsend@example.com dentro del propio test.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Al re-probar el envío de credenciales después del fix, ver que: (a) con SMTP deshabilitado, el endpoint /api/config/send-credentials/{id} responda 400 SIN modificar la contraseña del usuario (verificar con re-login del usuario), (b) /api/config/send-credentials-bulk responda rápido (<5s) cuando SMTP está deshabilitado, sin modificar ningún usuario. Reactivar test_send_credentials_bulk_smtp_disabled quitando el @pytest.mark.skip. Test file: /app/backend/tests/test_config_and_ficha.py.",
+  "rca of the issue": "Ambos endpoints en /app/backend/routers/config_router.py invierten el orden de las operaciones: (1) resetean password → hash_password + db.users.update_one, (2) llaman send_credentials_email() que internamente valida SMTP y retorna {ok:false, error:'SMTP no está habilitado'}, (3) el router convierte a HTTPException 400. Consecuencia: el side-effect (cambio de password) ya se persistió cuando el error se retorna. Mitigación: mover la validación de SMTP habilitado al inicio del handler; opcionalmente exponer una función `smtp_ready()` en email_service que se llame antes del reset."
+}

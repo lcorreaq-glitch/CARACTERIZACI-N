@@ -14,6 +14,7 @@ import Docente from "@/pages/Docente";
 import Upload from "@/pages/Upload";
 import Admin from "@/pages/Admin";
 import Grupos from "@/pages/Grupos";
+import Configuracion from "@/pages/Configuracion";
 import "@/App.css";
 
 function Protected({ children, requireAdmin = false }) {
@@ -57,6 +58,7 @@ function App() {
             <Route path="cargas" element={<Protected requireAdmin><Upload /></Protected>} />
             <Route path="grupos" element={<Protected requireAdmin><Grupos /></Protected>} />
             <Route path="admin" element={<Protected requireAdmin><Admin /></Protected>} />
+            <Route path="configuracion" element={<Protected requireAdmin><Configuracion /></Protected>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -238,28 +238,9 @@ export default function Territorial() {
             )}
             {suggestions.length === 0 && search.length >= 2 && !selectedMuni && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-sm shadow-lg z-[500] px-3 py-2 text-[11px] text-muted-foreground">
-                <div>Sin coincidencias para &quot;{search}&quot; con los filtros actuales.</div>
+                Sin coincidencias para &quot;{search}&quot; con los filtros actuales.
                 {globalMatches.length > 0 && (departamento !== "all" || pais !== "all") && (
-                  <div className="mt-2 pt-2 border-t border-border/60">
-                    <div className="text-[10px] font-medium text-foreground mb-1">Este municipio existe en:</div>
-                    {globalMatches.map((m, i) => (
-                      <button
-                        key={`gm-${m.codigo}-${i}`}
-                        onClick={() => {
-                          setPais(m.pais);
-                          setDepartamento(m.departamento);
-                          setSelectedMuni(m);
-                          setSearch(m.nombre);
-                        }}
-                        className="w-full text-left px-2 py-1 hover:bg-muted rounded-sm"
-                        data-testid={`hint-${m.codigo}`}
-                      >
-                        <span className="font-medium text-foreground">{m.nombre}</span>
-                        <span> · {m.departamento} · {m.pais}</span>
-                        <span className="ml-1">({m.n} est)</span>
-                      </button>
-                    ))}
-                  </div>
+                  <div className="mt-1 text-[10px] text-amber-700">↓ Ver alternativas debajo del filtro</div>
                 )}
               </div>
             )}
@@ -286,12 +267,35 @@ export default function Territorial() {
               {departamentosUnicos.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
             </SelectContent>
           </Select>
-          <div className="text-xs text-muted-foreground flex items-center px-2">
-            <b>{munis.length}</b>&nbsp;municipios visibles · <b className="ml-1">{estudiantesVista.toLocaleString("es-CO")}</b>&nbsp;estudiantes
+          <div className="text-xs text-muted-foreground flex items-center px-2 whitespace-nowrap">
+            <b className={munis.length === 0 ? "text-amber-700" : ""}>{munis.length}</b>
+            <span className="mx-1">municipios visibles ·</span>
+            <b>{estudiantesVista.toLocaleString("es-CO")}</b>
+            <span className="ml-1">estudiantes</span>
           </div>
         </div>
+        {/* Hint fuera del mapa cuando búsqueda no coincide */}
+        {suggestions.length === 0 && search.trim().length >= 2 && !selectedMuni && globalMatches.length > 0 && (departamento !== "all" || pais !== "all") && (
+          <div className="mt-3 border-t border-border pt-3 bg-amber-50/60 dark:bg-amber-500/5 -mx-4 px-4 pb-3">
+            <div className="text-[11px] text-amber-800 dark:text-amber-200 font-medium mb-2">
+              &quot;{search}&quot; no coincide con los filtros actuales. Este municipio existe en:
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {globalMatches.map((m, i) => (
+                <button
+                  key={`hint-b-${m.codigo}-${i}`}
+                  onClick={() => { setPais(m.pais); setDepartamento(m.departamento); setSelectedMuni(m); setSearch(m.nombre); }}
+                  className="text-[11px] px-2 py-1 rounded-sm bg-white dark:bg-background border border-amber-300 hover:border-[#0033A0] hover:bg-[#0033A0]/5 transition-soft"
+                  data-testid={`hint-b-${m.codigo}`}
+                >
+                  <b>{m.nombre}</b> · {m.departamento} · {m.pais} <span className="text-muted-foreground">({m.n} est)</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {selectedMuni && (
-          <div className="mt-3 flex items-center gap-3 border-t border-border pt-3">
+          <div className="mt-3 flex items-center gap-3 border-t border-border pt-3 flex-wrap">
             <Badge className="rounded-sm bg-[#0033A0]">
               {selectedMuni.nombre} · {selectedMuni.departamento}
             </Badge>
@@ -323,6 +327,22 @@ export default function Territorial() {
           </div>
           <div className="h-[540px] relative">
             {loading && <div className="absolute inset-0 grid place-items-center z-[1000] bg-card/50"><Skeleton className="h-full w-full" /></div>}
+            {!loading && munis.length === 0 && (
+              <div className="absolute inset-0 grid place-items-center z-[400] bg-card/85 pointer-events-none">
+                <div className="text-center max-w-md px-6 pointer-events-auto">
+                  <MapPin className="w-8 h-8 mx-auto text-amber-500 mb-2" />
+                  <p className="text-sm font-medium">Ningún municipio coincide con los filtros actuales</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Ajuste los filtros o pulse &quot;Limpiar filtros&quot; para volver a ver el mapa completo.
+                  </p>
+                  {hasLocalFilter && (
+                    <Button size="sm" variant="outline" className="mt-3 rounded-sm" onClick={clearFilters} data-testid="empty-clear-filters">
+                      <X className="w-3 h-3 mr-1" /> Limpiar filtros
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
             <ErrorBoundary resetKey={view}>
               <MapContainer key={view} center={mapCenter} zoom={mapZoom} style={{ height: "100%", width: "100%" }} scrollWheelZoom worldCopyJump>
                 <TileLayer

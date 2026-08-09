@@ -35,6 +35,7 @@ const NAV = [
   { to: "/cargas", label: "Cargas Excel", icon: Upload, admin: true },
   { to: "/grupos", label: "Grupos", icon: BookOpen, admin: true },
   { to: "/admin", label: "Administración", icon: Settings, admin: true },
+  { to: "/configuracion", label: "Configuración", icon: Settings, onlySuperadmin: true },
 ];
 
 export default function AppLayout() {
@@ -92,6 +93,7 @@ export default function AppLayout() {
     if (n.admin && !isAdmin) return false;
     if (n.onlyDocente && !canSeeMiPanel) return false;
     if (n.hideForDocente && isProfesor) return false;
+    if (n.onlySuperadmin && !isSuperadmin) return false;
     return true;
   });
 
@@ -223,6 +225,7 @@ function PeriodSelector() {
 
 function FiltersPanel() {
   const { filters, setFilter, opts, clear } = useFilters();
+  const [q, setQ] = useState({}); // per-key search
   // Cascade: if facultad is selected, restrict programas list to that facultad's programs
   const programasFiltrados = filters.facultad && opts.facultad_programa?.[filters.facultad]
     ? opts.facultad_programa[filters.facultad]
@@ -236,14 +239,13 @@ function FiltersPanel() {
     { key: "etnia", label: "Grupo étnico", list: opts.etnias || [] },
     { key: "tipo_ubicacion", label: "Ubicación", list: opts.ubicaciones || [] },
   ];
-  // Docente + Materia + Grupo (estructura distinta: list de objetos {id, nombre})
-  // Cascade: si hay docente_id seleccionado, filtra la lista de grupos a los de ese docente.
+  // Docente + Grupo (list of {id, nombre, codigo?})
   const gruposDelDocente = filters.docente_id
     ? (opts.grupos || []).filter((g) => g.docente_id === filters.docente_id)
     : (opts.grupos || []);
   const objectGroups = [
-    { key: "docente_id", label: `Docente${(opts.docentes || []).length ? ` (${opts.docentes.length})` : ""}`, list: opts.docentes || [] },
-    { key: "codigo_grupo", label: `Grupo${filters.docente_id ? ` (${gruposDelDocente.length} del docente)` : ` (${(opts.grupos || []).length})`}`, list: gruposDelDocente },
+    { key: "docente_id", label: `Docente${(opts.docentes || []).length ? ` (${opts.docentes.length})` : ""}`, list: opts.docentes || [], searchable: true, placeholder: "Buscar docente por nombre…" },
+    { key: "codigo_grupo", label: `Grupo${filters.docente_id ? ` (${gruposDelDocente.length} del docente)` : ` (${(opts.grupos || []).length})`}`, list: gruposDelDocente, searchable: true, placeholder: "Buscar por código, asignatura, día…" },
   ];
   const booleans = [
     { key: "sisben", label: "Beneficiario SISBEN" },
@@ -251,6 +253,17 @@ function FiltersPanel() {
     { key: "victima", label: "Víctima conflicto" },
     { key: "grupo_vulnerable", label: "Grupo vulnerable" },
   ];
+
+  // Filter object list by search query (case-insensitive, matches nombre + codigo + asignatura_codigo + dia)
+  const filterObjectList = (list, key) => {
+    const needle = (q[key] || "").trim().toLowerCase();
+    if (!needle) return list.slice(0, 200); // limit initial render for perf
+    return list.filter((v) => {
+      const hay = [v.nombre, v.codigo, v.asignatura_codigo, v.dia, v.hora, v.periodo]
+        .filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(needle);
+    }).slice(0, 200);
+  };
   return (
     <div className="h-full flex flex-col">
       <SheetHeader>
@@ -280,37 +293,59 @@ function FiltersPanel() {
               </AccordionContent>
             </AccordionItem>
           ))}
-          {objectGroups.map((g) => (
-            <AccordionItem key={g.key} value={g.key}>
-              <AccordionTrigger className="text-xs uppercase tracking-widest font-semibold py-3" data-testid={`filter-${g.key}-trigger`}>
-                {g.label} {filters[g.key] && <Badge variant="secondary" className="ml-2 h-4 text-[9px]">1</Badge>}
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="flex flex-col gap-1.5 py-1 max-h-72 overflow-y-auto pr-2">
-                  {g.list.length === 0 && <span className="text-xs text-muted-foreground italic">Aún no hay registros. Cargue datos en "Cargas Excel".</span>}
-                  {g.list.map((v) => (
-                    <button
-                      key={v.id}
-                      onClick={() => setFilter(g.key, filters[g.key] === v.id ? null : v.id)}
-                      data-testid={`filter-${g.key}-${(v.codigo || v.id).toString().slice(0, 14)}`}
-                      className={`text-left text-xs px-2 py-1.5 rounded transition-soft hover:bg-muted ${filters[g.key] === v.id ? "bg-[#0033A0]/10 text-[#0033A0] font-medium" : ""}`}
-                    >
-                      {v.codigo ? <span className="mono text-[10px] mr-2 text-muted-foreground">{v.codigo}</span> : null}
-                      {v.nombre}
-                      {g.key === "codigo_grupo" && (v.dia || v.hora || v.asignatura_codigo) && (
-                        <div className="text-[9px] text-muted-foreground mt-0.5">
-                          {v.asignatura_codigo && <span className="mono">{v.asignatura_codigo}</span>}
-                          {v.dia && <span className="ml-2">{v.dia}</span>}
-                          {v.hora && <span className="ml-1">{v.hora}</span>}
-                          {v.periodo && <span className="ml-2 uppercase">{v.periodo}</span>}
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
+          {objectGroups.map((g) => {
+            const shown = filterObjectList(g.list, g.key);
+            const hasSearch = g.searchable && g.list.length > 15;
+            return (
+              <AccordionItem key={g.key} value={g.key}>
+                <AccordionTrigger className="text-xs uppercase tracking-widest font-semibold py-3" data-testid={`filter-${g.key}-trigger`}>
+                  {g.label} {filters[g.key] && <Badge variant="secondary" className="ml-2 h-4 text-[9px]">1</Badge>}
+                </AccordionTrigger>
+                <AccordionContent>
+                  {hasSearch && (
+                    <div className="mb-2 sticky top-0 bg-card z-10">
+                      <input
+                        type="text"
+                        placeholder={g.placeholder}
+                        value={q[g.key] || ""}
+                        onChange={(e) => setQ({ ...q, [g.key]: e.target.value })}
+                        className="w-full text-xs px-2 py-1.5 rounded-sm border border-border bg-background focus:outline-none focus:ring-1 focus:ring-[#0033A0]"
+                        data-testid={`search-${g.key}`}
+                      />
+                      <div className="text-[9px] text-muted-foreground mt-1">
+                        Mostrando {shown.length} de {g.list.length}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1.5 py-1 max-h-72 overflow-y-auto pr-2">
+                    {g.list.length === 0 && <span className="text-xs text-muted-foreground italic">Aún no hay registros. Cargue datos en &quot;Cargas Excel&quot;.</span>}
+                    {g.list.length > 0 && shown.length === 0 && (
+                      <span className="text-xs text-muted-foreground italic">Sin coincidencias para &quot;{q[g.key]}&quot;</span>
+                    )}
+                    {shown.map((v) => (
+                      <button
+                        key={v.id}
+                        onClick={() => setFilter(g.key, filters[g.key] === v.id ? null : v.id)}
+                        data-testid={`filter-${g.key}-${(v.codigo || v.id).toString().slice(0, 14)}`}
+                        className={`text-left text-xs px-2 py-1.5 rounded transition-soft hover:bg-muted ${filters[g.key] === v.id ? "bg-[#0033A0]/10 text-[#0033A0] font-medium" : ""}`}
+                      >
+                        {v.codigo ? <span className="mono text-[10px] mr-2 text-muted-foreground">{v.codigo}</span> : null}
+                        {v.nombre}
+                        {g.key === "codigo_grupo" && (v.dia || v.hora || v.asignatura_codigo) && (
+                          <div className="text-[9px] text-muted-foreground mt-0.5">
+                            {v.asignatura_codigo && <span className="mono">{v.asignatura_codigo}</span>}
+                            {v.dia && <span className="ml-2">{v.dia}</span>}
+                            {v.hora && <span className="ml-1">{v.hora}</span>}
+                            {v.periodo && <span className="ml-2 uppercase">{v.periodo}</span>}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
           <AccordionItem value="booleans">
             <AccordionTrigger className="text-xs uppercase tracking-widest font-semibold py-3">
               Vulnerabilidad y enfoques

@@ -19,6 +19,7 @@ from routers.caracterizacion_router import router as caracterizacion_router  # n
 from routers.divipola_admin_router import router as divipola_admin_router  # noqa: E402
 from routers.exports_router import router as exports_router  # noqa: E402
 from routers.ai_router import router as ai_router  # noqa: E402
+from routers.config_router import router as config_router  # noqa: E402
 from seed import seed_superadmin, seed_students  # noqa: E402
 from divipola import list_all  # noqa: E402
 
@@ -50,6 +51,7 @@ app.include_router(caracterizacion_router)
 app.include_router(divipola_admin_router)
 app.include_router(exports_router)
 app.include_router(ai_router)
+app.include_router(config_router)
 
 app.add_middleware(
     CORSMiddleware,

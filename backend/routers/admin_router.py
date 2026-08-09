@@ -360,6 +360,131 @@ async def facultades_stats(user=Depends(require_roles("superadmin", "direccion")
     return facs
 
 
+@router.get("/facultades/{facultad_id}/ficha")
+async def facultad_ficha(facultad_id: str, user=Depends(require_roles("superadmin", "direccion", "decano"))):
+    """Vista rica de una facultad: KPIs académicos + programas + decano + coordinadores + tendencia + territorial."""
+    fac = await db.facultades.find_one({"id": facultad_id}, {"_id": 0})
+    if not fac:
+        raise HTTPException(404, "Facultad no encontrada")
+
+    fac_nombre = fac.get("nombre")
+
+    # Programas
+    programas = await db.programas.find({"facultad_id": facultad_id}, {"_id": 0}).sort("nombre", 1).to_list(200)
+    prog_names = [p.get("nombre") for p in programas if p.get("nombre")]
+
+    # Enrich each programa with n_estudiantes + promedio
+    for p in programas:
+        p["n_estudiantes"] = await db.students.count_documents({"programa": p.get("nombre")})
+        prom_agg = await db.students.aggregate([
+            {"$match": {"programa": p.get("nombre"), "promedio": {"$gt": 0}}},
+            {"$group": {"_id": None, "prom": {"$avg": "$promedio"}}}
+        ]).to_list(1)
+        p["promedio"] = round(prom_agg[0]["prom"], 2) if prom_agg else 0
+
+    # Decano + coordinadores (usuarios con role decano/coordinador y facultad_id o programa_id en la facultad)
+    prog_ids = [p.get("id") for p in programas]
+    dec_cursor = db.users.find(
+        {"role": "decano", "facultad_id": facultad_id, "active": True},
+        {"_id": 0, "password": 0}
+    )
+    decanos = await dec_cursor.to_list(20)
+    coord_cursor = db.users.find(
+        {"role": "coordinador", "active": True,
+         "$or": [{"facultad_id": facultad_id}, {"programa_id": {"$in": prog_ids}}]},
+        {"_id": 0, "password": 0}
+    )
+    coordinadores = await coord_cursor.to_list(50)
+
+    # KPIs académicos
+    match_est = {"facultad": fac_nombre}
+    total = await db.students.count_documents(match_est)
+    activos = await db.students.count_documents({**match_est, "estado_matricula": {"$in": ["MATRICULADO", "ACTIVO", "MATRICULADA"]}})
+    vulnerables = await db.students.count_documents({**match_est, "grupo_vulnerable": True})
+    victimas = await db.students.count_documents({**match_est, "victima_conflicto": True})
+    discapacidad = await db.students.count_documents({**match_est, "discapacidad_flag": True})
+    rurales = await db.students.count_documents({**match_est, "tipo_ubicacion": {"$in": ["Rural", "Semirural"]}})
+    en_riesgo = await db.students.count_documents({**match_est, "promedio": {"$gt": 0, "$lt": 3.0}})
+
+    prom_agg = await db.students.aggregate([
+        {"$match": {**match_est, "promedio": {"$gt": 0}}},
+        {"$group": {"_id": None, "prom": {"$avg": "$promedio"}}}
+    ]).to_list(1)
+    promedio = round(prom_agg[0]["prom"], 2) if prom_agg else 0
+
+    # Tasa de aprobación desde histórico
+    aprob_agg = await db.historico_notas.aggregate([
+        {"$match": academic_notes_match({"programa": {"$in": prog_names}}) if prog_names else {"programa": None}},
+        {"$group": {"_id": None, "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}}, "n": {"$sum": 1}}}
+    ]).to_list(1) if prog_names else []
+    tasa_aprobacion = round((aprob_agg[0]["aprob"] / aprob_agg[0]["n"]) * 100, 1) if aprob_agg and aprob_agg[0]["n"] else 0
+
+    # Tendencia por periodo (promedio + tasa aprobación)
+    tendencia = []
+    if prog_names:
+        async for r in db.historico_notas.aggregate([
+            {"$match": academic_notes_match({"programa": {"$in": prog_names}})},
+            {"$group": {
+                "_id": "$periodo",
+                "prom": {"$avg": "$nota"},
+                "aprob": {"$sum": {"$cond": ["$aprobada", 1, 0]}},
+                "n": {"$sum": 1},
+            }},
+            {"$sort": {"_id": 1}},
+            {"$project": {
+                "_id": 0, "periodo": "$_id",
+                "promedio": {"$round": ["$prom", 2]},
+                "tasa_aprobacion": {"$round": [{"$multiply": [{"$divide": ["$aprob", "$n"]}, 100]}, 1]},
+                "n_notas": "$n",
+            }},
+        ]):
+            tendencia.append(r)
+
+    # Distribución territorial (top 8 departamentos)
+    top_deptos = []
+    async for r in db.students.aggregate([
+        {"$match": match_est},
+        {"$group": {"_id": "$departamento", "n": {"$sum": 1}}},
+        {"$sort": {"n": -1}},
+        {"$limit": 8},
+        {"$project": {"_id": 0, "departamento": {"$ifNull": ["$_id", "Sin dato"]}, "n": 1}}
+    ]):
+        top_deptos.append(r)
+
+    # Docentes de la facultad (via grupos.facultad)
+    n_docentes = 0
+    doc_ids_agg = await db.grupos.aggregate([
+        {"$match": {"facultad": fac_nombre, "docente_id": {"$ne": None}}},
+        {"$group": {"_id": "$docente_id"}}
+    ]).to_list(2000)
+    n_docentes = len(doc_ids_agg)
+
+    n_grupos = await db.grupos.count_documents({"facultad": fac_nombre})
+
+    return {
+        "facultad": fac,
+        "kpis": {
+            "total_estudiantes": total,
+            "activos": activos,
+            "promedio": promedio,
+            "tasa_aprobacion": tasa_aprobacion,
+            "en_riesgo": en_riesgo,
+            "vulnerables": vulnerables,
+            "victimas": victimas,
+            "discapacidad": discapacidad,
+            "rurales": rurales,
+            "n_programas": len(programas),
+            "n_docentes": n_docentes,
+            "n_grupos": n_grupos,
+        },
+        "programas": programas,
+        "decanos": decanos,
+        "coordinadores": coordinadores,
+        "tendencia": tendencia,
+        "distribucion_territorial": top_deptos,
+    }
+
+
 @router.put("/programas/{item_id}")
 async def update_programa(item_id: str, payload: dict, user=Depends(require_roles("superadmin", "direccion"))):
     """Editar programa. Acepta campos parciales."""

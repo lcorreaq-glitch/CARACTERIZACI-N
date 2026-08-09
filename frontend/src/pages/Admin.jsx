@@ -9,7 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, UserPlus, Globe, Download, Eye, Pencil, Save, Shield, ShieldOff, Key, Power, PowerOff, Settings2, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Trash2, UserPlus, Globe, Download, Eye, Pencil, Save, Shield, ShieldOff, Key, Power, PowerOff, Settings2, CheckCircle2, XCircle, Mail, Info, TrendingUp, Building2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -185,6 +185,18 @@ function UsersTab() {
     if (!window.confirm(`¿Eliminar definitivamente al usuario ${u.email}? Esta acción no se puede deshacer.`)) return;
     try { await api.delete(`/admin/users/${u.id}`); toast.success("Eliminado"); load(); }
     catch (e) { toast.error(e?.response?.data?.detail || "Error"); }
+  };
+
+  const sendCreds = async (u) => {
+    const already = u.credentials_sent_at ? `\n\nÚltimo envío: ${u.credentials_sent_at.slice(0, 16).replace("T", " ")}` : "";
+    if (!window.confirm(`Enviar correo con credenciales a ${u.email}?\n\nSe generará una nueva contraseña temporal y se enviará por correo.${already}`)) return;
+    try {
+      const r = await api.post(`/config/send-credentials/${u.id}`, { reset_password: true });
+      toast.success(`Correo enviado a ${r.data.email}`);
+      load();
+    } catch (e) {
+      toast.error("Fallo el envío", { description: e?.response?.data?.detail || "Verifique la configuración SMTP en Configuración." });
+    }
   };
 
   const filtered = users.filter((u) => {
@@ -401,6 +413,9 @@ function UsersTab() {
                     <>
                       <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => startEdit(u)} title="Editar" data-testid={`edit-user-${u.id}`}>
                         <Pencil className="w-3.5 h-3.5 text-[#0033A0]" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => sendCreds(u)} title="Enviar credenciales por correo" data-testid={`send-creds-${u.id}`}>
+                        <Mail className={`w-3.5 h-3.5 ${u.credentials_sent_at ? "text-emerald-600" : "text-[#0033A0]"}`} />
                       </Button>
                       <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setResetTarget(u)} title="Resetear contraseña" data-testid={`reset-pwd-${u.id}`}>
                         <Key className="w-3.5 h-3.5 text-amber-600" />
@@ -697,6 +712,7 @@ function CatalogTab({ name, label, showFacultad, showPrograma }) {
   const [form, setForm] = useState({ nombre: "", codigo: "", facultad_id: null, programa_id: null });
   const [facs, setFacs] = useState([]);
   const [progs, setProgs] = useState([]);
+  const [fichaId, setFichaId] = useState(null); // facultad_id para el modal de ficha
 
   const load = () => { api.get(`/admin/${name}`).then((r) => setItems(r.data)); };
   useEffect(() => {
@@ -713,6 +729,8 @@ function CatalogTab({ name, label, showFacultad, showPrograma }) {
     if (!window.confirm("¿Eliminar?")) return;
     await api.delete(`/admin/${name}/${id}`); toast.success("Eliminado"); load();
   };
+
+  const isFacultad = name === "facultades";
 
   return (
     <div className="dense-card p-5 mt-4">
@@ -756,18 +774,166 @@ function CatalogTab({ name, label, showFacultad, showPrograma }) {
         </Dialog>
       </div>
       <Table>
-        <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Código</TableHead><TableHead></TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Código</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
         <TableBody>
           {items.map((it) => (
             <TableRow key={it.id}>
               <TableCell className="text-xs">{it.nombre}</TableCell>
               <TableCell className="text-xs mono">{it.codigo || "—"}</TableCell>
-              <TableCell><Button variant="ghost" size="sm" onClick={() => remove(it.id)}><Trash2 className="w-3 h-3 text-[#E3000F]" /></Button></TableCell>
+              <TableCell className="text-right">
+                {isFacultad && (
+                  <Button variant="ghost" size="sm" onClick={() => setFichaId(it.id)} title="Ver ficha" data-testid={`ficha-fac-${it.id}`}>
+                    <Eye className="w-3.5 h-3.5 text-[#0033A0]" />
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => remove(it.id)}><Trash2 className="w-3 h-3 text-[#E3000F]" /></Button>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      {isFacultad && fichaId && <FichaFacultadDialog facultadId={fichaId} onClose={() => setFichaId(null)} />}
     </div>
+  );
+}
+
+
+// -------------- Ficha rica de Facultad --------------
+function FichaFacultadDialog({ facultadId, onClose }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    api.get(`/admin/facultades/${facultadId}/ficha`)
+      .then((r) => setData(r.data))
+      .catch(() => toast.error("No se pudo cargar la ficha"))
+      .finally(() => setLoading(false));
+  }, [facultadId]);
+
+  return (
+    <Dialog open={true} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" data-testid="ficha-facultad-dialog">
+        <DialogHeader>
+          <DialogTitle className="font-display flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-[#0033A0]" />
+            {loading ? "Cargando ficha…" : (data?.facultad?.nombre || "Facultad")}
+          </DialogTitle>
+        </DialogHeader>
+        {loading && <div className="p-8 text-center text-muted-foreground text-sm">Cargando información…</div>}
+        {!loading && data && (
+          <div className="space-y-5">
+            {/* KPIs */}
+            <div>
+              <p className="label-eyebrow text-[#0033A0] mb-2">Indicadores académicos</p>
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                <StatCard label="Estudiantes" value={data.kpis.total_estudiantes} />
+                <StatCard label="Promedio" value={data.kpis.promedio?.toFixed(2)} accent="text-[#0033A0]" />
+                <StatCard label="% Aprobación" value={`${data.kpis.tasa_aprobacion}%`} accent="text-emerald-700" />
+                <StatCard label="En riesgo" value={data.kpis.en_riesgo} accent="text-[#E3000F]" />
+                <StatCard label="Vulnerables" value={data.kpis.vulnerables} accent="text-amber-700" />
+                <StatCard label="Rurales" value={data.kpis.rurales} />
+                <StatCard label="Programas" value={data.kpis.n_programas} />
+                <StatCard label="Docentes" value={data.kpis.n_docentes} />
+                <StatCard label="Grupos" value={data.kpis.n_grupos} />
+                <StatCard label="Víctimas" value={data.kpis.victimas} />
+                <StatCard label="Discapacidad" value={data.kpis.discapacidad} />
+                <StatCard label="Activos" value={data.kpis.activos} />
+              </div>
+            </div>
+
+            {/* Decano / Coordinadores */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="dense-card p-4">
+                <p className="label-eyebrow text-[#0033A0] mb-2">Decano(s) asignado(s)</p>
+                {data.decanos?.length === 0 && <p className="text-xs text-muted-foreground italic">Sin decano asignado a esta facultad.</p>}
+                <ul className="space-y-2">
+                  {data.decanos?.map((d) => (
+                    <li key={d.id} className="flex items-start gap-2 text-xs border-l-2 border-[#0033A0] pl-2">
+                      <div>
+                        <div className="font-semibold">{d.full_name}</div>
+                        <div className="text-muted-foreground">{d.email}</div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="dense-card p-4">
+                <p className="label-eyebrow text-[#0033A0] mb-2">Coordinadores ({data.coordinadores?.length || 0})</p>
+                {data.coordinadores?.length === 0 && <p className="text-xs text-muted-foreground italic">Sin coordinadores asignados.</p>}
+                <ul className="space-y-2 max-h-40 overflow-y-auto">
+                  {data.coordinadores?.map((c) => (
+                    <li key={c.id} className="text-xs border-l-2 border-amber-500 pl-2">
+                      <div className="font-semibold">{c.full_name}</div>
+                      <div className="text-muted-foreground">{c.email}</div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Programas */}
+            <div>
+              <p className="label-eyebrow text-[#0033A0] mb-2">Programas de la facultad ({data.programas?.length || 0})</p>
+              <div className="dense-card p-2 max-h-64 overflow-y-auto">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Código</TableHead><TableHead className="text-right">Estudiantes</TableHead><TableHead className="text-right">Promedio</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {data.programas?.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="text-xs">{p.nombre}</TableCell>
+                        <TableCell className="text-[10px] mono text-muted-foreground">{p.codigo || "—"}</TableCell>
+                        <TableCell className="text-xs text-right">{p.n_estudiantes?.toLocaleString("es-CO")}</TableCell>
+                        <TableCell className="text-xs text-right"><b>{p.promedio ? p.promedio.toFixed(2) : "—"}</b></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+            {/* Distribución territorial */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="dense-card p-4">
+                <p className="label-eyebrow text-[#0033A0] mb-2 flex items-center gap-2"><TrendingUp className="w-3 h-3" /> Tendencia por periodo</p>
+                {data.tendencia?.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Sin datos históricos.</p>
+                ) : (
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Periodo</TableHead><TableHead className="text-right">Promedio</TableHead><TableHead className="text-right">% Aprob.</TableHead><TableHead className="text-right">Notas</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {data.tendencia?.map((t) => (
+                        <TableRow key={t.periodo}>
+                          <TableCell className="text-xs mono">{t.periodo}</TableCell>
+                          <TableCell className="text-xs text-right"><b>{t.promedio}</b></TableCell>
+                          <TableCell className="text-xs text-right text-emerald-700">{t.tasa_aprobacion}%</TableCell>
+                          <TableCell className="text-xs text-right text-muted-foreground">{t.n_notas}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+              <div className="dense-card p-4">
+                <p className="label-eyebrow text-[#0033A0] mb-2">Top departamentos de residencia</p>
+                {data.distribucion_territorial?.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Sin datos territoriales.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {data.distribucion_territorial?.map((d) => (
+                      <li key={d.departamento} className="text-xs flex items-center justify-between border-b border-border/40 pb-1">
+                        <span>{d.departamento}</span>
+                        <b>{d.n?.toLocaleString("es-CO")}</b>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
