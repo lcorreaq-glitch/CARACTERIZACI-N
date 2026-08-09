@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from auth import get_current_user
 from database import db
-from scope import apply_role_scope
+from scope import apply_role_scope_async
 
 router = APIRouter(prefix="/api/caracterizacion", tags=["caracterizacion"])
 
@@ -79,8 +79,8 @@ async def _params(
         for s in cedulas_sets[1:]:
             final = final & s
         match["cedula"] = {"$in": list(final)} if final else "__NO_MATCH__"
-    # Enforce role scope (decano/coordinador)
-    match = apply_role_scope(user, match)
+    # Enforce role scope (decano/coordinador/profesor)
+    match = await apply_role_scope_async(user, match)
     return match
 
 

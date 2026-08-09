@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from auth import get_current_user
 from database import db
-from scope import apply_role_scope
+from scope import apply_role_scope, apply_role_scope_async
 from academic_filter import academic_notes_match
 
 router = APIRouter(prefix="/api/dashboards", tags=["dashboards"])
@@ -87,8 +87,8 @@ async def _common_params(
 ):
     match = _build_match(locals())
     match = await _apply_docente_materia(match, docente_id, materia_id, codigo_grupo)
-    # Enforce role-based scope (decano/coordinador filter by facultad/programa)
-    match = apply_role_scope(user, match)
+    # Enforce role-based scope (decano/coordinador/profesor)
+    match = await apply_role_scope_async(user, match)
     return match
 
 
@@ -646,8 +646,8 @@ async def filter_options(user=Depends(get_current_user)):
         invalid = invalid or {"SELECCIONE...", "SELECCIONE", "NO REGISTRA", ""}
         return sorted([v for v in values if v and str(v).strip().upper() not in invalid])
 
-    # Apply role scope to base match for all distinct queries
-    base_match = apply_role_scope(user, {})
+    # Apply role scope to base match for all distinct queries (incluye profesor via async helper)
+    base_match = await apply_role_scope_async(user, {})
     if "_no_scope_" in base_match:
         return {"programas": [], "facultades": [], "periodos": [], "generos": [], "estratos": [],
                 "etnias": [], "ubicaciones": [], "estados_matricula": [], "facultad_programa": {},
@@ -676,7 +676,11 @@ async def filter_options(user=Depends(get_current_user)):
     facultad_programa = {k: sorted(v) for k, v in facultad_programa.items()}
 
     # Docentes y materias para filtros globales
-    docentes_rows = await db.users.find({"role": "profesor"}, {"_id": 0, "id": 1, "full_name": 1, "email": 1}).to_list(1000)
+    # Docentes: profesor solo se ve a sí mismo; otros roles ven todos
+    if user.get("role") == "profesor":
+        docentes_rows = await db.users.find({"id": user["id"]}, {"_id": 0, "id": 1, "full_name": 1, "email": 1}).to_list(1)
+    else:
+        docentes_rows = await db.users.find({"role": "profesor"}, {"_id": 0, "id": 1, "full_name": 1, "email": 1}).to_list(1000)
     docentes = sorted([{"id": d["id"], "nombre": d.get("full_name") or d.get("email", "")} for d in docentes_rows], key=lambda x: x["nombre"])
 
     materias_rows = await db.materias.find({}, {"_id": 0, "id": 1, "nombre": 1, "codigo": 1}).to_list(5000)

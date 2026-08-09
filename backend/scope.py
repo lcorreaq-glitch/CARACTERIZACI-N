@@ -4,10 +4,11 @@ Roles jerárquicos:
 - superadmin, direccion: sin scope (ven todo)
 - decano: filtra por facultad asignada (facultad_id → facultad_nombre)
 - coordinador: filtra por programa asignado O por facultad si es coordinador de facultad
-- profesor: filtra por sus grupos (manejado en otras funciones — no acá)
+- profesor: filtra por estudiantes matriculados EN CUALQUIERA DE SUS GRUPOS (matriculas.docente_id == user.id)
 """
 import re
 from typing import Optional
+from database import db
 
 
 def _ci_regex(name: str) -> dict:
@@ -45,7 +46,40 @@ def apply_role_scope(user: dict, base_match: Optional[dict] = None) -> dict:
         else:
             m["_no_scope_"] = True
         return m
-    # profesor u otro: no aplicamos scope aquí (docente_router se encarga)
+    # profesor: usar apply_role_scope_async para recuperar cédulas
+    return m
+
+
+async def apply_role_scope_async(user: dict, base_match: Optional[dict] = None) -> dict:
+    """Igual que `apply_role_scope` pero maneja profesor (async).
+
+    Para role=profesor: filtra `students` a únicamente los estudiantes matriculados
+    en cualquiera de los grupos del docente (matriculas.docente_id == user.id).
+    Si el profesor no tiene ninguna matrícula, retorna un match imposible.
+    """
+    m = apply_role_scope(user, base_match)
+    if (user or {}).get("role") != "profesor":
+        return m
+
+    # Recuperar cédulas de estudiantes matriculados en grupos de este docente.
+    # `matriculas.docente_id` está denormalizado en la carga inicial.
+    cedulas = await db.matriculas.distinct("cedula", {"docente_id": user["id"]})
+    # También intentar por doc_estudiante (variante de esquema)
+    if not cedulas:
+        cedulas = await db.matriculas.distinct("doc_estudiante", {"docente_id": user["id"]})
+
+    if not cedulas:
+        # Docente sin estudiantes → resultado vacío garantizado.
+        m["cedula"] = "__NO_MATCH__"
+        return m
+
+    # Si ya había un filtro por cedula, hacer intersección.
+    existing = m.get("cedula")
+    if isinstance(existing, dict) and "$in" in existing:
+        merged = list(set(existing["$in"]) & set(cedulas))
+        m["cedula"] = {"$in": merged} if merged else "__NO_MATCH__"
+    else:
+        m["cedula"] = {"$in": cedulas}
     return m
 
 
