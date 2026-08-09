@@ -137,27 +137,26 @@ async def send_credentials_one(
     payload: SendCredsPayload,
     admin=Depends(require_roles("superadmin", "direccion")),
 ):
-    """Envía correo con credenciales a un usuario. Si reset_password=True, genera nueva contraseña temporal."""
+    """Envía correo con credenciales a un usuario. Si reset_password=True, genera nueva contraseña temporal.
+    IMPORTANTE: primero verifica SMTP y envía el correo. SOLO si el envío es exitoso persiste el reset
+    de contraseña. Así nunca deja al usuario bloqueado si el SMTP falla."""
     u = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not u:
         raise HTTPException(404, "Usuario no encontrado")
     if not u.get("email"):
         raise HTTPException(400, "Usuario sin correo")
-
-    if payload.reset_password:
-        new_password = _generate_password()
-        await db.users.update_one(
-            {"id": user_id},
-            {"$set": {
-                "password": hash_password(new_password),
-                "must_change_password": True,
-                "credentials_sent_at": None,
-            }},
-        )
-    else:
-        # Sin reset, no podemos conocer la contraseña original (hasheada).
+    if not payload.reset_password:
         raise HTTPException(400, "Solo se puede enviar contraseña recién generada. Use reset_password=true.")
 
+    # Preflight: verificar SMTP habilitado + credenciales antes de tocar la contraseña.
+    smtp_cfg = await get_smtp_config()
+    if not smtp_cfg.get("smtp_enabled"):
+        raise HTTPException(400, "SMTP no está habilitado en Configuración. No se envió ningún correo ni se modificó ninguna contraseña.")
+    if not smtp_cfg.get("smtp_user") or not smtp_cfg.get("smtp_password"):
+        raise HTTPException(400, "Faltan credenciales SMTP (usuario/App Password). No se envió ningún correo ni se modificó ninguna contraseña.")
+
+    new_password = _generate_password()
+    # Intentar enviar PRIMERO (con la contraseña en memoria).
     res = await send_credentials_email(
         to_email=u["email"],
         full_name=u.get("full_name") or u["email"],
@@ -165,19 +164,26 @@ async def send_credentials_one(
         login_url=_login_url(),
     )
     if not res.get("ok"):
-        raise HTTPException(400, res.get("error", "Fallo al enviar"))
+        # No tocamos la contraseña — el usuario mantiene su acceso previo.
+        raise HTTPException(400, f"Fallo al enviar correo: {res.get('error', 'error desconocido')}. La contraseña no fue modificada.")
 
+    # Envío OK → persistir el reset.
     await db.users.update_one(
         {"id": user_id},
-        {"$set": {"credentials_sent_at": datetime.utcnow().isoformat(),
-                  "credentials_sent_by": admin.get("email")}},
+        {"$set": {
+            "password": hash_password(new_password),
+            "must_change_password": True,
+            "credentials_sent_at": datetime.utcnow().isoformat(),
+            "credentials_sent_by": admin.get("email"),
+        }},
     )
-    return {"ok": True, "email": u["email"], "message": "Correo enviado"}
+    return {"ok": True, "email": u["email"], "message": "Correo enviado y contraseña actualizada"}
 
 
 class BulkPayload(BaseModel):
     role: str = "profesor"
     only_missing: bool = True
+    limit: int = 200   # tope por invocación para no exceder timeouts
 
 
 @router.post("/send-credentials-bulk")
@@ -185,15 +191,22 @@ async def send_credentials_bulk(
     payload: BulkPayload,
     admin=Depends(require_roles("superadmin")),
 ):
-    """Envía credenciales masivamente a todos los usuarios de un rol.
-    Si only_missing=True, omite los que ya recibieron (credentials_sent_at existe)."""
+    """Envía credenciales masivamente. Preflight SMTP: si no está habilitado, no toca nada y devuelve 400.
+    Para cada usuario, envía primero y sólo persiste el reset si el envío es exitoso.
+    Limitado a `limit` (default 200) por invocación para evitar timeouts del proxy."""
+    smtp_cfg = await get_smtp_config()
+    if not smtp_cfg.get("smtp_enabled"):
+        raise HTTPException(400, "SMTP no está habilitado en Configuración. No se envió ningún correo ni se modificó ninguna contraseña.")
+    if not smtp_cfg.get("smtp_user") or not smtp_cfg.get("smtp_password"):
+        raise HTTPException(400, "Faltan credenciales SMTP (usuario/App Password). No se envió ningún correo ni se modificó ninguna contraseña.")
+
     query = {"role": payload.role, "active": True}
     if payload.only_missing:
         query["$or"] = [
             {"credentials_sent_at": {"$exists": False}},
             {"credentials_sent_at": None},
         ]
-    users_list = await db.users.find(query, {"_id": 0}).to_list(2000)
+    users_list = await db.users.find(query, {"_id": 0}).limit(max(1, min(payload.limit, 500))).to_list(500)
 
     sent, failed = [], []
     for u in users_list:
@@ -201,10 +214,7 @@ async def send_credentials_bulk(
             failed.append({"id": u.get("id"), "error": "sin correo"})
             continue
         pw = _generate_password()
-        await db.users.update_one(
-            {"id": u["id"]},
-            {"$set": {"password": hash_password(pw), "must_change_password": True}},
-        )
+        # Envío PRIMERO — contraseña sólo en memoria hasta confirmar entrega.
         r = await send_credentials_email(
             to_email=u["email"],
             full_name=u.get("full_name") or u["email"],
@@ -214,8 +224,12 @@ async def send_credentials_bulk(
         if r.get("ok"):
             await db.users.update_one(
                 {"id": u["id"]},
-                {"$set": {"credentials_sent_at": datetime.utcnow().isoformat(),
-                          "credentials_sent_by": admin.get("email")}},
+                {"$set": {
+                    "password": hash_password(pw),
+                    "must_change_password": True,
+                    "credentials_sent_at": datetime.utcnow().isoformat(),
+                    "credentials_sent_by": admin.get("email"),
+                }},
             )
             sent.append({"id": u["id"], "email": u["email"]})
         else:
@@ -227,6 +241,7 @@ async def send_credentials_bulk(
         "failed": len(failed),
         "sent_list": sent[:200],
         "failed_list": failed[:200],
+        "note": f"Procesados {len(users_list)} usuarios en esta llamada. Repita la operación si hay más pendientes.",
     }
 
 

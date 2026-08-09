@@ -1,0 +1,40 @@
+{
+  "verdict": "fixed",
+  "user_reported_bug": "Testing agent iter20 reportó: 'POST /api/config/send-credentials/{user_id} y send-credentials-bulk resetean contraseña ANTES de verificar SMTP. Si SMTP está deshabilitado el endpoint responde 400 pero el usuario ya tiene contraseña random hasheada en DB → queda BLOQUEADO permanentemente.'",
+  "summary": "No relevant testing skill found. Focused backend verification passed: with SMTP disabled, send-credentials individual and bulk return 400 with 'No se envió ningún correo ni se modificó ninguna contraseña', stored password hashes remain unchanged, and all required users still log in with their original passwords. Also verified missing smtp_user/smtp_password preflight, nonexistent user, user without email, and failed delivery after complete SMTP config using a deterministic non-working SMTP host; no password hash was mutated.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/bug_verify_smtp_credentials_safety.py",
+    "/app/test_reports/bug_verify_smtp_credentials_safety_results.json",
+    "/app/test_reports/bug_verification_21.json",
+    "/app/test_reports/iteration_21.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Inspected /app/backend/routers/config_router.py: individual and bulk endpoints now preflight smtp_enabled plus smtp_user/smtp_password before generating/persisting password changes, and individual failed delivery raises 400 before any DB update.",
+    "Inspected /app/backend/email_service.py and auth flow: send_credentials_email returns {ok:false} on disabled/missing SMTP or SMTP exceptions; auth login verifies the unchanged stored password hash. No product code was modified."
+  ],
+  "updated_files": [
+    "/app/tests/bug_verify_smtp_credentials_safety.py",
+    "/app/test_reports/bug_verify_smtp_credentials_safety_results.json",
+    "/app/test_reports/bug_verification_21.json",
+    "/app/test_reports/iteration_21.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "N/A"
+  },
+  "seed_data_creation": "Created two temporary QA users under a unique role to test no-email and failed-delivery edge cases; both were deleted during cleanup. Original smtp_config was restored after testing.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend-only regression script passed on http://localhost:8001. It snapshot password hashes, restored if mutation was detected, and confirmed final logins for superadmin, profesor, decano, coordinador, and direccion. No real SMTP email was sent; failed-delivery branch used smtp_host=127.0.0.1 smtp_port=1 on temporary users only.",
+  "rca_of_the_issue": "Previous implementation persisted a random password before SMTP validation/send. Current implementation performs SMTP preflight first and only persists the generated password after send_credentials_email returns ok=true. Runtime tests verified the originally reported disabled-SMTP lockout no longer reproduces."
+}

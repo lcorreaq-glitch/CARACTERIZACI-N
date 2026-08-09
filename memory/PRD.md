@@ -24,6 +24,35 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - IA: resúmenes automáticos vía OpenAI GPT-5.4 (Emergent LLM Key)
 - Exportación PDF/Excel
 
+## Latest session (2026-02-09 · iteración 20 — Configuración + Correos + Ficha Facultad + Filtros searchable)
+
+### Nuevo módulo /configuracion (solo superadmin)
+- **Backend**: nuevo `backend/routers/config_router.py` con:
+  - `GET/PATCH /api/config/smtp` — persistencia de Gmail SMTP (host, puerto, user, App Password, from_name, enabled). Password enmascarada en las respuestas (`smtp_password_mask`).
+  - `POST /api/config/smtp/test` — envío de correo de prueba.
+  - `GET/PATCH /api/config/ai` — selector `ai_provider` (emergent | gemini_google), Gemini API key, modelos.
+  - `POST /api/config/send-credentials/{user_id}` — envío individual. **Preflight SMTP obligatorio**: si no está habilitado, devuelve 400 y **no toca la contraseña**. Envía primero, persiste el reset sólo si el correo se entregó.
+  - `POST /api/config/send-credentials-bulk` — envío masivo con misma protección + `limit` (default 200) para evitar timeouts de proxy.
+  - `GET /api/config/overview` — resumen no sensible (para dashboards).
+- **Helper `backend/email_service.py`**: SMTP Gmail (starttls + App Password), plantilla HTML con branding IU Digital.
+- **Frontend `Configuracion.jsx`**: 3 pestañas (Correo Gmail, IA, Envío de credenciales) + panel de instrucciones paso a paso en cada una.
+
+### Ficha de Facultad rica
+- **Backend**: `GET /api/admin/facultades/{id}/ficha` con: KPIs (12: estudiantes, promedio, tasa aprobación, en riesgo, vulnerables, víctimas, discapacidad, rurales, activos, n_programas, n_docentes, n_grupos), decano(s), coordinadores, tabla de programas con estudiantes+promedio, tendencia por periodo (promedio + tasa aprobación), top 8 departamentos.
+- **Frontend `Admin.jsx > CatalogTab facultades`**: botón "Ver ficha" (icono ojo) → `FichaFacultadDialog` modal con toda la información.
+
+### Filtros globales con búsqueda
+- **`AppLayout.jsx > FiltersPanel`**: los accordions Docente (400) y Grupo (1611) ahora tienen input de búsqueda que filtra por nombre + código + asignatura + día. Contador "Mostrando X de Y" visible.
+
+### Territorial UX limpio cuando 0 resultados
+- Overlay claro en el mapa "Ningún municipio coincide con los filtros actuales" + botón "Limpiar filtros".
+- Hint de desambiguación (ej. "Argelia · Valle del Cauca (168 est)") ahora aparece FUERA del mapa, no lo tapa.
+- Corregido typo del contador que mostraba "0 . municipios" con salto de línea raro.
+
+### Correcciones críticas post-testing (⚠️)
+- **BUG crítico identificado y fijado**: la primera versión de `send-credentials` reseteaba la contraseña ANTES de verificar SMTP. Si SMTP fallaba, el usuario quedaba **bloqueado** sin contraseña conocida.
+- **Fix aplicado**: preflight SMTP → generar password en memoria → intentar enviar → SOLO si envío exitoso persistir el reset. Validado con curl: docente sigue con su contraseña original tras intento fallido.
+
 ## Latest session (2026-02-07 · iteración 10 — Territorial: fix filtro cascada + desambiguación homónimos)
 - ✅ **Bug fix**: filtro Departamento estaba deshabilitado cuando "país = todos" (regla `> 40` deshabilitaba el selector). Ahora siempre está habilitado.
 - ✅ **Búsqueda respeta cascada**: al filtrar Departamento y buscar un municipio, las sugerencias se filtran por el depto activo.

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Trash2, UserPlus, Globe, Download, Eye, Pencil, Save, Shield, ShieldOff, Key, Power, PowerOff, Settings2, CheckCircle2, XCircle, Mail, Info, TrendingUp, Building2 } from "lucide-react";
@@ -819,6 +819,9 @@ function FichaFacultadDialog({ facultadId, onClose }) {
             <Building2 className="w-5 h-5 text-[#0033A0]" />
             {loading ? "Cargando ficha…" : (data?.facultad?.nombre || "Facultad")}
           </DialogTitle>
+          <DialogDescription>
+            Vista completa de la facultad: KPIs académicos, decano, coordinadores, programas, tendencia por periodo y distribución territorial.
+          </DialogDescription>
         </DialogHeader>
         {loading && <div className="p-8 text-center text-muted-foreground text-sm">Cargando información…</div>}
         {!loading && data && (
