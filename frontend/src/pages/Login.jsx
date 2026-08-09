@@ -11,7 +11,7 @@ import { GraduationCap, ArrowRight, Loader2 } from "lucide-react";
 export default function Login() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("lcorreaq@gmail.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -118,15 +118,15 @@ export default function Login() {
         <div className="absolute inset-x-0 bottom-0 p-10 text-white">
           <div className="grid grid-cols-3 gap-6 max-w-xl">
             <div>
-              <div className="kpi-num text-3xl">12.9K</div>
+              <div className="kpi-num text-3xl">16.4K</div>
               <div className="text-xs uppercase tracking-widest opacity-80">Estudiantes</div>
             </div>
             <div>
-              <div className="kpi-num text-3xl">17</div>
+              <div className="kpi-num text-3xl">34</div>
               <div className="text-xs uppercase tracking-widest opacity-80">Programas</div>
             </div>
             <div>
-              <div className="kpi-num text-3xl">125</div>
+              <div className="kpi-num text-3xl">573</div>
               <div className="text-xs uppercase tracking-widest opacity-80">Municipios</div>
             </div>
           </div>
