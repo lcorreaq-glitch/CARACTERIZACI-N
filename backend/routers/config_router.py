@@ -2,10 +2,13 @@
 Only superadmin can read/write sensitive credentials.
 """
 import os
+import io
 import secrets
 import string
 from datetime import datetime
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, EmailStr
 from auth import get_current_user, require_roles, hash_password
 from database import db
@@ -265,3 +268,86 @@ async def config_overview(user=Depends(require_roles("superadmin", "direccion"))
         "docentes_total": n_docentes_total,
         "docentes_credentials_sent": n_docentes_notified,
     }
+
+
+# ---------- Reset masivo + descarga listado inicial ----------
+class ResetInitialPayload(BaseModel):
+    role: str = "profesor"
+    strategy: str = "cedula"   # cédula como contraseña inicial
+
+
+@router.post("/reset-initial-passwords")
+async def reset_initial_passwords(
+    payload: ResetInitialPayload,
+    admin=Depends(require_roles("superadmin")),
+):
+    """Resetea la contraseña de todos los usuarios del rol a su CÉDULA (documento).
+    must_change_password=True. Útil cuando aún no hay correo institucional."""
+    users_list = await db.users.find({"role": payload.role, "active": True}, {"_id": 0}).to_list(3000)
+    reset, skipped = 0, 0
+    for u in users_list:
+        ced = (u.get("documento") or u.get("cedula") or "").strip()
+        if not ced:
+            skipped += 1
+            continue
+        await db.users.update_one(
+            {"id": u["id"]},
+            {"$set": {
+                "password": hash_password(ced),
+                "must_change_password": True,
+                "initial_password_is_cedula": True,
+                "credentials_reset_by": admin.get("email"),
+                "credentials_reset_at": datetime.utcnow().isoformat(),
+            }}
+        )
+        reset += 1
+    return {"ok": True, "reset": reset, "skipped_without_cedula": skipped, "total": len(users_list)}
+
+
+@router.get("/initial-credentials.xlsx")
+async def download_initial_credentials(
+    role: str = "profesor",
+    admin=Depends(require_roles("superadmin")),
+):
+    """Descarga Excel con nombre, cédula (usuario inicial), correo de contacto y facultad para
+    entregar credenciales físicamente cuando aún no hay correo institucional."""
+    users_list = await db.users.find({"role": role, "active": True}, {"_id": 0, "password": 0}).to_list(3000)
+    rows = []
+    for u in users_list:
+        ced = (u.get("documento") or u.get("cedula") or "").strip()
+        rows.append({
+            "Nombre completo": u.get("full_name") or "",
+            "Cédula (Usuario)": ced,
+            "Contraseña inicial": ced,   # regla: contraseña inicial = cédula
+            "Correo de contacto": u.get("email") or u.get("correo_personal") or "",
+            "Correo institucional": u.get("correo_institucional") or "",
+            "IdDoc": u.get("iddoc") or "",
+            "Rol": u.get("role") or "",
+            "Cambio obligatorio primer ingreso": "Sí" if u.get("must_change_password") else "No",
+            "Estado": "Activo" if u.get("active", True) else "Inactivo",
+        })
+    df = pd.DataFrame(rows)
+    # Forzar todas las columnas a texto para preservar ceros iniciales y evitar "123.0"
+    for col in df.columns:
+        df[col] = df[col].astype(str).replace({"nan": "", "None": ""})
+    df = df.sort_values(by=["Nombre completo"], na_position="last")
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name="Credenciales iniciales", index=False)
+        ws = writer.sheets["Credenciales iniciales"]
+        # Ajustar anchos + forzar formato texto en columna Cédula (col B) y Contraseña (col C)
+        widths = [40, 16, 20, 30, 30, 12, 14, 26, 12]
+        for i, w in enumerate(widths, start=1):
+            ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+        # Formato texto explícito para todas las celdas
+        for row in ws.iter_rows(min_row=2):
+            for cell in row:
+                cell.number_format = "@"
+    output.seek(0)
+    filename = f"credenciales_iniciales_{role}_{datetime.utcnow().strftime('%Y%m%d')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

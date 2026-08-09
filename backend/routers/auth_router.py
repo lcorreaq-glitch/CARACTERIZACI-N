@@ -10,7 +10,19 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/login")
 async def login(data: LoginIn):
-    user = await db.users.find_one({"email": data.email.lower()})
+    """Login por CÉDULA (documento) o CORREO. Prioridad: cédula si la cadena es solo dígitos."""
+    identifier = data.email.strip()
+    is_numeric = identifier.isdigit()
+    user = None
+    if is_numeric:
+        # Buscar por cédula/documento (cualquiera de los campos donde se almacena)
+        user = await db.users.find_one({"$or": [
+            {"documento": identifier},
+            {"cedula": identifier},
+        ]})
+    if not user:
+        # Fallback a correo (para superadmin y usuarios institucionales)
+        user = await db.users.find_one({"email": identifier.lower()})
     if not user or not user.get("active", True):
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
     if not verify_password(data.password, user["password"]):
@@ -24,6 +36,7 @@ async def login(data: LoginIn):
         "user": {
             "id": user["id"],
             "email": user["email"],
+            "documento": user.get("documento") or user.get("cedula"),
             "full_name": user["full_name"],
             "role": user["role"],
             "must_change_password": user.get("must_change_password", False),

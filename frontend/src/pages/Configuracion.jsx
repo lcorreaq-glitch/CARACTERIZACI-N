@@ -380,6 +380,7 @@ function AIPanel({ onSaved }) {
 
 function EnviosPanel() {
   const [sending, setSending] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [result, setResult] = useState(null);
   const [onlyMissing, setOnlyMissing] = useState(true);
 
@@ -397,71 +398,125 @@ function EnviosPanel() {
     }
   };
 
+  const resetInitialCedula = async () => {
+    if (!window.confirm("¿Resetear la contraseña de TODOS los docentes a su CÉDULA?\n\nEsta acción:\n• Deja la contraseña inicial = número de cédula\n• Marca 'debe cambiar contraseña al primer ingreso' en todos\n• NO envía correos\n\nÚtil cuando aún no hay correo institucional.")) return;
+    setResetting(true);
+    try {
+      const r = await api.post("/config/reset-initial-passwords", { role: "profesor", strategy: "cedula" });
+      toast.success(`Reset completado: ${r.data.reset} docentes actualizados. ${r.data.skipped_without_cedula} omitidos sin cédula.`);
+    } catch (e) {
+      toast.error("Error al resetear", { description: e.response?.data?.detail || e.message });
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const downloadCreds = async () => {
+    try {
+      const r = await api.get("/config/initial-credentials.xlsx", { responseType: "blob" });
+      const url = URL.createObjectURL(new Blob([r.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `credenciales_iniciales_profesor_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Excel descargado");
+    } catch (e) {
+      toast.error("Error al descargar", { description: e.response?.data?.detail || e.message });
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="dense-card p-5 lg:col-span-1">
         <p className="label-eyebrow text-[#0033A0]">Guía rápida</p>
-        <h3 className="font-display font-bold text-lg tracking-tight mb-3">Envío masivo de credenciales</h3>
+        <h3 className="font-display font-bold text-lg tracking-tight mb-3">Entrega de credenciales</h3>
         <ol className="text-xs space-y-3 text-muted-foreground list-decimal ml-4">
-          <li>Configure SMTP en la pestaña anterior y envíese una prueba.</li>
-          <li>Verifique en <b>Administración → Usuarios</b> que los docentes tengan correo institucional.</li>
-          <li>Escoja si desea enviar solo a quienes aún <b>no reciben</b> o a <b>todos</b> (regenera contraseñas).</li>
-          <li>Pulse <b>Enviar credenciales masivo</b>. El sistema genera una contraseña temporal por docente y la envía por correo.</li>
-          <li>Cada docente deberá cambiar su contraseña en el primer ingreso.</li>
-          <li>Para reenviar a uno solo, use el botón <b>&quot;Reenviar credenciales&quot;</b> en la fila del usuario en Administración.</li>
+          <li>
+            <b>Si aún NO tiene correo institucional</b>: use el botón <b>&quot;Contraseña inicial = cédula&quot;</b>{" "}
+            y descargue el Excel para entregarlas físicamente o por WhatsApp/correo personal.
+          </li>
+          <li>
+            <b>Si YA tiene Gmail institucional</b>: configure SMTP en la pestaña anterior y use{" "}
+            <b>&quot;Enviar credenciales masivo&quot;</b>. Cada docente recibirá una contraseña única generada aleatoriamente por correo.
+          </li>
+          <li>En ambos casos, cada docente deberá <b>cambiar la contraseña en el primer ingreso</b>.</li>
+          <li>Para reenviar a uno solo, use el botón <b>Mail</b> en la fila del usuario en Administración.</li>
         </ol>
         <Alert className="mt-4 border-blue-300 bg-blue-50/60 dark:bg-blue-500/5">
           <AlertTriangle className="w-4 h-4 text-blue-600" />
-          <AlertTitle className="text-xs">Cada envío regenera la contraseña</AlertTitle>
+          <AlertTitle className="text-xs">Regla institucional</AlertTitle>
           <AlertDescription className="text-[11px]">
-            Por seguridad, el sistema no almacena contraseñas en texto plano. Cada envío crea una
-            contraseña temporal nueva y anula la anterior.
+            Los docentes pueden ingresar con <b>su número de cédula como usuario</b>. El correo es opcional
+            para login (solo se usa como contacto).
           </AlertDescription>
         </Alert>
       </div>
 
-      <div className="dense-card p-5 lg:col-span-2 space-y-4">
+      <div className="dense-card p-5 lg:col-span-2 space-y-5">
+        {/* Bloque 1: modo cédula */}
+        <div className="border border-amber-200 bg-amber-50/40 dark:bg-amber-500/5 rounded-sm p-4">
+          <p className="label-eyebrow text-amber-800 dark:text-amber-300 mb-2">Modo sin correo institucional</p>
+          <h4 className="font-display font-bold text-base tracking-tight mb-2">Contraseña inicial = número de cédula</h4>
+          <p className="text-xs text-muted-foreground mb-3">
+            Cada docente ingresa con <b>su cédula como usuario</b> y <b>su cédula como contraseña</b>. Al primer
+            ingreso el sistema le pedirá cambiarla por una nueva. Genere el Excel para entrega física.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={resetInitialCedula} disabled={resetting} className="rounded-sm" data-testid="reset-cedula-btn">
+              {resetting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <KeyRound className="w-4 h-4 mr-2" />}
+              Resetear todos a contraseña = cédula
+            </Button>
+            <Button onClick={downloadCreds} className="rounded-sm bg-[#0033A0]" data-testid="download-creds-xlsx">
+              <Send className="w-4 h-4 mr-2" /> Descargar Excel de credenciales
+            </Button>
+          </div>
+        </div>
+
+        {/* Bloque 2: envío por correo */}
         <div>
-          <p className="label-eyebrow text-[#0033A0]">Envío masivo · Docentes</p>
-          <h3 className="font-display font-bold text-lg tracking-tight">Enviar credenciales a los profesores</h3>
-        </div>
+          <p className="label-eyebrow text-[#0033A0]">Envío por correo (requiere SMTP)</p>
+          <h4 className="font-display font-bold text-base tracking-tight mb-2">Envío masivo · Docentes</h4>
 
-        <div className="flex items-center gap-3">
-          <Switch checked={onlyMissing} onCheckedChange={setOnlyMissing} data-testid="only-missing-switch" />
-          <div>
-            <p className="text-xs font-medium">Solo docentes sin credenciales enviadas previamente</p>
-            <p className="text-[10px] text-muted-foreground">
-              {onlyMissing
-                ? "Enviará solo a quienes aún no reciben (comportamiento seguro y recomendado)."
-                : "Enviará a TODOS los docentes activos, regenerando la contraseña de cada uno."}
-            </p>
+          <div className="flex items-center gap-3 mb-3">
+            <Switch checked={onlyMissing} onCheckedChange={setOnlyMissing} data-testid="only-missing-switch" />
+            <div>
+              <p className="text-xs font-medium">Solo docentes sin credenciales enviadas previamente</p>
+              <p className="text-[10px] text-muted-foreground">
+                {onlyMissing
+                  ? "Enviará solo a quienes aún no reciben (comportamiento seguro y recomendado)."
+                  : "Enviará a TODOS los docentes activos, regenerando la contraseña de cada uno."}
+              </p>
+            </div>
           </div>
+
+          <Button onClick={sendBulk} disabled={sending} className="rounded-sm bg-[#0033A0]" data-testid="send-bulk-btn">
+            {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+            Enviar credenciales masivo
+          </Button>
+
+          {result && (
+            <div className="border border-border rounded-sm p-3 space-y-2 mt-3">
+              <p className="text-xs">
+                <b>{result.sent}</b> enviados · <b>{result.failed}</b> fallidos · Total objetivo: {result.total_target}
+              </p>
+              {result.failed > 0 && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-amber-700">Ver fallidos ({result.failed_list?.length || 0})</summary>
+                  <ul className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                    {(result.failed_list || []).map((f, i) => (
+                      <li key={i} className="text-[11px]">
+                        <b>{f.email || f.id}</b> — <span className="text-muted-foreground">{f.error}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
         </div>
-
-        <Button onClick={sendBulk} disabled={sending} className="rounded-sm bg-[#0033A0]" data-testid="send-bulk-btn">
-          {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-          Enviar credenciales masivo
-        </Button>
-
-        {result && (
-          <div className="border border-border rounded-sm p-3 space-y-2">
-            <p className="text-xs">
-              <b>{result.sent}</b> enviados · <b>{result.failed}</b> fallidos · Total objetivo: {result.total_target}
-            </p>
-            {result.failed > 0 && (
-              <details className="text-xs">
-                <summary className="cursor-pointer text-amber-700">Ver fallidos ({result.failed_list?.length || 0})</summary>
-                <ul className="mt-2 space-y-1 max-h-40 overflow-y-auto">
-                  {(result.failed_list || []).map((f, i) => (
-                    <li key={i} className="text-[11px]">
-                      <b>{f.email || f.id}</b> — <span className="text-muted-foreground">{f.error}</span>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

@@ -313,7 +313,8 @@ async def main():
             docente_users.append({
                 "id": uid,
                 "email": login_email,
-                "password": hash_pwd("IUDigital2026"),
+                # Contraseña inicial = cédula. must_change_password=True fuerza cambio al primer ingreso.
+                "password": hash_pwd(doc_ced),
                 "full_name": doc_name or f"Docente {doc_ced}",
                 "role": "profesor",
                 "documento": doc_ced,
@@ -323,6 +324,7 @@ async def main():
                 "correo_institucional": email_inst,
                 "active": True,
                 "must_change_password": True,
+                "initial_password_is_cedula": True,
                 "created_at": datetime.utcnow().isoformat(),
             })
 

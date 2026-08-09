@@ -53,7 +53,7 @@ class UserOut(BaseModel):
 
 
 class LoginIn(BaseModel):
-    email: EmailStr
+    email: str  # cédula (documento) o correo electrónico
     password: str
 
 

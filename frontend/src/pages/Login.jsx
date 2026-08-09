@@ -58,17 +58,21 @@ export default function Login() {
 
           <form onSubmit={submit} className="space-y-5">
             <div>
-              <Label className="label-eyebrow mb-2 block">Correo institucional</Label>
+              <Label className="label-eyebrow mb-2 block">Usuario</Label>
               <Input
-                type="email"
+                type="text"
                 required
                 autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="usuario@iudigital.edu.co"
+                placeholder="Cédula o correo institucional"
                 className="h-11 rounded-sm"
                 data-testid="login-email-input"
+                autoComplete="username"
               />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Docentes: use su <b>número de cédula</b>. Personal administrativo: use su correo institucional.
+              </p>
             </div>
             <div>
               <Label className="label-eyebrow mb-2 block">Contraseña</Label>
