@@ -7,10 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { Loader2, ShieldCheck, Eye, EyeOff, Info } from "lucide-react";
+import { Loader2, ShieldCheck, Eye, EyeOff, Info, LogOut } from "lucide-react";
 
 export default function ChangePassword() {
-  const { user, setUser } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -20,6 +20,17 @@ export default function ChangePassword() {
 
   const isProfesor = user?.role === "profesor";
   const cedula = user?.documento || "";
+
+  const handleLogout = () => {
+    if (typeof logout === "function") {
+      logout();
+    } else {
+      localStorage.removeItem("iud_user");
+      localStorage.removeItem("iud_token");
+      setUser(null);
+    }
+    navigate("/login", { replace: true });
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -51,15 +62,33 @@ export default function ChangePassword() {
     <div className="min-h-screen grid place-items-center bg-background p-6">
       <div className="w-full max-w-md">
         <div className="dense-card p-7 md:p-9">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="h-10 w-10 grid place-items-center bg-[#FFCD00] text-black rounded">
-              <ShieldCheck className="w-5 h-5" />
+          <div className="flex items-center justify-between gap-3 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 grid place-items-center bg-[#FFCD00] text-black rounded">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="label-eyebrow">Seguridad</p>
+                <h1 className="font-display font-black text-xl leading-none">Cambio de contraseña</h1>
+              </div>
             </div>
-            <div>
-              <p className="label-eyebrow">Seguridad</p>
-              <h1 className="font-display font-black text-xl leading-none">Cambio de contraseña</h1>
-            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-[#0033A0] transition-soft flex items-center gap-1"
+              data-testid="cp-logout-btn"
+            >
+              <LogOut className="w-3 h-3" /> Salir
+            </button>
           </div>
+
+          {user?.full_name && (
+            <p className="text-[11px] text-muted-foreground mb-3">
+              Ingresado como <b className="text-foreground">{user.full_name}</b>
+              {cedula ? <> · cédula <code className="font-mono">{cedula}</code></> : null}
+              {user.email ? <> · {user.email}</> : null}
+            </p>
+          )}
           <p className="text-sm text-muted-foreground mb-4">
             Es su primer ingreso. Por política institucional debe definir una nueva contraseña.
           </p>
@@ -71,6 +100,15 @@ export default function ChangePassword() {
                 Su <b>contraseña actual</b> es su <b>número de cédula</b> (<code className="font-mono">{cedula}</code>).
                 Ingréselo tal cual, sin espacios ni puntos. Si el navegador auto-llenó otro valor,
                 bórrelo y digítelo manualmente.
+              </AlertDescription>
+            </Alert>
+          )}
+          {isProfesor && !cedula && (
+            <Alert className="mb-5 border-amber-300 bg-amber-50/60 dark:bg-amber-500/5">
+              <Info className="w-4 h-4 text-amber-600" />
+              <AlertDescription className="text-xs">
+                Su usuario no tiene cédula registrada. Si no recuerda su contraseña, pulse <b>Salir</b>
+                arriba y solicite reset al administrador.
               </AlertDescription>
             </Alert>
           )}
