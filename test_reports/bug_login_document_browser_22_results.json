@@ -1,0 +1,40 @@
+{
+  "base_url": "https://university-insights.preview.emergentagent.com",
+  "tool": "mcp_browser_automation",
+  "checks": [
+    {
+      "name": "fresh_login_dom_label_and_input_type",
+      "ok": true,
+      "details": {
+        "labels": ["USUARIO", "CONTRASEÑA"],
+        "old_label_visible": false,
+        "input_type": "text",
+        "placeholder": "Cédula o correo institucional",
+        "cedula_validation": {
+          "attrType": "text",
+          "browserType": "text",
+          "valid": true,
+          "typeMismatch": false,
+          "validationMessage": ""
+        }
+      }
+    },
+    {
+      "name": "document_login_browser_flow",
+      "ok": true,
+      "details": {
+        "submitted_user": "1128441439",
+        "password_length": 10,
+        "login_response_status": 200,
+        "has_access_token": true,
+        "role": "profesor",
+        "must_change_password": true,
+        "final_url": "https://university-insights.preview.emergentagent.com/change-password",
+        "visible_invalid_credentials": false,
+        "visible_email_validation_message": false,
+        "console_warnings_or_errors": []
+      }
+    }
+  ],
+  "all_ok": true
+}

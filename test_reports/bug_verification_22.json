@@ -1,0 +1,54 @@
+{
+  "verdict": "fixed",
+  "user_reported_bug": "Login page rechaza documento (cédula) forzando formato de correo electrónico. Ejemplo: cuando el docente Andrés Causil intenta ingresar con cédula 1128441439, aparece error del navegador 'Incluye @ en la dirección de correo electrónico. En 1128441439 falta un símbolo @.' Además el label sigue diciendo 'CORREO INSTITUCIONAL'. Usuario reporta también que los cambios no se guardan y siente que gasta créditos sin resultado.",
+  "summary": "No relevant testing skill found. Verified the exact login-by-cédula bug end to end: API accepts document and email login, fresh /login UI shows USUARIO (not CORREO INSTITUCIONAL), input is type=text with no HTML5 email validation, and Andrés logs in with cédula 1128441439 to /change-password without invalid-credentials/email-validation messages. No affected auth API or login flow is failing. Non-blocking observation: raw /login HTML does not contain the requested meta http-equiv cache tags, but the HTTP response header is no-store/no-cache/must-revalidate.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Served /login index HTML cache metadata",
+        "issue": "Raw /login HTML still lacks the new meta http-equiv Cache-Control/Pragma/Expires tags from frontend/public/index.html and still has the old Emergent title. The HTTP response header does include cache-control: no-store, no-cache, must-revalidate, so the user-visible stale-login symptom did not reproduce.",
+        "affected_selectors": ["head meta[http-equiv='Cache-Control']", "head title"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/bug_login_document_verification_22.py",
+    "/app/test_reports/bug_login_document_verification_22_results.json",
+    "/app/test_reports/check_login_html_cache_22.py",
+    "/app/test_reports/check_login_html_cache_22_results.json",
+    "/app/test_reports/bug_login_document_browser_22_results.json",
+    "/app/test_reports/bug_login_document_consolidated_evidence_22.json"
+  ],
+  "action_items": [
+    "Optional cleanup: ensure the served index.html/public asset reflects frontend/public/index.html meta/title changes (commit/rebuild/restart frontend if needed). The functional cache-control header is already present and the reported login flow is fixed."
+  ],
+  "critical_code_review_comments": [
+    "auth_router.py correctly treats a numeric identifier as documento/cedula first and falls back to lowercased email; models.py LoginIn.email is str, not EmailStr; Login.jsx uses label Usuario and input type=text.",
+    "git status shows frontend/public/index.html modified and yarn.lock files untracked; the live preview raw HTML does not reflect the public/index.html meta/title edits even though the rendered React login form is updated."
+  ],
+  "updated_files": [
+    "/app/test_reports/bug_login_document_verification_22.py",
+    "/app/test_reports/bug_login_document_verification_22_results.json",
+    "/app/test_reports/check_login_html_cache_22.py",
+    "/app/test_reports/check_login_html_cache_22_results.json",
+    "/app/test_reports/bug_login_document_browser_22_results.json",
+    "/app/test_reports/bug_login_document_consolidated_evidence_22.json",
+    "/app/test_reports/bug_verification_22.json",
+    "/app/test_reports/iteration_22.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100% for the user-visible login flow; 80% if counting the non-blocking raw HTML meta-tag requirement separately"
+  },
+  "seed_data_creation": "None. Did not submit the change-password form, so Andrés Causil's password remains 1128441439.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Focused test only. API evidence: document and superadmin login returned 200. Browser evidence: fresh page, no hard reload, cédula login reached /change-password with POST /api/auth/login 200 and no email validation or Credenciales inválidas. Local Python environment lacked Playwright, so browser flow was executed through mcp_browser_automation; API/cache checks were run from scripts in /app/test_reports.",
+  "rca_of_the_issue": "The prior user-visible failure likely came from the frontend still using/serving an email-type login field or cached old UI. Current deployed React UI uses a text input and shows Usuario, and backend accepts numeric cédula. A residual deployment/public-index mismatch exists for meta tags/title, but the HTTP response already disables caching and the login bug no longer reproduces."
+}

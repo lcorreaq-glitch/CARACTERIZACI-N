@@ -1,0 +1,34 @@
+{
+  "base_url": "https://university-insights.preview.emergentagent.com",
+  "skill_lookup": "No relevant testing skill found.",
+  "auth_playbook_reviewed": true,
+  "checks": [
+    {
+      "name": "POST /api/auth/login document credential",
+      "ok": true,
+      "evidence": "1128441439 / 1128441439 returned HTTP 200, access_token present, role=profesor, must_change_password=true, documento=1128441439."
+    },
+    {
+      "name": "POST /api/auth/login superadmin email credential",
+      "ok": true,
+      "evidence": "lcorreaq@gmail.com / IUDigital2026 returned HTTP 200 with access_token and role=superadmin."
+    },
+    {
+      "name": "Login page label/type/browser validation",
+      "ok": true,
+      "evidence": "Fresh /login page showed labels USUARIO and CONTRASEÑA; old CORREO INSTITUCIONAL label was absent; user input type=text; cédula value checkValidity=true, typeMismatch=false, validationMessage empty."
+    },
+    {
+      "name": "End-to-end cédula login UI flow",
+      "ok": true,
+      "evidence": "Playwright filled cédula 1128441439 and password 1128441439, clicked Ingresar, captured POST /api/auth/login 200 with access_token, and landed on /change-password with no Credenciales inválidas or email validation message."
+    },
+    {
+      "name": "Cache-control on served /login HTML",
+      "ok": true,
+      "evidence": "HTTP response header for /login and cache-busted /login included cache-control: no-store, no-cache, must-revalidate. Note: the requested meta http-equiv tags were not present in raw HTML, and raw title still showed old Emergent title."
+    }
+  ],
+  "all_user_visible_bug_symptoms_fixed": true,
+  "non_blocking_observation": "Raw /login HTML does not include the new meta http-equiv cache tags from frontend/public/index.html, but the HTTP response header already disables caching and the user-visible login form is updated."
+}

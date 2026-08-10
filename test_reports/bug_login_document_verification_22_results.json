@@ -1,0 +1,49 @@
+{
+  "base_url": "https://university-insights.preview.emergentagent.com",
+  "checks": [
+    {
+      "name": "document_login_api",
+      "ok": true,
+      "details": {
+        "status_code": 200,
+        "elapsed_ms": 458,
+        "has_access_token": true,
+        "user_role": "profesor",
+        "must_change_password": true,
+        "documento": "1128441439",
+        "detail": null
+      }
+    },
+    {
+      "name": "superadmin_email_login_api",
+      "ok": true,
+      "details": {
+        "status_code": 200,
+        "elapsed_ms": 275,
+        "has_access_token": true,
+        "user_role": "superadmin",
+        "must_change_password": false,
+        "documento": "43866264",
+        "detail": null
+      }
+    },
+    {
+      "name": "login_index_has_no_cache_meta",
+      "ok": false,
+      "details": {
+        "status_code": 200,
+        "has_cache_control_meta": false,
+        "has_pragma_meta": false,
+        "has_expires_meta": false
+      }
+    },
+    {
+      "name": "playwright_import",
+      "ok": false,
+      "details": {
+        "error": "ModuleNotFoundError(\"No module named 'playwright'\")"
+      }
+    }
+  ],
+  "all_ok": false
+}

@@ -1,0 +1,28 @@
+{
+  "base_url": "https://university-insights.preview.emergentagent.com",
+  "checks": [
+    {
+      "path": "/login",
+      "status_code": 200,
+      "response_cache_control": "no-store, no-cache, must-revalidate",
+      "response_etag": null,
+      "has_cache_control_meta": false,
+      "has_pragma_meta": false,
+      "has_expires_meta": false,
+      "title_is_iudigital": false,
+      "title_is_old_emergent": true
+    },
+    {
+      "path": "/login?cache_probe=1786392416",
+      "status_code": 200,
+      "response_cache_control": "no-store, no-cache, must-revalidate",
+      "response_etag": null,
+      "has_cache_control_meta": false,
+      "has_pragma_meta": false,
+      "has_expires_meta": false,
+      "title_is_iudigital": false,
+      "title_is_old_emergent": true
+    }
+  ],
+  "all_have_no_cache_meta": false
+}
