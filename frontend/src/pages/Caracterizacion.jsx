@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useFilters, buildQuery } from "./AppLayout";
 import { ExportButtons } from "./Executive";
+import { useAuth } from "@/context/AuthContext";
 import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend
@@ -92,6 +93,8 @@ const fmtMoney = (n) => {
 
 export default function Caracterizacion() {
   const { filters } = useFilters();
+  const { user } = useAuth();
+  const canDownload = user && !["profesor"].includes(user.role);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -117,7 +120,7 @@ export default function Caracterizacion() {
             Vista multidimensional de la base estudiantil. Use los filtros globales para segmentar por facultad, programa, periodo y otras dimensiones.
           </p>
         </div>
-        <ExportButtons scope="caracterizacion" filters={filters} />
+        <ExportButtons scope="caracterizacion" filters={filters} hidden={!canDownload} />
       </header>
 
       {/* KPI summary */}

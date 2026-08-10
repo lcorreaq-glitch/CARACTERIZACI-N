@@ -29,7 +29,7 @@ const NAV = [
   { to: "/mi-panel", label: "Mi panel", icon: GraduationCap, onlyDocente: true },
   { to: "/caracterizacion", label: "Caracterización", icon: Users },
   { to: "/academico", label: "Académico", icon: GraduationCap },
-  { to: "/territorial", label: "Territorial", icon: Map, hideForDocente: true },
+  { to: "/territorial", label: "Territorial", icon: Map },
   { to: "/historico", label: "Histórico", icon: History, hideForDocente: true },
   { to: "/insights", label: "Insights IA", icon: Brain, hideForDocente: true },
   { to: "/cargas", label: "Cargas Excel", icon: Upload, admin: true },

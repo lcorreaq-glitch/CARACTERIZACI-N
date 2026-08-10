@@ -11,7 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const PALETTE = ["#0033A0", "#0052FF", "#FFCD00", "#E3000F", "#059669", "#8B5CF6"];
 
-export function ExportButtons({ scope, filters }) {
+export function ExportButtons({ scope, filters, hidden }) {
+  if (hidden) return null;
   const downloadExport = (endpoint, fmt) => {
     const token = localStorage.getItem("iud_token");
     const q = new URLSearchParams(filters);
