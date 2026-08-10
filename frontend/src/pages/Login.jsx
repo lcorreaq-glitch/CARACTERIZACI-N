@@ -84,7 +84,11 @@ export default function Login() {
                 placeholder="••••••••"
                 className="h-11 rounded-sm"
                 data-testid="login-password-input"
+                autoComplete="current-password"
               />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                ¿Su navegador auto-llenó una contraseña vieja? Borre y escriba manualmente.
+              </p>
             </div>
 
             <Button

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api, { API } from "@/lib/api";
 import { useFilters, buildQuery } from "./AppLayout";
+import { useAuth } from "@/context/AuthContext";
 import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend, LabelList
@@ -71,6 +72,8 @@ function ChartCard({ title, eyebrow, children, span = "" }) {
 
 export default function Executive() {
   const { filters } = useFilters();
+  const { user } = useAuth();
+  const canDownload = user && user.role !== "profesor" && user.role !== "docente";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -94,7 +97,7 @@ export default function Executive() {
             Indicadores consolidados de la base estudiantil. Aplique filtros globales para segmentar la información.
           </p>
         </div>
-        <ExportButtons scope="ejecutivo" filters={filters} />
+        <ExportButtons scope="ejecutivo" filters={filters} hidden={!canDownload} />
       </header>
 
       {loading ? (

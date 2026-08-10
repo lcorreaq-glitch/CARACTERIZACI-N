@@ -31,7 +31,7 @@ function Protected({ children, requireAdmin = false }) {
 
 function IndexByRole() {
   const { user } = useAuth();
-  if (user?.role === "docente") return <Navigate to="/mi-panel" replace />;
+  if (user?.role === "profesor" || user?.role === "docente") return <Navigate to="/mi-panel" replace />;
   return <Executive />;
 }
 
