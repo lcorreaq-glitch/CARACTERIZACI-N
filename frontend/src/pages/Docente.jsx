@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, BookOpen, Users, TrendingUp, Heart, Accessibility, GraduationCap, MapPin, ArrowUpRight, ArrowDownRight, Minus, History, Brain, Sparkles, Loader2 } from "lucide-react";
+import { AlertTriangle, BookOpen, Users, TrendingUp, Heart, Accessibility, GraduationCap, MapPin, ArrowUpRight, ArrowDownRight, Minus, History, Brain, Sparkles, Loader2, Download } from "lucide-react";
 import { toast } from "sonner";
 
 const PALETTE = ["#0033A0", "#0052FF", "#FFCD00", "#E3000F", "#059669", "#8B5CF6"];
@@ -44,16 +44,21 @@ export default function Docente() {
   const [onlyRiesgo, setOnlyRiesgo] = useState(false);
   const [historico, setHistorico] = useState(null);
   const [openHistorico, setOpenHistorico] = useState(false);
+  const [includeExtra, setIncludeExtra] = useState(false); // Inglés fuera de malla + Extensión
+  const [downloading, setDownloading] = useState(false);
   // AI Alerts state
   const [aiAlert, setAiAlert] = useState(null);         // {loading, cedula, nombre, alerta}
   const [aiGrupo, setAiGrupo] = useState(null);         // {loading, codigo_grupo, asignatura, resumen}
 
   useEffect(() => {
     setLoading(true);
-    const q = filtroGrupo !== "all" ? `?codigo_grupo=${filtroGrupo}` : "";
+    const p = new URLSearchParams();
+    if (filtroGrupo !== "all") p.append("codigo_grupo", filtroGrupo);
+    if (includeExtra) p.append("include_extra", "true");
+    const q = p.toString() ? `?${p.toString()}` : "";
     api.get(`/dashboards/docente/me${q}`).then((r) => setData(r.data)).finally(() => setLoading(false));
     api.get(`/dashboards/docente/en-riesgo${q}`).then((r) => setEnRiesgo(r.data.items || []));
-  }, [filtroGrupo]);
+  }, [filtroGrupo, includeExtra]);
 
   useEffect(() => {
     api.get("/dashboards/docente/grupos-comparativa").then((r) => setComparativa(r.data.grupos || []));
@@ -65,6 +70,28 @@ export default function Docente() {
     if (onlyRiesgo) q.append("riesgo", "true");
     api.get(`/dashboards/docente/students?${q.toString()}`).then((r) => setStudents(r.data.students || []));
   }, [filtroGrupo, onlyRiesgo]);
+
+  const downloadXlsx = async () => {
+    setDownloading(true);
+    try {
+      const q = new URLSearchParams();
+      if (filtroGrupo !== "all") q.append("codigo_grupo", filtroGrupo);
+      if (onlyRiesgo) q.append("riesgo", "true");
+      const r = await api.get(`/dashboards/docente/students.xlsx?${q.toString()}`, { responseType: "blob" });
+      const url = URL.createObjectURL(new Blob([r.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mis_estudiantes_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("Error al descargar: " + (e?.response?.data?.detail || e.message));
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const openHist = async (cedula) => {
     setOpenHistorico(true); setHistorico(null);
@@ -446,13 +473,33 @@ export default function Docente() {
                     <h3 className="font-display font-bold text-lg tracking-tight">Mis estudiantes ({students.length})</h3>
                     <p className="text-xs text-muted-foreground mt-1">Top 200 ordenados por menor promedio. Información sensible no se muestra.</p>
                   </div>
-                  <button
-                    onClick={() => setOnlyRiesgo((v) => !v)}
-                    className={`text-xs px-3 py-1.5 rounded-sm border transition-soft ${onlyRiesgo ? "bg-[#E3000F]/10 border-[#E3000F]/30 text-[#E3000F]" : "border-border hover:bg-muted"}`}
-                    data-testid="docente-toggle-riesgo"
-                  >
-                    {onlyRiesgo ? "✓ Solo en riesgo" : "Mostrar solo en riesgo"}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIncludeExtra((v) => !v)}
+                      className={`text-[11px] px-3 py-1.5 rounded-sm border transition-soft ${includeExtra ? "bg-amber-500/10 border-amber-500/30 text-amber-800" : "border-border hover:bg-muted"}`}
+                      title="Incluir cursos de Extensión y Inglés fuera de la malla en los promedios (por defecto se excluyen)"
+                      data-testid="docente-toggle-extra"
+                    >
+                      {includeExtra ? "✓ Incluye Inglés+Extensión" : "Incluir Inglés+Extensión"}
+                    </button>
+                    <button
+                      onClick={() => setOnlyRiesgo((v) => !v)}
+                      className={`text-xs px-3 py-1.5 rounded-sm border transition-soft ${onlyRiesgo ? "bg-[#E3000F]/10 border-[#E3000F]/30 text-[#E3000F]" : "border-border hover:bg-muted"}`}
+                      data-testid="docente-toggle-riesgo"
+                    >
+                      {onlyRiesgo ? "✓ Solo en riesgo" : "Mostrar solo en riesgo"}
+                    </button>
+                    <Button
+                      onClick={downloadXlsx}
+                      disabled={downloading || students.length === 0}
+                      variant="outline"
+                      size="sm"
+                      className="rounded-sm text-xs h-8"
+                      data-testid="docente-download-xlsx"
+                    >
+                      <Download className="w-3.5 h-3.5 mr-1" /> {downloading ? "Descargando…" : "Descargar Excel"}
+                    </Button>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <Table>

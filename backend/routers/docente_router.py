@@ -1,6 +1,10 @@
 """Docente dashboard v2 — restringido a sus grupos asignados con panel de riesgo académico."""
+import io
+from datetime import datetime
 from typing import Optional
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from auth import get_current_user
 from database import db
 from scope import apply_role_scope
@@ -67,7 +71,11 @@ async def _cedulas_de_mis_grupos(user, codigo_grupo: Optional[str] = None):
 
 
 @router.get("/me")
-async def my_overview(codigo_grupo: Optional[str] = None, user=Depends(get_current_user)):
+async def my_overview(
+    codigo_grupo: Optional[str] = None,
+    include_extra: bool = False,
+    user=Depends(get_current_user),
+):
     if user.get("role") not in ALLOWED_ROLES:
         raise HTTPException(403, "Rol no autorizado para este panel")
 
@@ -84,19 +92,27 @@ async def my_overview(codigo_grupo: Optional[str] = None, user=Depends(get_curre
     match = {"cedula": {"$in": list(cedulas)}}
     total = await db.students.count_documents(match)
 
+    # Promedio dinámico: si include_extra=True, incluir Inglés y Extensión; si no, excluirlos.
+    hn_match = academic_notes_match({"cedula": {"$in": list(cedulas)}}, include_extra=include_extra)
+    prom_agg = await db.historico_notas.aggregate([
+        {"$match": hn_match},
+        {"$group": {"_id": "$cedula", "prom": {"$avg": "$nota"}}},
+    ]).to_list(len(cedulas) + 10)
+    prom_por_ced = {r["_id"]: r["prom"] for r in prom_agg if r["prom"] is not None}
+    prom_general = round(sum(prom_por_ced.values()) / len(prom_por_ced), 2) if prom_por_ced else 0
+    en_riesgo = sum(1 for p in prom_por_ced.values() if 0 < p < 3.0)
+    excelencia = sum(1 for p in prom_por_ced.values() if p >= 4.5)
+
     agg = await db.students.aggregate([
         {"$match": match},
         {"$group": {
             "_id": None,
-            "promedio": {"$avg": "$promedio"},
             "vulnerables": {"$sum": {"$cond": ["$grupo_vulnerable", 1, 0]}},
             "victimas": {"$sum": {"$cond": ["$victima_conflicto", 1, 0]}},
             "discapacidad": {"$sum": {"$cond": ["$discapacidad_flag", 1, 0]}},
             "avance_pct": {"$avg": "$avance_pct"},
         }}
     ]).to_list(1)
-    en_riesgo = await db.students.count_documents({**match, "promedio": {"$lt": 3.0, "$gt": 0}})
-    excelencia = await db.students.count_documents({**match, "promedio": {"$gte": 4.5}})
 
     by_programa = await db.students.aggregate([
         {"$match": match},
@@ -129,9 +145,10 @@ async def my_overview(codigo_grupo: Optional[str] = None, user=Depends(get_curre
     k = agg[0] if agg else {}
     return {
         "grupos": groups,
+        "include_extra": include_extra,
         "kpis": {
             "total_estudiantes": total,
-            "promedio": round(k.get("promedio", 0) or 0, 2),
+            "promedio": prom_general,
             "avance_pct": round(k.get("avance_pct", 0) or 0, 1),
             "en_riesgo": en_riesgo,
             "excelencia": excelencia,
@@ -150,6 +167,7 @@ async def estudiantes_en_riesgo(
     codigo_grupo: Optional[str] = None,
     umbral: float = Query(3.0, ge=0, le=5),
     limit: int = Query(100, ge=1, le=500),
+    include_extra: bool = False,
     user=Depends(get_current_user),
 ):
     """Estudiantes en riesgo académico: promedio<umbral O nota<umbral en materia del docente.
@@ -170,7 +188,7 @@ async def estudiantes_en_riesgo(
         docente_filter["codigo_grupo"] = codigo_grupo
 
     avg_pipe = [
-        {"$match": academic_notes_match({**docente_filter, "cedula": {"$in": list(cedulas)}})},
+        {"$match": academic_notes_match({**docente_filter, "cedula": {"$in": list(cedulas)}}, include_extra=include_extra)},
         {"$group": {
             "_id": "$cedula",
             "prom_grupo": {"$avg": "$nota"},
@@ -268,6 +286,78 @@ async def my_students(
     ).sort("promedio", 1).limit(500).to_list(500)
     total = await db.students.count_documents(match)
     return {"students": students, "total": total}
+
+
+@router.get("/students.xlsx")
+async def my_students_xlsx(
+    codigo_grupo: Optional[str] = None,
+    riesgo: Optional[bool] = None,
+    user=Depends(get_current_user),
+):
+    """Descarga Excel de la vista Mis estudiantes (respeta filtros de la UI)."""
+    if user.get("role") not in ALLOWED_ROLES:
+        raise HTTPException(403, "Solo docentes")
+
+    cedulas = await _cedulas_de_mis_grupos(user, codigo_grupo)
+    if not cedulas:
+        raise HTTPException(400, "No hay estudiantes en su vista")
+
+    match = {"cedula": {"$in": list(cedulas)}}
+    if riesgo:
+        match["promedio"] = {"$lt": 3.0, "$gt": 0}
+
+    students = await db.students.find(
+        match,
+        {"_id": 0, "cedula": 1, "nombre": 1, "apellidos": 1,
+         "programa": 1, "facultad": 1, "nivel": 1, "promedio": 1, "avance_pct": 1,
+         "sisben_nivel": 1, "estrato": 1,
+         "grupo_vulnerable": 1, "victima_conflicto": 1, "discapacidad_flag": 1,
+         "tipo_ubicacion": 1, "ciudad_nombre": 1, "departamento": 1}
+    ).sort("promedio", 1).to_list(2000)
+
+    rows = []
+    for s in students:
+        flags = []
+        if s.get("grupo_vulnerable"): flags.append("Vulnerable")
+        if s.get("victima_conflicto"): flags.append("Víctima conflicto")
+        if s.get("discapacidad_flag"): flags.append("Discapacidad")
+        if s.get("tipo_ubicacion") == "Rural": flags.append("Rural")
+        rows.append({
+            "Cédula": str(s.get("cedula") or ""),
+            "Nombre": s.get("nombre") or "",
+            "Apellidos": s.get("apellidos") or "",
+            "Programa": s.get("programa") or "",
+            "Facultad": s.get("facultad") or "",
+            "Nivel": s.get("nivel") or "",
+            "Promedio": s.get("promedio") or 0,
+            "Avance %": s.get("avance_pct") or 0,
+            "SISBEN": s.get("sisben_nivel") or "",
+            "Estrato": s.get("estrato") or "",
+            "Ubicación": s.get("tipo_ubicacion") or "",
+            "Ciudad": s.get("ciudad_nombre") or "",
+            "Departamento": s.get("departamento") or "",
+            "Flags": " · ".join(flags),
+        })
+    df = pd.DataFrame(rows)
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name="Mis estudiantes", index=False)
+        ws = writer.sheets["Mis estudiantes"]
+        widths = [14, 22, 22, 32, 30, 8, 10, 10, 12, 10, 14, 22, 22, 40]
+        for i, w in enumerate(widths, start=1):
+            ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+        # Forzar cédula como texto para preservar dígitos
+        for row in ws.iter_rows(min_row=2, min_col=1, max_col=1):
+            for cell in row:
+                cell.number_format = "@"
+    output.seek(0)
+    fname = f"mis_estudiantes_{user.get('documento') or user['id'][:8]}_{datetime.utcnow().strftime('%Y%m%d')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
 
 
 

@@ -8,15 +8,18 @@ Usado en TODOS los tableros donde se calculan promedios/notas.
 NON_ACADEMIC_PROGRAM_REGEX = r"(extensi[oó]n\s+acad[eé]mica|^curso\s|diplomad|fuera\s+de\s+la\s+malla|-\s+extens)"
 
 
-def academic_notes_match(base_match: dict = None) -> dict:
+def academic_notes_match(base_match: dict = None, include_extra: bool = False) -> dict:
     """Devuelve un match de MongoDB que EXCLUYE notas de:
       - Cursos de Extensión Académica (codigo_asignatura empieza con 'EXT')
       - Cursos, Diplomados y ofertas fuera de malla (programa contiene esos patrones)
       - Inglés Fuera de la Malla (programa contiene 'fuera de la malla')
 
+    Si `include_extra=True`, retorna el `base_match` sin exclusiones (se ve TODO).
     Se combina con el `base_match` si se proporciona.
     """
     m = dict(base_match or {})
+    if include_extra:
+        return m
     # Combinar con $and para no pisar $or/$nor previos
     academic_conditions = [
         {"codigo_asignatura": {"$not": {"$regex": r"^EXT", "$options": "i"}}},
