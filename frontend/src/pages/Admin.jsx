@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Trash2, UserPlus, Globe, Download, Eye, Pencil, Save, Shield, ShieldOff, Key, Power, PowerOff, Settings2, CheckCircle2, XCircle, Mail, Info, TrendingUp, Building2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
@@ -713,6 +714,7 @@ function CatalogTab({ name, label, showFacultad, showPrograma }) {
   const [facs, setFacs] = useState([]);
   const [progs, setProgs] = useState([]);
   const [fichaId, setFichaId] = useState(null); // facultad_id para el modal de ficha
+  const [editFacId, setEditFacId] = useState(null); // facultad_id para el modal de edición
 
   const load = () => { api.get(`/admin/${name}`).then((r) => setItems(r.data)); };
   useEffect(() => {
@@ -782,9 +784,14 @@ function CatalogTab({ name, label, showFacultad, showPrograma }) {
               <TableCell className="text-xs mono">{it.codigo || "—"}</TableCell>
               <TableCell className="text-right">
                 {isFacultad && (
-                  <Button variant="ghost" size="sm" onClick={() => setFichaId(it.id)} title="Ver ficha" data-testid={`ficha-fac-${it.id}`}>
-                    <Eye className="w-3.5 h-3.5 text-[#0033A0]" />
-                  </Button>
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => setFichaId(it.id)} title="Ver ficha" data-testid={`ficha-fac-${it.id}`}>
+                      <Eye className="w-3.5 h-3.5 text-[#0033A0]" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setEditFacId(it.id)} title="Editar facultad" data-testid={`edit-fac-${it.id}`}>
+                      <Pencil className="w-3.5 h-3.5 text-amber-700" />
+                    </Button>
+                  </>
                 )}
                 <Button variant="ghost" size="sm" onClick={() => remove(it.id)}><Trash2 className="w-3 h-3 text-[#E3000F]" /></Button>
               </TableCell>
@@ -793,6 +800,14 @@ function CatalogTab({ name, label, showFacultad, showPrograma }) {
         </TableBody>
       </Table>
       {isFacultad && fichaId && <FichaFacultadDialog facultadId={fichaId} onClose={() => setFichaId(null)} />}
+      {isFacultad && editFacId && (
+        <EditFacultadDialog
+          facultadId={editFacId}
+          facultad={items.find((x) => x.id === editFacId)}
+          onClose={() => setEditFacId(null)}
+          onSaved={() => { setEditFacId(null); load(); }}
+        />
+      )}
     </div>
   );
 }
@@ -826,6 +841,14 @@ function FichaFacultadDialog({ facultadId, onClose }) {
         {loading && <div className="p-8 text-center text-muted-foreground text-sm">Cargando información…</div>}
         {!loading && data && (
           <div className="space-y-5">
+            {/* Descripción */}
+            {data.facultad?.descripcion && (
+              <div className="dense-card p-3 border-l-4 border-[#0033A0] bg-[#0033A0]/5">
+                <p className="label-eyebrow text-[#0033A0] mb-1">Descripción</p>
+                <p className="text-xs leading-relaxed whitespace-pre-line">{data.facultad.descripcion}</p>
+              </div>
+            )}
+
             {/* KPIs */}
             <div>
               <p className="label-eyebrow text-[#0033A0] mb-2">Indicadores académicos</p>
@@ -939,6 +962,148 @@ function FichaFacultadDialog({ facultadId, onClose }) {
     </Dialog>
   );
 }
+
+
+// -------------- Edición de Facultad --------------
+function EditFacultadDialog({ facultadId, facultad, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    nombre: facultad?.nombre || "",
+    descripcion: facultad?.descripcion || "",
+    codigo: facultad?.codigo || "",
+    decano_principal_id: facultad?.decano_principal_id || "",
+  });
+  const [decanos, setDecanos] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    // Cargar TODOS los usuarios con rol decano para poder asignar el principal
+    api.get("/admin/users")
+      .then((r) => setDecanos((r.data || []).filter((u) => u.role === "decano" && u.active !== false)))
+      .catch(() => setDecanos([]));
+    // Refrescar facultad por si el listado no trae descripcion/decano_principal_id
+    api.get(`/admin/facultades/${facultadId}/ficha`)
+      .then((r) => {
+        const f = r.data?.facultad || {};
+        setForm((prev) => ({
+          nombre: f.nombre ?? prev.nombre,
+          descripcion: f.descripcion ?? prev.descripcion ?? "",
+          codigo: f.codigo ?? prev.codigo ?? "",
+          decano_principal_id: f.decano_principal_id ?? prev.decano_principal_id ?? "",
+        }));
+      })
+      .catch(() => {});
+  }, [facultadId]);
+
+  const save = async () => {
+    if (!form.nombre.trim()) {
+      toast.error("El nombre es obligatorio");
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.put(`/admin/facultades/${facultadId}`, {
+        nombre: form.nombre.trim(),
+        descripcion: form.descripcion,
+        codigo: form.codigo || null,
+        decano_principal_id: form.decano_principal_id || null,
+      });
+      toast.success("Facultad actualizada");
+      onSaved?.();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Error al actualizar la facultad");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg" data-testid="edit-facultad-dialog">
+        <DialogHeader>
+          <DialogTitle className="font-display flex items-center gap-2">
+            <Pencil className="w-4 h-4 text-amber-700" /> Editar facultad
+          </DialogTitle>
+          <DialogDescription>
+            Modifica el nombre, la descripción y el decano principal de la facultad. Al cambiar el nombre se propagará a estudiantes, grupos y programas.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label className="label-eyebrow">Nombre <span className="text-[#E3000F]">*</span></Label>
+            <Input
+              className="rounded-sm"
+              value={form.nombre}
+              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              data-testid="edit-fac-nombre"
+            />
+          </div>
+          <div>
+            <Label className="label-eyebrow">Código</Label>
+            <Input
+              className="rounded-sm"
+              value={form.codigo}
+              onChange={(e) => setForm({ ...form, codigo: e.target.value })}
+              placeholder="Opcional (ej. FCEAC)"
+              data-testid="edit-fac-codigo"
+            />
+          </div>
+          <div>
+            <Label className="label-eyebrow">Decano principal</Label>
+            <Select
+              value={form.decano_principal_id || "__none__"}
+              onValueChange={(v) => setForm({ ...form, decano_principal_id: v === "__none__" ? "" : v })}
+            >
+              <SelectTrigger className="rounded-sm" data-testid="edit-fac-decano">
+                <SelectValue placeholder="Seleccionar decano principal…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— Sin decano principal —</SelectItem>
+                {decanos.length === 0 && (
+                  <SelectItem value="__nodata__" disabled>
+                    No hay usuarios con rol Decano
+                  </SelectItem>
+                )}
+                {decanos.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.full_name} · {d.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              El usuario seleccionado quedará vinculado a esta facultad automáticamente.
+            </p>
+          </div>
+          <div>
+            <Label className="label-eyebrow">Descripción</Label>
+            <Textarea
+              className="rounded-sm min-h-[100px]"
+              value={form.descripcion}
+              onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+              placeholder="Descripción, misión o áreas académicas de la facultad…"
+              data-testid="edit-fac-descripcion"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} className="rounded-sm" data-testid="edit-fac-cancel">
+            Cancelar
+          </Button>
+          <Button
+            onClick={save}
+            disabled={saving}
+            className="rounded-sm bg-[#0033A0] hover:bg-[#002A85] text-white"
+            data-testid="edit-fac-save"
+          >
+            <Save className="w-4 h-4 mr-2" /> {saving ? "Guardando…" : "Guardar cambios"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 
 
 // -------------- Programas: vista rica con detalle --------------

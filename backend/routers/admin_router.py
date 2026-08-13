@@ -499,6 +499,69 @@ async def update_programa(item_id: str, payload: dict, user=Depends(require_role
     return {"ok": True, "modified": r.modified_count}
 
 
+@router.put("/facultades/{item_id}")
+async def update_facultad(item_id: str, payload: dict, user=Depends(require_roles("superadmin", "direccion"))):
+    """Editar facultad: nombre, descripción y decano principal.
+
+    Si cambia el nombre, propaga el valor denormalizado a students/grupos/programas
+    (colecciones que guardan el string `facultad` en lugar del id).
+    Si cambia decano_principal_id, vincula al usuario (facultad_id) y desvincula anteriores decanos.
+    """
+    fac = await db.facultades.find_one({"id": item_id}, {"_id": 0})
+    if not fac:
+        raise HTTPException(404, "Facultad no encontrada")
+
+    allowed = {"nombre", "descripcion", "codigo", "decano_principal_id"}
+    upd = {k: v for k, v in payload.items() if k in allowed}
+    if not upd:
+        raise HTTPException(400, "Nada que actualizar")
+
+    # Validaciones
+    new_nombre = (upd.get("nombre") or "").strip() if "nombre" in upd else None
+    if new_nombre is not None and not new_nombre:
+        raise HTTPException(400, "El nombre no puede quedar vacío")
+
+    new_decano_id = upd.get("decano_principal_id")
+    if new_decano_id:
+        decano_user = await db.users.find_one({"id": new_decano_id}, {"_id": 0})
+        if not decano_user:
+            raise HTTPException(400, "El decano principal seleccionado no existe")
+        if decano_user.get("role") != "decano":
+            raise HTTPException(400, "El usuario seleccionado no tiene rol 'decano'")
+
+    # Normalizar nombre en upd si se envió (usar el trim)
+    if new_nombre is not None:
+        upd["nombre"] = new_nombre
+
+    upd["updated_at"] = datetime.utcnow().isoformat()
+
+    # Actualizar la facultad
+    await db.facultades.update_one({"id": item_id}, {"$set": upd})
+
+    # Propagar cambio de nombre a colecciones denormalizadas
+    if new_nombre and new_nombre != fac.get("nombre"):
+        old_nombre = fac.get("nombre")
+        # students.facultad (string)
+        await db.students.update_many({"facultad": old_nombre}, {"$set": {"facultad": new_nombre}})
+        # grupos.facultad (string)
+        await db.grupos.update_many({"facultad": old_nombre}, {"$set": {"facultad": new_nombre}})
+        # programas.facultad_nombre (denormalizado en programas)
+        await db.programas.update_many(
+            {"facultad_id": item_id},
+            {"$set": {"facultad_nombre": new_nombre}},
+        )
+
+    # Vincular decano principal: setear su facultad_id y (opcional) desligar decanos anteriores
+    if new_decano_id:
+        await db.users.update_one(
+            {"id": new_decano_id},
+            {"$set": {"facultad_id": item_id, "role": "decano"}},
+        )
+
+    updated = await db.facultades.find_one({"id": item_id}, {"_id": 0})
+    return {"ok": True, "facultad": updated}
+
+
 
 # ---------- Docentes enriquecidos ----------
 @router.get("/docentes")

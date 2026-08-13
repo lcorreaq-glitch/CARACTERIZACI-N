@@ -195,7 +195,7 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 
 ## Backlog (actualizado)
 - P0: Edit funcional de "Grupos" (más allá de solo lectura).
-- P0: Detalle y edición rica de "Facultades" (similar a Programas).
+- ✅ P0: Detalle y edición rica de "Facultades" (nombre, descripción, decano principal) — 2026-02-13.
 - P1: Exportación PDF profesional con marca institucional (incluyendo alertas IA).
 - P1: Envío por email de las alertas IA al correo institucional del estudiante (con copia al docente).
 - P1: Batch/lote: generar alertas para todos los estudiantes en riesgo de un grupo en un solo click.
@@ -203,6 +203,14 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - P2: Auditoría/logs de acceso (logins, uploads, exports, generación IA).
 - P2: Geocoding con API DANE para municipios no mapeados.
 - P2: PostgreSQL + PostGIS migration (si requerido).
+
+## 2026-02-13 · Edición de Facultades
+- **Backend**: nuevo `PUT /api/admin/facultades/{item_id}` (superadmin/direccion). Acepta `nombre`, `descripcion`, `codigo`, `decano_principal_id`.
+  - Al cambiar el nombre propaga a `students.facultad`, `grupos.facultad` y `programas.facultad_nombre`.
+  - Al setear `decano_principal_id` valida rol=`decano` y bindea `facultad_id` al usuario.
+- **Frontend**: nuevo `EditFacultadDialog` (Admin.jsx) accesible desde el botón lápiz en la tabla de Facultades. Formulario con Nombre*, Código, Decano principal (select con todos los usuarios rol=decano) y Descripción (textarea).
+- **Ficha**: ahora muestra `descripcion` en el modal de ficha si existe.
+
 
 ## Test Credentials
 Ver `/app/memory/test_credentials.md`
