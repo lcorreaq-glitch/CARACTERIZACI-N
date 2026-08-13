@@ -20,6 +20,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState(false);
 
   if (user) {
     return <Navigate to={user.must_change_password ? "/change-password" : "/"} replace />;
@@ -28,12 +29,14 @@ export default function Login() {
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setAuthError(false);
     try {
       const u = await login(email, password);
       toast.success(`Bienvenido, ${u.full_name}`);
       navigate(u.must_change_password ? "/change-password" : "/");
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Error de inicio de sesión");
+      setAuthError(true);
     } finally {
       setLoading(false);
     }
@@ -65,7 +68,7 @@ export default function Login() {
           <div className="h-1.5 w-24 bg-[#FFCD00] rounded-full mb-6" aria-hidden />
 
           <p className="text-muted-foreground text-sm md:text-base mb-8 max-w-sm">
-            Acceso restringido a personal institucional autorizado. Toda actividad queda registrada.
+            Bienvenido al Aplicativo de Caracterización y Analítica Académica. Ingresa con tus datos institucionales para continuar.
           </p>
 
           <form onSubmit={submit} className="space-y-5" data-testid="login-form">
@@ -83,7 +86,7 @@ export default function Login() {
                 autoComplete="username"
               />
               <p className="text-[10px] text-muted-foreground mt-1.5">
-                Docentes: use su <b>número de cédula</b>. Personal administrativo: use su correo institucional.
+                Profesores: ingresa con tu <b>número de identificación</b>. Personal administrativo: ingresa con tu correo institucional.
               </p>
             </div>
             <div>
@@ -98,9 +101,11 @@ export default function Login() {
                 data-testid="login-password-input"
                 autoComplete="current-password"
               />
-              <p className="text-[10px] text-muted-foreground mt-1.5">
-                ¿Su navegador auto-llenó una contraseña vieja? Borre y escriba manualmente.
-              </p>
+              {authError && (
+                <p className="text-[10px] text-[#E3000F] mt-1.5" data-testid="login-auth-hint">
+                  Si tu navegador auto-llenó una contraseña anterior, bórrala y escríbela nuevamente.
+                </p>
+              )}
             </div>
 
             <Button
@@ -114,7 +119,7 @@ export default function Login() {
           </form>
 
           <p className="text-xs text-muted-foreground mt-8">
-            ¿Olvidó su contraseña? Solicite restablecimiento al administrador del sistema.
+            ¿Olvidaste tu contraseña? Solicita apoyo para restablecerla.
           </p>
         </div>
 
