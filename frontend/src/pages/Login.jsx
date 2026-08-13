@@ -140,7 +140,7 @@ export default function Login() {
         <img
           src="/img/hero-people.jpg"
           alt="Comunidad IU Digital de Antioquia"
-          className="absolute inset-0 w-full h-full object-cover object-center"
+          className="absolute inset-0 w-full h-full object-cover object-[70%_center]"
         />
         {/* Dark gradient overlay (bottom to top) so headline reads well */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/25 to-black/55" />
@@ -153,10 +153,10 @@ export default function Login() {
         {/* Big headline over image (portada style) */}
         <div className="absolute inset-x-0 top-16 md:top-24 px-8 md:px-14 z-10">
           <h2 className="font-display font-black text-white text-5xl md:text-6xl xl:text-7xl leading-[0.98] tracking-tighter drop-shadow-lg">
-            Hoja de ruta<br />académica
+            Cada estudiante,<br />un territorio
           </h2>
           <p className="mt-3 text-2xl md:text-3xl font-display font-bold text-[#FFCD00] tracking-tight drop-shadow">
-            de la IU Digital de Antioquia
+            IU Digital de Antioquia
           </p>
         </div>
 

@@ -207,7 +207,7 @@ export default function ChangePassword() {
         <img
           src="/img/hero-people.jpg"
           alt="Comunidad IU Digital de Antioquia"
-          className="absolute inset-0 w-full h-full object-cover object-center"
+          className="absolute inset-0 w-full h-full object-cover object-[70%_center]"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/72 via-black/30 to-black/60" />
 
