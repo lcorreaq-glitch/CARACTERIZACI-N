@@ -17,7 +17,7 @@ import {
 export default function Configuracion() {
   const { user } = useAuth();
   const isSuperadmin = user?.role === "superadmin";
-  const [tab, setTab] = useState("gmail-oauth");
+  const [tab, setTab] = useState("smtp");
   const [overview, setOverview] = useState(null);
 
   useEffect(() => {
@@ -54,8 +54,8 @@ export default function Configuracion() {
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="rounded-sm flex-wrap h-auto">
-          <TabsTrigger value="gmail-oauth" data-testid="tab-gmail-oauth"><Mail className="w-3.5 h-3.5 mr-2" />Correo — Gmail API (OAuth)</TabsTrigger>
-          <TabsTrigger value="smtp" data-testid="tab-smtp"><Mail className="w-3.5 h-3.5 mr-2" />Correo — SMTP (legacy)</TabsTrigger>
+          <TabsTrigger value="smtp" data-testid="tab-smtp"><Mail className="w-3.5 h-3.5 mr-2" />Correo — SMTP (Gmail)</TabsTrigger>
+          <TabsTrigger value="gmail-oauth" data-testid="tab-gmail-oauth"><Mail className="w-3.5 h-3.5 mr-2" />Correo — Gmail API (avanzado)</TabsTrigger>
           <TabsTrigger value="ai" data-testid="tab-ai"><Bot className="w-3.5 h-3.5 mr-2" />IA (Emergent / Gemini)</TabsTrigger>
           <TabsTrigger value="envios" data-testid="tab-envios"><Send className="w-3.5 h-3.5 mr-2" />Envío de credenciales</TabsTrigger>
         </TabsList>
