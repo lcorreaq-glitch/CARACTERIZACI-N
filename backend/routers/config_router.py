@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/config", tags=["config"])
 DEFAULT_AI = {
     "ai_provider": "emergent",   # "emergent" | "gemini_google"
     "gemini_api_key": "",
-    "gemini_model": "gemini-2.0-flash",
+    "gemini_model": "gemini-3.6-flash",
     "openai_model": "gpt-4o",
     "ai_enabled": True,
 }

@@ -522,7 +522,7 @@ function AIPanel({ onSaved }) {
           </li>
           <li>Pulse <b>Create API key</b> y seleccione un proyecto de Google Cloud (o cree uno).</li>
           <li>Copie la clave (empieza con <code>AIza…</code>) y péguela aquí al lado.</li>
-          <li>Elija el modelo. Recomendado: <code>gemini-2.0-flash</code> (rápido y económico).</li>
+          <li>Elija el modelo. Recomendado: <code>gemini-3.6-flash</code> (rápido y económico, versión Feb 2026). Alternativas: <code>gemini-3.5-flash</code>, <code>gemini-flash-latest</code>.</li>
           <li>Cambie el <b>Proveedor</b> a <b>Google Gemini</b> y guarde.</li>
         </ol>
         <Alert className="mt-4 border-blue-300 bg-blue-50/60 dark:bg-blue-500/5">
@@ -558,7 +558,7 @@ function AIPanel({ onSaved }) {
             </Select>
           </Field>
           <Field label="Modelo Gemini (si aplica)">
-            <Input value={cfg.gemini_model || "gemini-2.0-flash"} onChange={(e) => set("gemini_model", e.target.value)} className="rounded-sm" data-testid="ai-gemini-model" />
+            <Input value={cfg.gemini_model || "gemini-3.6-flash"} onChange={(e) => set("gemini_model", e.target.value)} className="rounded-sm" data-testid="ai-gemini-model" />
           </Field>
           <Field label="Modelo OpenAI vía Emergent">
             <Input value={cfg.openai_model || "gpt-4o"} onChange={(e) => set("openai_model", e.target.value)} className="rounded-sm" data-testid="ai-openai-model" />

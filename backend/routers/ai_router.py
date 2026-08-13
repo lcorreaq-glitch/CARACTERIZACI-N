@@ -12,6 +12,23 @@ router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 EMERGENT_LLM_KEY = os.environ["EMERGENT_LLM_KEY"]
 
+async def _build_chat(session_id: str, system_message: str):
+    """Devuelve (LlmChat, model_label) según el proveedor activo en la BD.
+
+    - ai_provider = 'gemini_google' + gemini_api_key configurada → Gemini directo con la clave del usuario
+    - En cualquier otro caso → Emergent Universal Key con OpenAI GPT-4o
+    """
+    cfg = await db.system_settings.find_one({"_id": "ai_config"}, {"_id": 0}) or {}
+    provider = cfg.get("ai_provider", "emergent")
+    gemini_key = (cfg.get("gemini_api_key") or "").strip()
+    gemini_model = cfg.get("gemini_model") or "gemini-3.6-flash"
+
+    if provider == "gemini_google" and gemini_key:
+        chat = LlmChat(api_key=gemini_key, session_id=session_id, system_message=system_message)
+        return chat.with_model("gemini", gemini_model), gemini_model
+    chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=session_id, system_message=system_message)
+    return chat.with_model("openai", "gpt-4o"), "gpt-4o"
+
 SYSTEM_PROMPT = """Eres un analista experto en datos académicos institucionales para la IU Digital de Antioquia.
 Recibes métricas resumidas de un dashboard y debes producir insights ejecutivos en ESPAÑOL.
 
@@ -93,17 +110,16 @@ async def generate_insights(payload: AIInsightIn, user=Depends(get_current_user)
 {'Pregunta específica del usuario: ' + payload.question if payload.question else 'Genera el resumen ejecutivo.'}"""
 
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
+        chat, model_label = await _build_chat(
             session_id=f"insights-{user['id']}",
             system_message=SYSTEM_PROMPT,
-        ).with_model("openai", "gpt-4o")
+        )
         msg = UserMessage(text=user_text)
         resp = await chat.send_message(msg)
     except Exception as e:
         raise HTTPException(500, f"Error generando insight: {e}")
 
-    return {"scope": payload.scope, "insight": resp, "model": "gpt-4o", "context_summary": ctx}
+    return {"scope": payload.scope, "insight": resp, "model": model_label, "context_summary": ctx}
 
 
 
@@ -263,11 +279,10 @@ async def alerta_estudiante(payload: dict, user=Depends(get_current_user)):
 Genera la alerta temprana siguiendo la estructura obligatoria."""
 
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
+        chat, model_label = await _build_chat(
             session_id=f"alerta-{user['id']}-{cedula}",
             system_message=SYSTEM_PROMPT_ALERTA_ESTUDIANTE,
-        ).with_model("openai", "gpt-4o")
+        )
         msg = UserMessage(text=user_text)
         resp = await chat.send_message(msg)
     except Exception as e:
@@ -278,7 +293,7 @@ Genera la alerta temprana siguiendo la estructura obligatoria."""
         "estudiante_nombre": ctx["estudiante"]["nombre"],
         "alerta": resp,
         "context": ctx,
-        "model": "gpt-4o",
+        "model": model_label,
     }
 
 
@@ -383,11 +398,10 @@ async def resumen_grupo(payload: dict, user=Depends(get_current_user)):
 Genera el resumen ejecutivo siguiendo la estructura obligatoria."""
 
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
+        chat, model_label = await _build_chat(
             session_id=f"resumen-grupo-{user['id']}-{codigo_grupo}",
             system_message=SYSTEM_PROMPT_RESUMEN_GRUPO,
-        ).with_model("openai", "gpt-4o")
+        )
         msg = UserMessage(text=user_text)
         resp = await chat.send_message(msg)
     except Exception as e:
@@ -398,5 +412,5 @@ Genera el resumen ejecutivo siguiendo la estructura obligatoria."""
         "asignatura_nombre": grupo.get("asignatura_nombre"),
         "resumen": resp,
         "context": ctx,
-        "model": "gpt-4o",
+        "model": model_label,
     }

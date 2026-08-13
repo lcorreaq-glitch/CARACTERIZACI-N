@@ -25,6 +25,20 @@
         Learn how to configure a non-root public URL by running `npm run build`.
         -->
         <title>IU Digital · Analítica académica</title>
+        <meta name="app-build" content="2026-02-13T03:20:00Z-v3" />
+        <script>
+          // Auto-reload once if the app fails to boot within 3s (protects against cached broken bundle)
+          (function(){
+            var reloaded = sessionStorage.getItem("_iud_reloaded");
+            setTimeout(function(){
+              var root = document.getElementById("root");
+              if (root && !root.firstChild && !reloaded) {
+                sessionStorage.setItem("_iud_reloaded","1");
+                window.location.reload(true);
+              }
+            }, 3000);
+          })();
+        </script>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
     </head>
