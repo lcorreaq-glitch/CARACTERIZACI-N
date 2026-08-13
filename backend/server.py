@@ -118,3 +118,18 @@ async def startup():
         # Run seed in background to avoid blocking startup
         asyncio.create_task(seed_students())
     logger.info("Startup completo.")
+
+
+
+# ---------- Health check (Cloud Run / GCP LB) ----------
+@app.get("/api/health")
+async def health():
+    """Liveness + readiness probe. Verifica que la app está viva y que Mongo responde."""
+    from database import db as _hdb
+    try:
+        await _hdb.command("ping")
+        db_ok = True
+    except Exception as e:
+        logger.warning(f"Mongo ping falló: {e}")
+        db_ok = False
+    return {"status": "ok" if db_ok else "degraded", "db": db_ok}
