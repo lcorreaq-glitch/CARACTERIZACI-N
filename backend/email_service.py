@@ -84,21 +84,16 @@ def _build_credentials_html(full_name: str, email: str, password: str, login_url
 
 
 async def send_credentials_email(to_email: str, full_name: str, password: str, login_url: str) -> dict:
-    """Envía correo con credenciales. Retorna {ok, error?}."""
-    cfg = await get_smtp_config()
-    if not cfg.get("smtp_enabled"):
-        return {"ok": False, "error": "SMTP no está habilitado en Configuración."}
-    if not cfg.get("smtp_user") or not cfg.get("smtp_password"):
-        return {"ok": False, "error": "Faltan credenciales SMTP (usuario/contraseña de aplicación)."}
+    """Envía correo con credenciales. Enruta según el método de autenticación configurado
+    (SMTP legacy o Gmail API con Service Account). Retorna {ok, error?}."""
+    # Import local para evitar import circular (gmail_api_service importa db)
+    from gmail_api_service import get_gmail_config, send_email_via_gmail_api
 
-    from_name = cfg.get("smtp_from_name") or "IU Digital"
-    from_email = cfg["smtp_user"]
+    gmail_cfg = await get_gmail_config()
+    auth_method = gmail_cfg.get("auth_method", "smtp")
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Sus credenciales de acceso · IU Digital Analítica"
-    msg["From"] = f"{from_name} <{from_email}>"
-    msg["To"] = to_email
-
+    from_name = gmail_cfg.get("from_name") or "IU Digital Analítica"
+    html_body = _build_credentials_html(full_name, to_email, password, login_url, from_name)
     text_body = (
         f"Estimado(a) {full_name},\n\n"
         f"Se ha creado su cuenta en IU Digital Analítica.\n"
@@ -108,7 +103,27 @@ async def send_credentials_email(to_email: str, full_name: str, password: str, l
         f"Debe cambiar la contraseña en el primer acceso.\n\n"
         f"— {from_name}"
     )
-    html_body = _build_credentials_html(full_name, to_email, password, login_url, from_name)
+    subject = "Sus credenciales de acceso · IU Digital Analítica"
+
+    if auth_method == "gmail_api":
+        return await send_email_via_gmail_api(to_email, subject, html_body, text_body)
+
+    # ---- SMTP legacy path ----
+    return await _send_via_smtp(to_email, subject, from_name, html_body, text_body)
+
+
+async def _send_via_smtp(to_email: str, subject: str, from_name: str, html_body: str, text_body: str) -> dict:
+    cfg = await get_smtp_config()
+    if not cfg.get("smtp_enabled"):
+        return {"ok": False, "error": "SMTP no está habilitado en Configuración."}
+    if not cfg.get("smtp_user") or not cfg.get("smtp_password"):
+        return {"ok": False, "error": "Faltan credenciales SMTP (usuario/contraseña de aplicación)."}
+
+    from_email = cfg["smtp_user"]
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"{from_name} <{from_email}>"
+    msg["To"] = to_email
     msg.attach(MIMEText(text_body, "plain", "utf-8"))
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
@@ -126,26 +141,37 @@ async def send_credentials_email(to_email: str, full_name: str, password: str, l
 
 
 async def send_test_email(to_email: str) -> dict:
-    """Envío rápido para probar la configuración SMTP."""
+    """Envío rápido para probar la configuración de correo (SMTP o Gmail API)."""
+    from gmail_api_service import get_gmail_config, send_email_via_gmail_api
+
+    gmail_cfg = await get_gmail_config()
+    auth_method = gmail_cfg.get("auth_method", "smtp")
+    from_name = gmail_cfg.get("from_name") or "IU Digital Analítica"
+
+    subject = "Prueba de correo · IU Digital Analítica"
+    html = (
+        f"<div style='font-family:Arial;padding:20px'>"
+        f"<h2 style='color:#0033A0'>✓ Prueba de envío exitosa</h2>"
+        f"<p>Este correo confirma que la configuración de <b>{from_name}</b> funciona correctamente.</p>"
+        f"<p style='font-size:12px;color:#6b7280'>Método: <b>{auth_method}</b></p></div>"
+    )
+    text = f"Prueba de envío exitosa desde IU Digital Analítica. Método: {auth_method}."
+
+    if auth_method == "gmail_api":
+        return await send_email_via_gmail_api(to_email, subject, html, text)
+
+    # SMTP legacy path
     cfg = await get_smtp_config()
     if not cfg.get("smtp_enabled"):
         return {"ok": False, "error": "SMTP no está habilitado."}
     if not cfg.get("smtp_user") or not cfg.get("smtp_password"):
         return {"ok": False, "error": "Faltan credenciales SMTP."}
 
-    from_name = cfg.get("smtp_from_name") or "IU Digital"
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Prueba SMTP · IU Digital Analítica"
+    msg["Subject"] = subject
     msg["From"] = f"{from_name} <{cfg['smtp_user']}>"
     msg["To"] = to_email
-    html = (
-        f"<div style='font-family:Arial;padding:20px'>"
-        f"<h2 style='color:#0033A0'>✓ Prueba SMTP exitosa</h2>"
-        f"<p>Este correo confirma que la configuración SMTP de <b>{from_name}</b> funciona correctamente.</p>"
-        f"<p style='font-size:12px;color:#6b7280'>Servidor: {cfg['smtp_host']}:{cfg['smtp_port']}<br/>"
-        f"Remitente: {cfg['smtp_user']}</p></div>"
-    )
-    msg.attach(MIMEText("Prueba SMTP exitosa desde IU Digital.", "plain", "utf-8"))
+    msg.attach(MIMEText(text, "plain", "utf-8"))
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     try:

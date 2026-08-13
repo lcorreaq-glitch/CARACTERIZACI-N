@@ -15,6 +15,7 @@ from database import db
 from email_service import (
     get_smtp_config, save_smtp_config, send_credentials_email, send_test_email,
 )
+from gmail_api_service import get_gmail_config, save_gmail_config, get_status as gmail_get_status
 
 router = APIRouter(prefix="/api/config", tags=["config"])
 
@@ -42,6 +43,40 @@ def _mask(secret: str) -> str:
     return f"{secret[:4]}{'•' * (len(secret) - 8)}{secret[-4:]}"
 
 
+# ---------- Gmail API (Service Account + Domain-Wide Delegation) ----------
+class GmailApiPayload(BaseModel):
+    auth_method: str | None = None       # "smtp" | "gmail_api"
+    sender_email: str | None = None      # workspace user to impersonate
+    from_name: str | None = None
+
+
+class TestEmailPayload(BaseModel):
+    to_email: EmailStr
+
+
+@router.get("/gmail-api")
+async def read_gmail_api(user=Depends(require_roles("superadmin"))):
+    """Estado + configuración no sensible del envío por Gmail API.
+    Nunca expone el JSON del Service Account (vive solo en env var)."""
+    return await gmail_get_status()
+
+
+@router.patch("/gmail-api")
+async def update_gmail_api(payload: GmailApiPayload, user=Depends(require_roles("superadmin"))):
+    data = {k: v for k, v in payload.model_dump().items() if v is not None}
+    await save_gmail_config(data, updated_by=user.get("email", "?"))
+    return await gmail_get_status()
+
+
+@router.post("/gmail-api/test")
+async def gmail_api_test(payload: TestEmailPayload, user=Depends(require_roles("superadmin"))):
+    """Envía un correo de prueba usando el método actualmente configurado (SMTP o Gmail API)."""
+    r = await send_test_email(payload.to_email)
+    if not r.get("ok"):
+        raise HTTPException(400, r.get("error", "Error desconocido"))
+    return {"ok": True, "message": f"Correo de prueba enviado a {payload.to_email}"}
+
+
 # ---------- SMTP ----------
 class SMTPPayload(BaseModel):
     smtp_host: str | None = None
@@ -66,10 +101,6 @@ async def update_smtp(payload: SMTPPayload, user=Depends(require_roles("superadm
         data.pop("smtp_password", None)
     cfg = await save_smtp_config(data, updated_by=user.get("email", "?"))
     return {**cfg, "smtp_password_mask": _mask(cfg.get("smtp_password", ""))}
-
-
-class TestEmailPayload(BaseModel):
-    to_email: EmailStr
 
 
 @router.post("/smtp/test")
@@ -151,12 +182,18 @@ async def send_credentials_one(
     if not payload.reset_password:
         raise HTTPException(400, "Solo se puede enviar contraseña recién generada. Use reset_password=true.")
 
-    # Preflight: verificar SMTP habilitado + credenciales antes de tocar la contraseña.
-    smtp_cfg = await get_smtp_config()
-    if not smtp_cfg.get("smtp_enabled"):
-        raise HTTPException(400, "SMTP no está habilitado en Configuración. No se envió ningún correo ni se modificó ninguna contraseña.")
-    if not smtp_cfg.get("smtp_user") or not smtp_cfg.get("smtp_password"):
-        raise HTTPException(400, "Faltan credenciales SMTP (usuario/App Password). No se envió ningún correo ni se modificó ninguna contraseña.")
+    # Preflight: verificar que el método de envío esté listo antes de tocar la contraseña.
+    gmail_status = await gmail_get_status()
+    method = gmail_status.get("auth_method", "smtp")
+    if method == "gmail_api":
+        if gmail_status.get("state") != "configured":
+            raise HTTPException(400, f"Gmail API no está configurada: {gmail_status.get('message')}. No se envió ningún correo ni se modificó ninguna contraseña.")
+    else:
+        smtp_cfg = await get_smtp_config()
+        if not smtp_cfg.get("smtp_enabled"):
+            raise HTTPException(400, "SMTP no está habilitado en Configuración. No se envió ningún correo ni se modificó ninguna contraseña.")
+        if not smtp_cfg.get("smtp_user") or not smtp_cfg.get("smtp_password"):
+            raise HTTPException(400, "Faltan credenciales SMTP (usuario/App Password). No se envió ningún correo ni se modificó ninguna contraseña.")
 
     new_password = _generate_password()
     # Intentar enviar PRIMERO (con la contraseña en memoria).
@@ -194,14 +231,20 @@ async def send_credentials_bulk(
     payload: BulkPayload,
     admin=Depends(require_roles("superadmin")),
 ):
-    """Envía credenciales masivamente. Preflight SMTP: si no está habilitado, no toca nada y devuelve 400.
-    Para cada usuario, envía primero y sólo persiste el reset si el envío es exitoso.
-    Limitado a `limit` (default 200) por invocación para evitar timeouts del proxy."""
-    smtp_cfg = await get_smtp_config()
-    if not smtp_cfg.get("smtp_enabled"):
-        raise HTTPException(400, "SMTP no está habilitado en Configuración. No se envió ningún correo ni se modificó ninguna contraseña.")
-    if not smtp_cfg.get("smtp_user") or not smtp_cfg.get("smtp_password"):
-        raise HTTPException(400, "Faltan credenciales SMTP (usuario/App Password). No se envió ningún correo ni se modificó ninguna contraseña.")
+    """Envía credenciales masivamente. Preflight: verifica que el método de envío esté listo,
+    si no está listo no toca nada y devuelve 400. Para cada usuario, envía primero y sólo
+    persiste el reset si el envío es exitoso. Limitado a `limit` (default 200) por invocación."""
+    gmail_status = await gmail_get_status()
+    method = gmail_status.get("auth_method", "smtp")
+    if method == "gmail_api":
+        if gmail_status.get("state") != "configured":
+            raise HTTPException(400, f"Gmail API no está configurada: {gmail_status.get('message')}. No se envió ningún correo ni se modificó ninguna contraseña.")
+    else:
+        smtp_cfg = await get_smtp_config()
+        if not smtp_cfg.get("smtp_enabled"):
+            raise HTTPException(400, "SMTP no está habilitado en Configuración. No se envió ningún correo ni se modificó ninguna contraseña.")
+        if not smtp_cfg.get("smtp_user") or not smtp_cfg.get("smtp_password"):
+            raise HTTPException(400, "Faltan credenciales SMTP (usuario/App Password). No se envió ningún correo ni se modificó ninguna contraseña.")
 
     query = {"role": payload.role, "active": True}
     if payload.only_missing:
@@ -253,14 +296,20 @@ async def send_credentials_bulk(
 async def config_overview(user=Depends(require_roles("superadmin", "direccion"))):
     """Vista general no sensible del estado de configuración (para dashboard interno)."""
     smtp = await get_smtp_config()
+    gmail_status = await gmail_get_status()
     ai = await _get_ai_config()
     n_docentes_total = await db.users.count_documents({"role": "profesor", "active": True})
     n_docentes_notified = await db.users.count_documents(
         {"role": "profesor", "active": True, "credentials_sent_at": {"$ne": None}}
     )
     return {
+        "email_auth_method": gmail_status.get("auth_method"),
+        "email_state": gmail_status.get("state"),          # not_configured | configured | auth_error (for gmail_api)
+        "email_message": gmail_status.get("message"),
         "smtp_enabled": bool(smtp.get("smtp_enabled")),
         "smtp_from": smtp.get("smtp_user"),
+        "sender_email": gmail_status.get("sender_email"),
+        "service_account_email": gmail_status.get("service_account_email"),
         "ai_provider": ai.get("ai_provider"),
         "ai_enabled": bool(ai.get("ai_enabled")),
         "emergent_key_present": bool(os.environ.get("EMERGENT_LLM_KEY")),

@@ -17,7 +17,7 @@ import {
 export default function Configuracion() {
   const { user } = useAuth();
   const isSuperadmin = user?.role === "superadmin";
-  const [tab, setTab] = useState("smtp");
+  const [tab, setTab] = useState("gmail-oauth");
   const [overview, setOverview] = useState(null);
 
   useEffect(() => {
@@ -44,20 +44,23 @@ export default function Configuracion() {
           Parámetros del sistema
         </h1>
         <p className="text-sm text-muted-foreground mt-2 max-w-3xl">
-          Configure el envío de correos institucionales (Gmail SMTP) y el proveedor de IA
-          (Emergent Universal Key o Google Gemini propio). Los cambios se aplican inmediatamente.
+          Configure el envío de correos institucionales (Gmail API con Service Account,
+          o SMTP legacy) y el proveedor de IA (Emergent Universal Key o Google Gemini propio).
+          Los cambios se aplican inmediatamente.
         </p>
       </header>
 
       {overview && <OverviewCards data={overview} />}
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-        <TabsList className="rounded-sm">
-          <TabsTrigger value="smtp" data-testid="tab-smtp"><Mail className="w-3.5 h-3.5 mr-2" />Correo (Gmail)</TabsTrigger>
+        <TabsList className="rounded-sm flex-wrap h-auto">
+          <TabsTrigger value="gmail-oauth" data-testid="tab-gmail-oauth"><Mail className="w-3.5 h-3.5 mr-2" />Correo — Gmail API (OAuth)</TabsTrigger>
+          <TabsTrigger value="smtp" data-testid="tab-smtp"><Mail className="w-3.5 h-3.5 mr-2" />Correo — SMTP (legacy)</TabsTrigger>
           <TabsTrigger value="ai" data-testid="tab-ai"><Bot className="w-3.5 h-3.5 mr-2" />IA (Emergent / Gemini)</TabsTrigger>
           <TabsTrigger value="envios" data-testid="tab-envios"><Send className="w-3.5 h-3.5 mr-2" />Envío de credenciales</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="gmail-oauth"><GmailApiPanel onSaved={() => api.get("/config/overview").then(r => setOverview(r.data))} /></TabsContent>
         <TabsContent value="smtp"><SMTPPanel onSaved={() => api.get("/config/overview").then(r => setOverview(r.data))} /></TabsContent>
         <TabsContent value="ai"><AIPanel onSaved={() => api.get("/config/overview").then(r => setOverview(r.data))} /></TabsContent>
         <TabsContent value="envios"><EnviosPanel /></TabsContent>
@@ -67,13 +70,27 @@ export default function Configuracion() {
 }
 
 function OverviewCards({ data }) {
+  // Estado del método de correo (Gmail API o SMTP legacy)
+  const emailMethod = data.email_auth_method || "smtp";
+  const emailState = emailMethod === "gmail_api" ? (data.email_state || "not_configured") : (data.smtp_enabled ? "configured" : "not_configured");
+  const emailHint = emailMethod === "gmail_api"
+    ? (emailState === "configured" ? `Gmail API · ${data.sender_email || "sin remitente"}` : (emailState === "auth_error" ? "Error de autenticación" : "No configurado"))
+    : (data.smtp_enabled ? `SMTP · ${data.smtp_from || ""}` : "SMTP inactivo");
+
   const cards = [
-    { label: "SMTP", ok: data.smtp_enabled, hint: data.smtp_from || "no configurado", icon: Mail },
-    { label: "IA activa", ok: data.ai_enabled, hint: `Proveedor: ${data.ai_provider}`, icon: Bot },
-    { label: "Emergent Key", ok: data.emergent_key_present, hint: data.emergent_key_present ? "detectada" : "ausente", icon: KeyRound },
-    { label: "Gemini Key", ok: data.gemini_key_present, hint: data.gemini_key_present ? "configurada" : "sin definir", icon: KeyRound },
-    { label: "Docentes notificados", ok: data.docentes_credentials_sent > 0, hint: `${data.docentes_credentials_sent} / ${data.docentes_total}`, icon: Users },
+    { label: "Correo institucional", state: emailState, hint: emailHint, icon: Mail },
+    { label: "IA activa", state: data.ai_enabled ? "configured" : "not_configured", hint: `Proveedor: ${data.ai_provider}`, icon: Bot },
+    { label: "Emergent Key", state: data.emergent_key_present ? "configured" : "not_configured", hint: data.emergent_key_present ? "detectada" : "ausente", icon: KeyRound },
+    { label: "Gemini Key", state: data.gemini_key_present ? "configured" : "not_configured", hint: data.gemini_key_present ? "configurada" : "sin definir", icon: KeyRound },
+    { label: "Docentes notificados", state: data.docentes_credentials_sent > 0 ? "configured" : "not_configured", hint: `${data.docentes_credentials_sent} / ${data.docentes_total}`, icon: Users },
   ];
+
+  const stateIcon = (s) => {
+    if (s === "configured") return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
+    if (s === "auth_error") return <AlertTriangle className="w-4 h-4 text-red-600" />;
+    return <AlertTriangle className="w-4 h-4 text-amber-600" />;
+  };
+
   return (
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
       {cards.map((c) => (
@@ -83,9 +100,7 @@ function OverviewCards({ data }) {
             <p className="label-eyebrow">{c.label}</p>
           </div>
           <div className="flex items-center gap-2">
-            {c.ok
-              ? <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              : <AlertTriangle className="w-4 h-4 text-amber-600" />}
+            {stateIcon(c.state)}
             <span className="text-xs">{c.hint}</span>
           </div>
         </div>
@@ -93,6 +108,212 @@ function OverviewCards({ data }) {
     </div>
   );
 }
+
+// ================ Gmail API (Service Account · OAuth 2.0) ================
+function GmailApiPanel({ onSaved }) {
+  const [status, setStatus] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testTo, setTestTo] = useState("");
+  const [form, setForm] = useState({ sender_email: "", from_name: "", auth_method: "gmail_api" });
+
+  const load = () => api.get("/config/gmail-api").then((r) => {
+    setStatus(r.data);
+    setForm({
+      sender_email: r.data.sender_email || "",
+      from_name: r.data.from_name || "",
+      auth_method: r.data.auth_method || "gmail_api",
+    });
+  });
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.patch("/config/gmail-api", form);
+      toast.success("Configuración guardada");
+      await load();
+      onSaved?.();
+    } catch (e) {
+      toast.error("Error al guardar", { description: e.response?.data?.detail || e.message });
+    } finally { setSaving(false); }
+  };
+
+  const activate = async () => {
+    setSaving(true);
+    try {
+      await api.patch("/config/gmail-api", { ...form, auth_method: "gmail_api" });
+      toast.success("Gmail API activado como método de envío");
+      await load();
+      onSaved?.();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || e.message);
+    } finally { setSaving(false); }
+  };
+
+  const sendTest = async () => {
+    if (!testTo) return toast.error("Ingrese un correo destino");
+    setTesting(true);
+    try {
+      const r = await api.post("/config/gmail-api/test", { to_email: testTo });
+      toast.success(r.data.message || "Correo de prueba enviado");
+    } catch (e) {
+      toast.error("Fallo el envío de prueba", { description: e.response?.data?.detail || e.message });
+    } finally { setTesting(false); }
+  };
+
+  if (!status) return <div className="p-4 text-sm text-muted-foreground">Cargando…</div>;
+
+  const st = status.state;   // not_configured | configured | auth_error
+  const stColor = st === "configured" ? "emerald" : st === "auth_error" ? "red" : "amber";
+  const stLabel = st === "configured" ? "Configurado" : st === "auth_error" ? "Error de autenticación" : "No configurado";
+  const isActive = status.auth_method === "gmail_api";
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Instrucciones */}
+      <div className="dense-card p-5 lg:col-span-1 order-2 lg:order-1">
+        <p className="label-eyebrow text-[#0033A0]">Guía para administrador Workspace/GCP</p>
+        <h3 className="font-display font-bold text-lg tracking-tight mb-3">Configuración inicial (una sola vez)</h3>
+
+        <div className="space-y-3 text-xs text-muted-foreground">
+          <p className="text-foreground text-[12px]"><b>Parte A · Google Cloud</b></p>
+          <ol className="list-decimal ml-4 space-y-1.5">
+            <li>Ir a <a className="text-[#0033A0] inline-flex items-center gap-1" href="https://console.cloud.google.com" target="_blank" rel="noreferrer">console.cloud.google.com <ExternalLink className="w-3 h-3" /></a></li>
+            <li>Crear proyecto <code>iudigital-analitica-email</code></li>
+            <li><b>APIs y servicios → Biblioteca</b> → buscar <b>Gmail API</b> → <b>Habilitar</b></li>
+            <li><b>IAM → Cuentas de servicio</b> → <b>Crear cuenta de servicio</b> → nombre <code>analitica-email-sender</code></li>
+            <li>Abrir la cuenta → <b>Configuración avanzada</b> → activar <b>Delegación en todo el dominio</b> y <b>anotar el Client ID</b></li>
+            <li>Pestaña <b>Claves</b> → <b>Agregar clave → Crear nueva → JSON</b> → se descarga el archivo</li>
+          </ol>
+
+          <p className="text-foreground text-[12px] mt-3"><b>Parte B · Admin Console de Workspace</b></p>
+          <ol className="list-decimal ml-4 space-y-1.5" start={7}>
+            <li>Ir a <a className="text-[#0033A0] inline-flex items-center gap-1" href="https://admin.google.com" target="_blank" rel="noreferrer">admin.google.com <ExternalLink className="w-3 h-3" /></a> (con superadmin)</li>
+            <li><b>Seguridad → Control de acceso y datos → Controles de API → Delegación en todo el dominio</b></li>
+            <li>Botón <b>Añadir nuevo</b>: pegar el <b>Client ID</b>, y en Alcances OAuth pegar exactamente:
+              <div className="mt-1 p-1.5 bg-muted rounded font-mono text-[10px] break-all">https://www.googleapis.com/auth/gmail.send</div>
+            </li>
+            <li><b>Autorizar</b></li>
+          </ol>
+
+          <p className="text-foreground text-[12px] mt-3"><b>Parte C · Entregar el JSON</b></p>
+          <ol className="list-decimal ml-4 space-y-1" start={11}>
+            <li>Abrir el JSON con Bloc de Notas, copiar TODO el contenido</li>
+            <li>Enviarlo por canal seguro al equipo técnico (Emergent) para configurarlo como secreto de entorno <code>GOOGLE_SERVICE_ACCOUNT_JSON</code></li>
+          </ol>
+        </div>
+
+        <Alert className="mt-4 border-[#0033A0]/25 bg-[#0033A0]/5">
+          <Shield className="w-4 h-4 text-[#0033A0]" />
+          <AlertTitle className="text-xs">Seguridad</AlertTitle>
+          <AlertDescription className="text-[11px]">
+            El JSON del Service Account <b>nunca se guarda en la base de datos ni se expone al frontend</b>.
+            Se administra únicamente como variable de entorno (o mediante Secret Manager en GCP).
+          </AlertDescription>
+        </Alert>
+      </div>
+
+      {/* Estado + formulario */}
+      <div className="dense-card p-5 lg:col-span-2 order-1 lg:order-2 space-y-5">
+        <div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="label-eyebrow text-[#0033A0]">Método recomendado</p>
+              <h3 className="font-display font-bold text-lg tracking-tight">Gmail API · Service Account (OAuth 2.0)</h3>
+            </div>
+            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-sm bg-${stColor}-50 border border-${stColor}-200`} data-testid="gmail-oauth-status">
+              <span className={`w-2 h-2 rounded-full bg-${stColor}-500 ${st === "not_configured" ? "animate-pulse" : ""}`} />
+              <span className={`text-[11px] font-semibold text-${stColor}-700 uppercase tracking-wider`}>{stLabel}</span>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground mt-2">
+            {status.message}
+          </p>
+        </div>
+
+        {/* Datos mostrados (SIN JSON) */}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Service Account (email)">
+            <Input value={status.service_account_email || "— no cargado —"} readOnly className="rounded-sm bg-muted/40 mono text-xs" />
+          </Field>
+          <Field label="Método activo">
+            <div className="flex items-center gap-2 h-10 px-3 rounded-sm border border-input bg-muted/40 text-xs">
+              {isActive
+                ? <><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Gmail API (activo)</>
+                : <><AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> SMTP legacy (inactivo Gmail API)</>}
+            </div>
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Correo remitente institucional (impersonación)">
+            <Input
+              value={form.sender_email}
+              onChange={(e) => setForm({ ...form, sender_email: e.target.value })}
+              placeholder="gestion.cienciasyhumanidades@iudigital.edu.co"
+              className="rounded-sm"
+              data-testid="gmail-sender-email"
+            />
+          </Field>
+          <Field label="Nombre visible (From Name)">
+            <Input
+              value={form.from_name}
+              onChange={(e) => setForm({ ...form, from_name: e.target.value })}
+              placeholder="Gestión Ciencias y Humanidades · IU Digital"
+              className="rounded-sm"
+              data-testid="gmail-from-name"
+            />
+          </Field>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <Button onClick={save} disabled={saving} className="rounded-sm bg-[#0033A0] hover:bg-[#002478] text-white" data-testid="gmail-oauth-save">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Guardar configuración"}
+          </Button>
+          {!isActive && (
+            <Button onClick={activate} disabled={saving} variant="outline" className="rounded-sm border-emerald-500 text-emerald-700 hover:bg-emerald-50" data-testid="gmail-oauth-activate">
+              Activar Gmail API como método de envío
+            </Button>
+          )}
+        </div>
+
+        {/* Test */}
+        <div className="border-t border-border pt-4">
+          <p className="label-eyebrow mb-2">Correo de prueba</p>
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Enviar prueba a">
+              <Input
+                type="email"
+                value={testTo}
+                onChange={(e) => setTestTo(e.target.value)}
+                placeholder="destinatario@iudigital.edu.co"
+                className="rounded-sm w-72"
+                data-testid="gmail-test-to"
+              />
+            </Field>
+            <Button
+              onClick={sendTest}
+              disabled={testing || st !== "configured" || !isActive}
+              className="rounded-sm bg-[#FFCD00] hover:bg-[#e6b900] text-black"
+              data-testid="gmail-test-btn"
+            >
+              {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4 mr-2" />Enviar prueba</>}
+            </Button>
+          </div>
+          {(st !== "configured" || !isActive) && (
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Habilite el botón: (1) configure el JSON del Service Account como env var, (2) guarde el correo remitente y (3) active Gmail API como método.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 
 function SMTPPanel({ onSaved }) {
   const [cfg, setCfg] = useState(null);

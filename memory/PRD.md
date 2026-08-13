@@ -211,6 +211,21 @@ Aplicación web institucional moderna para gestión, caracterización, analític
 - **Frontend**: nuevo `EditFacultadDialog` (Admin.jsx) accesible desde el botón lápiz en la tabla de Facultades. Formulario con Nombre*, Código, Decano principal (select con todos los usuarios rol=decano) y Descripción (textarea).
 - **Ficha**: ahora muestra `descripcion` en el modal de ficha si existe.
 
+## 2026-02-13 · Rebranding Login + ChangePassword
+- Portada institucional aplicada (foto real del PDF Hoja de Ruta), tag "digitalidad próxima", logo SVG con anillos, subrayado amarillo, URL highlight.
+- Titular: "Cada estudiante, un territorio" / "IU Digital de Antioquia" (yellow).
+- Copy actualizado con tono cercano y segunda persona ("Profesores", "ingresa con tu"). Mensaje anti-autofill mostrado solo tras error de login.
+
+## 2026-02-13 · Envío de correo institucional Gmail API (Service Account OAuth 2.0)
+- **Razón**: Google Workspace de IU Digital no permite App Passwords → SMTP legacy no viable.
+- **Nuevo**: `gmail_api_service.py` con Service Account + Domain-Wide Delegation. Impersona al usuario `sender_email` (ej. `gestion.cienciasyhumanidades@iudigital.edu.co`) y envía via Gmail API con scope `gmail.send`.
+- **Seguridad**: JSON del Service Account leído EXCLUSIVAMENTE de env var `GOOGLE_SERVICE_ACCOUNT_JSON` (o `GOOGLE_SERVICE_ACCOUNT_FILE`). Nunca en BD ni frontend.
+- **Endpoints**: `GET/PATCH /api/config/gmail-api`, `POST /api/config/gmail-api/test`, `GET /api/config/overview` reporta `email_state` (not_configured | configured | auth_error).
+- **UI**: Nueva pestaña "Correo — Gmail API (OAuth)" con guía embebida de 12 pasos (Google Cloud + Admin Console + entrega JSON), semáforo de estado y botón de envío de prueba.
+- **SMTP legacy**: preservado como pestaña separada, se desactiva por defecto.
+- **GCP-ready**: al desplegar en Google Cloud, ADC provee las credenciales automáticamente sin cambios de código.
+- **Pendiente**: administrador de Workspace debe seguir la guía en UI y entregar el JSON para configurarlo como env var.
+
 
 ## Test Credentials
 Ver `/app/memory/test_credentials.md`
