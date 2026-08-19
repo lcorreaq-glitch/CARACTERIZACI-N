@@ -459,7 +459,10 @@ async def academic(
     # ============================================================
     # KPIs generales
     # ============================================================
-    en_riesgo = await coll.count_documents({**match, "promedio": {"$lt": 3.0, "$gt": 0}})
+    # Riesgo académico REAL: nivel >= 2 con promedio < 3.0 (excluye primer nivel para no dar falsos positivos)
+    en_riesgo = await coll.count_documents({**match, "promedio": {"$lt": 3.0, "$gt": 0}, "nivel": {"$gte": 2}})
+    # Alerta primer nivel: estudiantes nivel <= 1 con promedio bajo o sin cargar (seguimiento por deserción)
+    alerta_primer_nivel = await coll.count_documents({**match, "nivel": {"$lte": 1}, "promedio": {"$lt": 3.0}})
     excelencia = await coll.count_documents({**match, "promedio": {"$gte": 4.5}})
 
     # Tasa aprobación global (aprobadas / total notas evaluadas — excluye canceladas/prematriculadas/homologadas)
@@ -481,6 +484,7 @@ async def academic(
     return {
         "kpis": {
             "en_riesgo": en_riesgo,
+            "alerta_primer_nivel": alerta_primer_nivel,
             "excelencia": excelencia,
             "tasa_aprob_global": tasa_aprob,
             "notas_evaluadas": gs["total"],
@@ -504,6 +508,7 @@ async def academic(
         "avance": avance,
         # Compatibilidad
         "en_riesgo": en_riesgo,
+        "alerta_primer_nivel": alerta_primer_nivel,
         "excelencia": excelencia,
         "by_facultad": by_area,
     }

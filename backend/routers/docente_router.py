@@ -82,15 +82,18 @@ async def my_overview(
     groups = await _my_groups(user)
     if not groups:
         return {
-            "grupos": [], "kpis": {"total_estudiantes": 0, "promedio": 0, "en_riesgo": 0, "excelencia": 0},
+            "grupos": [], "kpis": {"total_estudiantes": 0, "promedio": 0, "en_riesgo": 0, "alerta_primer_nivel": 0, "excelencia": 0},
         }
 
     cedulas = await _cedulas_de_mis_grupos(user, codigo_grupo)
     if not cedulas:
-        return {"grupos": groups, "kpis": {"total_estudiantes": 0, "promedio": 0, "en_riesgo": 0, "excelencia": 0}}
+        return {"grupos": groups, "kpis": {"total_estudiantes": 0, "promedio": 0, "en_riesgo": 0, "alerta_primer_nivel": 0, "excelencia": 0}}
 
     match = {"cedula": {"$in": list(cedulas)}}
     total = await db.students.count_documents(match)
+
+    # Estudiantes de primer nivel (0-1) — set para diferenciar alertas
+    primer_nivel_cedulas = set(await db.students.distinct("cedula", {**match, "nivel": {"$lte": 1}}))
 
     # Promedio dinámico: si include_extra=True, incluir Inglés y Extensión; si no, excluirlos.
     hn_match = academic_notes_match({"cedula": {"$in": list(cedulas)}}, include_extra=include_extra)
@@ -100,7 +103,13 @@ async def my_overview(
     ]).to_list(len(cedulas) + 10)
     prom_por_ced = {r["_id"]: r["prom"] for r in prom_agg if r["prom"] is not None}
     prom_general = round(sum(prom_por_ced.values()) / len(prom_por_ced), 2) if prom_por_ced else 0
-    en_riesgo = sum(1 for p in prom_por_ced.values() if 0 < p < 3.0)
+    # Riesgo académico REAL: nivel >= 2 con promedio < 3.0 (excluye ceros y primer nivel)
+    en_riesgo = sum(1 for c, p in prom_por_ced.items() if 0 < p < 3.0 and c not in primer_nivel_cedulas)
+    # Alerta primer nivel: estudiantes de nivel <= 1 con notas aún sin cargar o promedio muy bajo (seguimiento por deserción)
+    alerta_primer_nivel = sum(
+        1 for c in primer_nivel_cedulas
+        if prom_por_ced.get(c, 0) < 3.0
+    )
     excelencia = sum(1 for p in prom_por_ced.values() if p >= 4.5)
 
     agg = await db.students.aggregate([
@@ -151,6 +160,7 @@ async def my_overview(
             "promedio": prom_general,
             "avance_pct": round(k.get("avance_pct", 0) or 0, 1),
             "en_riesgo": en_riesgo,
+            "alerta_primer_nivel": alerta_primer_nivel,
             "excelencia": excelencia,
             "vulnerables": k.get("vulnerables", 0),
             "victimas": k.get("victimas", 0),
@@ -168,10 +178,16 @@ async def estudiantes_en_riesgo(
     umbral: float = Query(3.0, ge=0, le=5),
     limit: int = Query(100, ge=1, le=500),
     include_extra: bool = False,
+    tipo: str = Query("all", pattern="^(all|academico|primer_nivel)$"),
     user=Depends(get_current_user),
 ):
-    """Estudiantes en riesgo académico: promedio<umbral O nota<umbral en materia del docente.
-    Aplica factores de vulnerabilidad para priorizar."""
+    """Estudiantes con alerta activa. Dos tipos disponibles:
+
+    - **academico** (🔴): nivel ≥ 2 con promedio o nota < umbral (riesgo académico real).
+    - **primer_nivel** (🟠): nivel ≤ 1 sin notas suficientes / promedio bajo (posible deserción / seguimiento de ambientación).
+
+    Un estudiante nunca aparece en ambas categorías simultáneamente: se clasifica según su nivel.
+    Aplica factores de vulnerabilidad para priorizar (score)."""
     if user.get("role") not in ALLOWED_ROLES:
         raise HTTPException(403, "Solo docentes")
 
@@ -195,6 +211,7 @@ async def estudiantes_en_riesgo(
             "notas": {"$push": {"materia": "$asignatura_nombre", "nota": "$nota", "estado": "$estado", "periodo": "$periodo"}},
             "min_nota": {"$min": "$nota"},
             "max_nota": {"$max": "$nota"},
+            "n_notas": {"$sum": 1},
         }}
     ]
     avg_map = {}
@@ -220,25 +237,55 @@ async def estudiantes_en_riesgo(
         prom_grupo = agg_data.get("prom_grupo") or 0
         prom_general = s.get("promedio") or 0
         min_nota = agg_data.get("min_nota") or 0
+        n_notas = agg_data.get("n_notas") or 0
+        nivel = s.get("nivel") or 0
 
-        # Criterio combinado: bajo en mi(s) materia(s) O bajo general
-        en_riesgo = False
+        es_primer_nivel = nivel <= 1
+
+        # Clasificación según nivel del estudiante
+        tipo_alerta = None
         motivos = []
-        if prom_grupo > 0 and prom_grupo < umbral:
-            en_riesgo = True
-            motivos.append(f"promedio en mis materias: {prom_grupo:.2f}")
-        if min_nota > 0 and min_nota < umbral:
-            en_riesgo = True
-            motivos.append(f"nota mínima: {min_nota:.2f}")
-        if prom_general > 0 and prom_general < umbral:
-            en_riesgo = True
-            motivos.append(f"promedio general: {prom_general:.2f}")
-        if not en_riesgo:
+
+        if es_primer_nivel:
+            # Regla nueva: primer nivel NO se considera riesgo académico.
+            # Se marca como 'alerta_primer_nivel' si tiene señales de deserción/ambientación:
+            # - pocas notas cargadas (< 3) O
+            # - promedio bajo (< umbral)
+            senales = []
+            if n_notas < 3:
+                senales.append(f"solo {n_notas} nota(s) cargada(s)")
+            if prom_grupo > 0 and prom_grupo < umbral:
+                senales.append(f"promedio actual: {prom_grupo:.2f}")
+            if prom_general > 0 and prom_general < umbral:
+                senales.append(f"promedio general: {prom_general:.2f}")
+            if senales:
+                tipo_alerta = "primer_nivel"
+                motivos = ["Primer nivel · requiere seguimiento"] + senales
+        else:
+            # Riesgo académico tradicional (nivel >= 2)
+            if prom_grupo > 0 and prom_grupo < umbral:
+                tipo_alerta = "academico"
+                motivos.append(f"promedio en mis materias: {prom_grupo:.2f}")
+            if min_nota > 0 and min_nota < umbral:
+                tipo_alerta = "academico"
+                motivos.append(f"nota mínima: {min_nota:.2f}")
+            if prom_general > 0 and prom_general < umbral:
+                tipo_alerta = "academico"
+                motivos.append(f"promedio general: {prom_general:.2f}")
+
+        if not tipo_alerta:
+            continue
+        # Filtro por tipo si el frontend lo pide
+        if tipo != "all" and tipo != tipo_alerta:
             continue
 
         # Score de riesgo (+ vulnerabilidad)
         score = 0
-        if prom_grupo > 0 and prom_grupo < umbral: score += (umbral - prom_grupo) * 40
+        if tipo_alerta == "academico" and prom_grupo > 0 and prom_grupo < umbral:
+            score += (umbral - prom_grupo) * 40
+        if tipo_alerta == "primer_nivel":
+            # Ponderar por vulnerabilidad más que por nota (aún no hay notas confiables)
+            score += 20
         if s.get("victima_conflicto"): score += 15; motivos.append("víctima conflicto")
         if s.get("grupo_vulnerable"): score += 10; motivos.append("grupo vulnerable")
         if s.get("discapacidad_flag"): score += 8; motivos.append("con discapacidad")
@@ -246,15 +293,24 @@ async def estudiantes_en_riesgo(
 
         items.append({
             **s,
+            "tipo_alerta": tipo_alerta,
             "prom_grupo": round(prom_grupo, 2),
             "min_nota": round(min_nota, 2),
+            "n_notas": n_notas,
             "notas_detalle": agg_data.get("notas", [])[:5],
             "score_riesgo": round(score, 1),
             "motivos": motivos,
         })
 
     items.sort(key=lambda x: x["score_riesgo"], reverse=True)
-    return {"items": items[:limit], "total": len(items)}
+    total_academico = sum(1 for i in items if i["tipo_alerta"] == "academico")
+    total_primer_nivel = sum(1 for i in items if i["tipo_alerta"] == "primer_nivel")
+    return {
+        "items": items[:limit],
+        "total": len(items),
+        "total_academico": total_academico,
+        "total_primer_nivel": total_primer_nivel,
+    }
 
 
 @router.get("/students")

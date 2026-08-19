@@ -212,6 +212,7 @@ MUNICIPIOS = [
     # Cauca extra
     {"codigo": "19318", "nombre": "GUACHENE", "departamento": "CAUCA", "lat": 3.1361, "lon": -76.3914},
     {"codigo": "19573", "nombre": "PUERTO TEJADA", "departamento": "CAUCA", "lat": 3.2300, "lon": -76.4153},
+    {"codigo": "19050", "nombre": "ARGELIA", "departamento": "CAUCA", "lat": 2.2569, "lon": -77.5100},
     # Magdalena/Cesar/Bolívar/Guajira extra
     {"codigo": "47189", "nombre": "CIENAGA", "departamento": "MAGDALENA", "lat": 11.0061, "lon": -74.2419},
     {"codigo": "13430", "nombre": "MAGANGUE", "departamento": "BOLIVAR", "lat": 9.2422, "lon": -74.7531},

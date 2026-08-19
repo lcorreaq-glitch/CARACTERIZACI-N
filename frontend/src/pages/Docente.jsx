@@ -41,6 +41,7 @@ export default function Docente() {
   const [comparativa, setComparativa] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroGrupo, setFiltroGrupo] = useState("all");
+  const [tipoAlerta, setTipoAlerta] = useState("all"); // all | academico | primer_nivel
   const [onlyRiesgo, setOnlyRiesgo] = useState(false);
   const [historico, setHistorico] = useState(null);
   const [openHistorico, setOpenHistorico] = useState(false);
@@ -55,10 +56,11 @@ export default function Docente() {
     const p = new URLSearchParams();
     if (filtroGrupo !== "all") p.append("codigo_grupo", filtroGrupo);
     if (includeExtra) p.append("include_extra", "true");
+    if (tipoAlerta !== "all") p.append("tipo", tipoAlerta);
     const q = p.toString() ? `?${p.toString()}` : "";
-    api.get(`/dashboards/docente/me${q}`).then((r) => setData(r.data)).finally(() => setLoading(false));
+    api.get(`/dashboards/docente/me${q.replace(/[?&]tipo=[^&]+/, "")}`).then((r) => setData(r.data)).finally(() => setLoading(false));
     api.get(`/dashboards/docente/en-riesgo${q}`).then((r) => setEnRiesgo(r.data.items || []));
-  }, [filtroGrupo, includeExtra]);
+  }, [filtroGrupo, includeExtra, tipoAlerta]);
 
   useEffect(() => {
     api.get("/dashboards/docente/grupos-comparativa").then((r) => setComparativa(r.data.grupos || []));
@@ -201,10 +203,11 @@ export default function Docente() {
       {grupos.length > 0 && (
         <>
           {/* KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4">
             <KPI label="Mis estudiantes" value={fmt(k.total_estudiantes)} sub="matriculados en mis grupos" icon={Users} accent="bg-[#0033A0]/10 text-[#0033A0]" />
             <KPI label="Promedio" value={(k.promedio ?? 0).toFixed(2)} sub="Escala 0–5" icon={GraduationCap} accent="bg-[#FFCD00]/15 text-[#7A6300]" />
-            <KPI label="En riesgo" value={fmt(k.en_riesgo)} sub="Promedio < 3.0" icon={AlertTriangle} accent="bg-[#E3000F]/10 text-[#E3000F]" />
+            <KPI label="Riesgo académico" value={fmt(k.en_riesgo)} sub="Nivel ≥ 2 · prom < 3.0" icon={AlertTriangle} accent="bg-[#E3000F]/10 text-[#E3000F]" />
+            <KPI label="Alerta primer nivel" value={fmt(k.alerta_primer_nivel)} sub="Nivel ≤ 1 · seguimiento" icon={AlertTriangle} accent="bg-amber-500/10 text-amber-700" />
             <KPI label="Excelencia" value={fmt(k.excelencia)} sub="Promedio ≥ 4.5" icon={TrendingUp} accent="bg-emerald-500/10 text-emerald-700" />
             <KPI label="Avance curricular" value={`${(k.avance_pct ?? 0).toFixed(0)}%`} sub="Promedio del grupo" icon={TrendingUp} accent="bg-blue-500/10 text-blue-700" />
             <KPI label="Vulnerables" value={fmt(k.vulnerables)} sub="Auto identificación" icon={AlertTriangle} accent="bg-amber-500/10 text-amber-700" />
@@ -215,7 +218,7 @@ export default function Docente() {
           <Tabs defaultValue="riesgo">
             <TabsList className="rounded-sm">
               <TabsTrigger value="riesgo" data-testid="docente-tab-riesgo">
-                <AlertTriangle className="w-3.5 h-3.5 mr-1.5" /> En riesgo ({enRiesgo.length})
+                <AlertTriangle className="w-3.5 h-3.5 mr-1.5" /> Alertas ({enRiesgo.length})
               </TabsTrigger>
               <TabsTrigger value="comparativa" data-testid="docente-tab-comparativa">
                 <TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Comparativa periodos
@@ -231,18 +234,41 @@ export default function Docente() {
                   <div>
                     <p className="label-eyebrow text-[#E3000F]">Alertas académicas</p>
                     <h3 className="font-display font-bold text-lg tracking-tight">Estudiantes que requieren atención ({enRiesgo.length})</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Ordenados por score de riesgo (nota + factores de vulnerabilidad). Bajo promedio, víctima, SISBEN A/B, discapacidad suman puntos. Use el botón <b className="text-[#0033A0]">IA</b> por estudiante para un plan de intervención personalizado.</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      <span className="inline-flex items-center gap-1 mr-3"><span className="w-2 h-2 rounded-full bg-[#E3000F]" /> Riesgo académico (nivel ≥ 2, prom &lt; 3.0)</span>
+                      <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Alerta primer nivel (nivel ≤ 1, seguimiento por deserción)</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Use el botón <b className="text-[#0033A0]">IA</b> por estudiante para un plan personalizado (académico o de acompañamiento según el nivel).</p>
                   </div>
-                  {filtroGrupo !== "all" && (
-                    <Button
-                      size="sm"
-                      onClick={() => generarResumenGrupoIA(filtroGrupo)}
-                      className="rounded-sm bg-[#0033A0] hover:bg-[#002A85] text-white text-xs h-9"
-                      data-testid="resumen-ia-grupo-btn"
-                    >
-                      <Brain className="w-3.5 h-3.5 mr-1.5" /> Resumen IA de este grupo
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="inline-flex rounded-sm border border-input bg-white overflow-hidden" data-testid="alerta-tipo-filter">
+                      <button
+                        onClick={() => setTipoAlerta("all")}
+                        className={`px-3 py-1.5 text-[11px] uppercase tracking-wider transition-soft ${tipoAlerta === "all" ? "bg-[#0033A0] text-white" : "hover:bg-muted"}`}
+                        data-testid="tipo-all"
+                      >Todas</button>
+                      <button
+                        onClick={() => setTipoAlerta("academico")}
+                        className={`px-3 py-1.5 text-[11px] uppercase tracking-wider border-l border-input transition-soft ${tipoAlerta === "academico" ? "bg-[#E3000F] text-white" : "hover:bg-muted"}`}
+                        data-testid="tipo-academico"
+                      >Riesgo académico</button>
+                      <button
+                        onClick={() => setTipoAlerta("primer_nivel")}
+                        className={`px-3 py-1.5 text-[11px] uppercase tracking-wider border-l border-input transition-soft ${tipoAlerta === "primer_nivel" ? "bg-amber-500 text-white" : "hover:bg-muted"}`}
+                        data-testid="tipo-primer-nivel"
+                      >Primer nivel</button>
+                    </div>
+                    {filtroGrupo !== "all" && (
+                      <Button
+                        size="sm"
+                        onClick={() => generarResumenGrupoIA(filtroGrupo)}
+                        className="rounded-sm bg-[#0033A0] hover:bg-[#002A85] text-white text-xs h-9"
+                        data-testid="resumen-ia-grupo-btn"
+                      >
+                        <Brain className="w-3.5 h-3.5 mr-1.5" /> Resumen IA de este grupo
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <Table>
@@ -267,8 +293,29 @@ export default function Docente() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="text-xs font-medium">{s.nombre} {s.apellidos}</div>
-                            <div className="text-[10px] text-muted-foreground mono">{s.cedula}</div>
+                            <div className="flex items-center gap-2">
+                              <div>
+                                <div className="text-xs font-medium">{s.nombre} {s.apellidos}</div>
+                                <div className="text-[10px] text-muted-foreground mono">{s.cedula} · Nivel {s.nivel ?? "—"}</div>
+                              </div>
+                              {s.tipo_alerta === "primer_nivel" ? (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-700 border border-amber-300"
+                                  title="Estudiante de primer nivel · alerta de seguimiento (posible deserción, aún sin calificaciones definitivas)"
+                                  data-testid={`badge-primer-nivel-${s.cedula}`}
+                                >
+                                  Primer nivel
+                                </span>
+                              ) : (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-[#E3000F]/10 text-[#E3000F] border border-[#E3000F]/30"
+                                  title="Riesgo académico · promedio bajo confirmado"
+                                  data-testid={`badge-academico-${s.cedula}`}
+                                >
+                                  Riesgo
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-[10px] leading-tight">
                             <div>{s.correo_institucional || s.correo || "—"}</div>

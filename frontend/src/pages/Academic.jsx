@@ -101,8 +101,9 @@ export default function Academic() {
       ) : (
         <>
           {/* KPIs principales */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KPI label="En riesgo (<3.0)" value={fmt(k.en_riesgo)} sub="Requiere intervención" icon={AlertTriangle} accent="bg-[#E3000F]/10 text-[#E3000F]" testid="kpi-en-riesgo" />
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <KPI label="Riesgo académico" value={fmt(k.en_riesgo)} sub="Nivel ≥ 2 · prom < 3.0" icon={AlertTriangle} accent="bg-[#E3000F]/10 text-[#E3000F]" testid="kpi-en-riesgo" />
+            <KPI label="Alerta primer nivel" value={fmt(k.alerta_primer_nivel)} sub="Nivel ≤ 1 · seguimiento" icon={AlertTriangle} accent="bg-amber-500/10 text-amber-700" testid="kpi-primer-nivel" />
             <KPI label="Excelencia (≥4.5)" value={fmt(k.excelencia)} sub="Talento destacado" icon={TrendingUp} accent="bg-emerald-500/10 text-emerald-700" testid="kpi-excelencia" />
             <KPI label="Tasa aprobación global" value={`${k.tasa_aprob_global ?? 0}%`} sub={`${fmt(k.notas_evaluadas)} notas evaluadas`} icon={CheckCircle2} accent="bg-[#0033A0]/10 text-[#0033A0]" testid="kpi-tasa-aprob" />
             <KPI label="Habilitación exitosa" value={`${k.tasa_habilitacion_exito ?? 0}%`} sub={`${fmt(k.total_habilitaciones)} habilitaciones totales`} icon={BookOpen} accent="bg-[#FFCD00]/15 text-[#7A6300]" testid="kpi-hab" />

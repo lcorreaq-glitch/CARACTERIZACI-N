@@ -55,7 +55,8 @@ async def _gather_context(scope: str, filters: dict = None):
         "vulnerables": {"$sum": {"$cond": ["$grupo_vulnerable", 1, 0]}},
         "victimas": {"$sum": {"$cond": ["$victima_conflicto", 1, 0]}},
         "rurales": {"$sum": {"$cond": [{"$in": ["$tipo_ubicacion", ["Rural", "Semirural"]]}, 1, 0]}},
-        "en_riesgo": {"$sum": {"$cond": [{"$and": [{"$gt": ["$promedio", 0]}, {"$lt": ["$promedio", 3.0]}]}, 1, 0]}},
+        "en_riesgo": {"$sum": {"$cond": [{"$and": [{"$gt": ["$promedio", 0]}, {"$lt": ["$promedio", 3.0]}, {"$gte": ["$nivel", 2]}]}, 1, 0]}},
+        "alerta_primer_nivel": {"$sum": {"$cond": [{"$and": [{"$lte": ["$nivel", 1]}, {"$lt": ["$promedio", 3.0]}]}, 1, 0]}},
     }}]).to_list(1)
     progs = await coll.aggregate(pipeline + [
         {"$group": {"_id": "$programa", "n": {"$sum": 1}, "prom": {"$avg": "$promedio"}}},
@@ -151,6 +152,27 @@ Una oración de cierre empática recordando que la alerta es predictiva y busca 
 
 REGLAS: máximo 250 palabras totales. No inventes datos. Si un dato no está en el contexto, no lo menciones.
 Sé cálido pero profesional. Nada de emojis extra al inicio/final."""
+
+SYSTEM_PROMPT_ALERTA_PRIMER_NIVEL = """Eres un mentor pedagógico especializado en ambientación y retención de estudiantes de PRIMER NIVEL de la IU Digital de Antioquia.
+Recibes datos de un estudiante recién ingresado (nivel 0-1) que aún NO tiene calificaciones definitivas o sus notas iniciales son bajas.
+En este contexto, la alerta NO es de riesgo académico (aún no ha cursado un semestre completo) sino de **posible deserción por ambientación**.
+
+Tu tarea: producir una **alerta de acompañamiento en español**, escrita EN 2ª PERSONA hacia el docente/consejero académico que la va a leer.
+Estructura obligatoria (usa exactamente estos títulos con markdown):
+
+**Contexto del ingreso**
+1-2 oraciones que resuman su nivel (primer semestre), programa, y factores de vulnerabilidad si existen. NO hables de "reprobación" ni "rendimiento bajo".
+
+**Señales de ambientación**
+Bullets cortos (máx 4): 📚 (pocas notas cargadas), 🏠 (vulnerabilidad social), 🌾 (rural), 💰 (SISBEN/estrato), ♿ (discapacidad), 🔴 (víctima). Enfócate en factores externos que afectan la permanencia en primer semestre.
+
+**Estrategia de acompañamiento**
+Numera 3-4 acciones CONCRETAS orientadas a RETENCIÓN, no a nivelación académica: contacto de bienvenida proactivo, verificar acceso a plataforma, presentar mentor de pares, referir a bienestar/apoyo psicosocial de primer año, invitar a inducción digital, verificar matrícula financiera. Verbos imperativos: Contactar, Presentar, Referir, Verificar, Invitar.
+
+**Nota importante**
+Una oración de cierre empática: en primer semestre lo prioritario es que se sienta acompañado; las notas definitivas llegan al final del periodo.
+
+REGLAS: máximo 220 palabras. No hables de "reprobación", "riesgo académico", "nivelación", "plan remedial" — estos términos son para estudiantes de nivel ≥ 2. Aquí es ACOMPAÑAMIENTO y AMBIENTACIÓN."""
 
 SYSTEM_PROMPT_RESUMEN_GRUPO = """Eres un analista pedagógico institucional de la IU Digital de Antioquia.
 Recibes las métricas agregadas de UN grupo/curso: total de estudiantes, promedio, estudiantes en riesgo,
@@ -272,16 +294,21 @@ async def alerta_estudiante(payload: dict, user=Depends(get_current_user)):
         },
     }
 
-    user_text = f"""Datos reales del estudiante en riesgo:
+    # Elegir prompt según el nivel: primer nivel (0-1) usa el prompt de acompañamiento
+    es_primer_nivel = (est.get("nivel") or 0) <= 1
+    system_prompt = SYSTEM_PROMPT_ALERTA_PRIMER_NIVEL if es_primer_nivel else SYSTEM_PROMPT_ALERTA_ESTUDIANTE
+    tipo_alerta = "primer_nivel" if es_primer_nivel else "academico"
+
+    user_text = f"""Datos reales del estudiante:
 
 {json.dumps(ctx, ensure_ascii=False, indent=2, default=str)}
 
-Genera la alerta temprana siguiendo la estructura obligatoria."""
+Genera la alerta siguiendo la estructura obligatoria."""
 
     try:
         chat, model_label = await _build_chat(
             session_id=f"alerta-{user['id']}-{cedula}",
-            system_message=SYSTEM_PROMPT_ALERTA_ESTUDIANTE,
+            system_message=system_prompt,
         )
         msg = UserMessage(text=user_text)
         resp = await chat.send_message(msg)
@@ -292,6 +319,7 @@ Genera la alerta temprana siguiendo la estructura obligatoria."""
         "cedula": cedula,
         "estudiante_nombre": ctx["estudiante"]["nombre"],
         "alerta": resp,
+        "tipo_alerta": tipo_alerta,
         "context": ctx,
         "model": model_label,
     }
@@ -349,12 +377,13 @@ async def resumen_grupo(payload: dict, user=Depends(get_current_user)):
         }},
     ]).to_list(1)
 
-    en_riesgo = await db.students.count_documents({**match, "promedio": {"$lt": 3.0, "$gt": 0}})
+    en_riesgo = await db.students.count_documents({**match, "promedio": {"$lt": 3.0, "$gt": 0}, "nivel": {"$gte": 2}})
+    alerta_primer_nivel = await db.students.count_documents({**match, "nivel": {"$lte": 1}, "promedio": {"$lt": 3.0}})
     excelencia = await db.students.count_documents({**match, "promedio": {"$gte": 4.5}})
 
-    # Top 5 en riesgo con más score (usa la misma lógica del endpoint /en-riesgo, simplificado)
+    # Top 5 en riesgo con más score (excluye primer nivel — se acompañan con estrategia distinta)
     top_riesgo = await db.students.find(
-        {**match, "promedio": {"$lt": 3.0, "$gt": 0}},
+        {**match, "promedio": {"$lt": 3.0, "$gt": 0}, "nivel": {"$gte": 2}},
         {"_id": 0, "nombre_completo": 1, "nombre": 1, "apellidos": 1,
          "promedio": 1, "sisben_nivel": 1, "victima_conflicto": 1, "grupo_vulnerable": 1},
     ).sort("promedio", 1).limit(5).to_list(5)
@@ -372,6 +401,7 @@ async def resumen_grupo(payload: dict, user=Depends(get_current_user)):
             "estudiantes": total,
             "promedio": round(k.get("promedio", 0) or 0, 2),
             "en_riesgo": en_riesgo,
+            "alerta_primer_nivel": alerta_primer_nivel,
             "excelencia": excelencia,
             "vulnerables": k.get("vulnerables", 0),
             "victimas_conflicto": k.get("victimas", 0),

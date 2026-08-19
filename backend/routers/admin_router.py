@@ -404,7 +404,8 @@ async def facultad_ficha(facultad_id: str, user=Depends(require_roles("superadmi
     victimas = await db.students.count_documents({**match_est, "victima_conflicto": True})
     discapacidad = await db.students.count_documents({**match_est, "discapacidad_flag": True})
     rurales = await db.students.count_documents({**match_est, "tipo_ubicacion": {"$in": ["Rural", "Semirural"]}})
-    en_riesgo = await db.students.count_documents({**match_est, "promedio": {"$gt": 0, "$lt": 3.0}})
+    en_riesgo = await db.students.count_documents({**match_est, "promedio": {"$gt": 0, "$lt": 3.0}, "nivel": {"$gte": 2}})
+    alerta_primer_nivel = await db.students.count_documents({**match_est, "nivel": {"$lte": 1}, "promedio": {"$lt": 3.0}})
 
     prom_agg = await db.students.aggregate([
         {"$match": {**match_est, "promedio": {"$gt": 0}}},
@@ -469,6 +470,7 @@ async def facultad_ficha(facultad_id: str, user=Depends(require_roles("superadmi
             "promedio": promedio,
             "tasa_aprobacion": tasa_aprobacion,
             "en_riesgo": en_riesgo,
+            "alerta_primer_nivel": alerta_primer_nivel,
             "vulnerables": vulnerables,
             "victimas": victimas,
             "discapacidad": discapacidad,

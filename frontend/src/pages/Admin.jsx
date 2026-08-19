@@ -856,7 +856,8 @@ function FichaFacultadDialog({ facultadId, onClose }) {
                 <StatCard label="Estudiantes" value={data.kpis.total_estudiantes} />
                 <StatCard label="Promedio" value={data.kpis.promedio?.toFixed(2)} accent="text-[#0033A0]" />
                 <StatCard label="% Aprobación" value={`${data.kpis.tasa_aprobacion}%`} accent="text-emerald-700" />
-                <StatCard label="En riesgo" value={data.kpis.en_riesgo} accent="text-[#E3000F]" />
+                <StatCard label="Riesgo académico" value={data.kpis.en_riesgo} accent="text-[#E3000F]" />
+                <StatCard label="Alerta primer nivel" value={data.kpis.alerta_primer_nivel} accent="text-amber-700" />
                 <StatCard label="Vulnerables" value={data.kpis.vulnerables} accent="text-amber-700" />
                 <StatCard label="Rurales" value={data.kpis.rurales} />
                 <StatCard label="Programas" value={data.kpis.n_programas} />
