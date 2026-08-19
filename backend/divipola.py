@@ -266,23 +266,87 @@ def _normalize(s: str) -> str:
     return s
 
 
-_BY_NAME = {_normalize(m["nombre"]): m for m in MUNICIPIOS}
 _BY_CODE = {m["codigo"]: m for m in MUNICIPIOS}
 
+# Índice multivalor: un nombre puede tener múltiples municipios en distintos
+# departamentos (Argelia, Armenia, Granada, La Unión, San Pedro, etc.)
+from collections import defaultdict as _dd
+_BY_NAME_MULTI: dict = _dd(list)
+for _m in MUNICIPIOS:
+    _BY_NAME_MULTI[_normalize(_m["nombre"])].append(_m)
 
-def lookup(name: str = None, codigo: str = None):
+# Índice compuesto (nombre + departamento) para lookup exacto O(1)
+_BY_NAME_DEPTO = {
+    (_normalize(m["nombre"]), _normalize(m["departamento"])): m
+    for m in MUNICIPIOS
+}
+
+
+def lookup(name: str = None, codigo: str = None, departamento: str = None):
+    """Busca un municipio en el catálogo DIVIPOLA.
+
+    Precedencia:
+      1) codigo DANE exacto (más confiable)
+      2) (nombre, departamento) exacto — resuelve homónimos (Argelia AN/CA/VC, etc.)
+      3) nombre exacto: si hay una única coincidencia, retorna; si hay varias,
+         retorna None (para forzar al caller a proveer departamento).
+      4) fuzzy contains + departamento si se proveyó.
+
+    Retorna dict {codigo, nombre, departamento, lat, lon} o None.
+    """
+    # 1) Código DANE
     if codigo:
-        m = _BY_CODE.get(str(codigo).zfill(5))
+        code_str = str(codigo).strip()
+        # Aceptar 5 dígitos o menos (se rellena con ceros)
+        if code_str.isdigit():
+            code_str = code_str.zfill(5)
+        m = _BY_CODE.get(code_str)
         if m:
             return m
-    if name:
-        n = _normalize(name)
-        if n in _BY_NAME:
-            return _BY_NAME[n]
-        # fuzzy contains
-        for k, v in _BY_NAME.items():
-            if k and (k in n or n in k):
-                return v
+
+    if not name:
+        return None
+
+    n = _normalize(name)
+
+    # 2) (nombre, departamento) exacto
+    if departamento:
+        d = _normalize(departamento)
+        m = _BY_NAME_DEPTO.get((n, d))
+        if m:
+            return m
+
+    # 3) Nombre exacto único
+    candidates = _BY_NAME_MULTI.get(n) or []
+    if len(candidates) == 1:
+        return candidates[0]
+    if len(candidates) > 1 and departamento:
+        d = _normalize(departamento)
+        # Match parcial de departamento (VALLE vs VALLE DEL CAUCA, etc.)
+        for c in candidates:
+            cdep = _normalize(c["departamento"])
+            if cdep == d or cdep in d or d in cdep:
+                return c
+        # Ambigüedad: devolver el primero pero es señal de datos incompletos.
+        return None
+    if len(candidates) > 1 and not departamento:
+        # Ambigüedad sin departamento: no adivinar
+        return None
+
+    # 4) Fuzzy contains (última opción, solo si depto se provee)
+    if departamento:
+        d = _normalize(departamento)
+        for key, entries in _BY_NAME_MULTI.items():
+            if key and (key in n or n in key):
+                for c in entries:
+                    cdep = _normalize(c["departamento"])
+                    if cdep == d or cdep in d or d in cdep:
+                        return c
+    else:
+        for key, entries in _BY_NAME_MULTI.items():
+            if key and len(entries) == 1 and (key in n or n in key):
+                return entries[0]
+
     return None
 
 

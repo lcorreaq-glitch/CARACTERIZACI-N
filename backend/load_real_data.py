@@ -470,7 +470,7 @@ async def main():
         ciudad = _norm(row.get("Ciudad/Municipio residencia"))
         depto = _norm(row.get("Departamento residencia"))
         pais = _norm(row.get("País residencia")) or "COLOMBIA"
-        muni = divipola_lookup(name=ciudad) if ciudad else None
+        muni = divipola_lookup(name=ciudad, departamento=depto) if ciudad else None
 
         etnia = _upper(row.get("Etnia")) or "NO APLICA"
         grupo_etnia = _norm(row.get("Grupo étnico"))
