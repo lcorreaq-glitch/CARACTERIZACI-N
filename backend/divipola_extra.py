@@ -273,4 +273,346 @@ EXTRA_MUNICIPIOS = [
     {"codigo": "JPN01", "nombre": "TOKIO", "departamento": "JAPON", "lat": 35.6762, "lon": 139.6503},
     {"codigo": "CHN01", "nombre": "SHANGHAI", "departamento": "CHINA", "lat": 31.2304, "lon": 121.4737},
     {"codigo": "ARE01", "nombre": "DUBAI", "departamento": "EMIRATOS ARABES", "lat": 25.2048, "lon": 55.2708},
+
+    # ============================================================
+    # AMPLIACIÓN 2026-02 · municipios detectados como faltantes en
+    # caracterización de estudiantes IU Digital (backfill geocoding).
+    # ============================================================
+
+    # NARIÑO
+    {"codigo": "52079", "nombre": "BARBACOAS", "departamento": "NARIÑO", "lat": 1.6712, "lon": -78.1408},
+    {"codigo": "52678", "nombre": "SAMANIEGO", "departamento": "NARIÑO", "lat": 1.3364, "lon": -77.5947},
+    {"codigo": "52520", "nombre": "FRANCISCO PIZARRO", "departamento": "NARIÑO", "lat": 2.0503, "lon": -78.6417},
+    {"codigo": "52573", "nombre": "PROVIDENCIA", "departamento": "NARIÑO", "lat": 1.2381, "lon": -77.5964},
+    {"codigo": "52240", "nombre": "CHACHAGUI", "departamento": "NARIÑO", "lat": 1.3592, "lon": -77.2839},
+    {"codigo": "52250", "nombre": "EL CHARCO", "departamento": "NARIÑO", "lat": 2.4767, "lon": -78.1078},
+    {"codigo": "52418", "nombre": "MALLAMA", "departamento": "NARIÑO", "lat": 1.1408, "lon": -77.8656},
+    {"codigo": "52480", "nombre": "NARIÑO", "departamento": "NARIÑO", "lat": 1.2894, "lon": -77.3608},
+    {"codigo": "52411", "nombre": "LA LLANADA", "departamento": "NARIÑO", "lat": 1.4736, "lon": -77.5789},
+    {"codigo": "52885", "nombre": "YACUANQUER", "departamento": "NARIÑO", "lat": 1.1108, "lon": -77.4014},
+    {"codigo": "52786", "nombre": "TAMINANGO", "departamento": "NARIÑO", "lat": 1.5675, "lon": -77.2811},
+    {"codigo": "52233", "nombre": "CUMBAL", "departamento": "NARIÑO", "lat": 0.9067, "lon": -77.7911},
+    {"codigo": "52224", "nombre": "CUASPUD", "departamento": "NARIÑO", "lat": 0.8628, "lon": -77.7233},
+    {"codigo": "52036", "nombre": "ARBOLEDA", "departamento": "NARIÑO", "lat": 1.5000, "lon": -77.1333},
+    {"codigo": "52560", "nombre": "POTOSI", "departamento": "NARIÑO", "lat": 0.8067, "lon": -77.5731},
+    {"codigo": "52036B", "nombre": "ANCUYA", "departamento": "NARIÑO", "lat": 1.2600, "lon": -77.5150},
+    {"codigo": "52540", "nombre": "POLICARPA", "departamento": "NARIÑO", "lat": 1.6289, "lon": -77.4614},
+    {"codigo": "52693", "nombre": "SANTA CRUZ", "departamento": "NARIÑO", "lat": 1.2200, "lon": -77.9825},
+    {"codigo": "52807", "nombre": "TANGUA", "departamento": "NARIÑO", "lat": 1.0928, "lon": -77.3956},
+    {"codigo": "52685", "nombre": "SAN LORENZO", "departamento": "NARIÑO", "lat": 1.5031, "lon": -77.2131},
+    {"codigo": "52320", "nombre": "GUAITARILLA", "departamento": "NARIÑO", "lat": 1.1281, "lon": -77.5464},
+    {"codigo": "52323", "nombre": "GUACHUCAL", "departamento": "NARIÑO", "lat": 0.9611, "lon": -77.7317},
+    {"codigo": "52352", "nombre": "ILES", "departamento": "NARIÑO", "lat": 0.9700, "lon": -77.5158},
+    {"codigo": "52354", "nombre": "IMUES", "departamento": "NARIÑO", "lat": 1.0561, "lon": -77.4922},
+    {"codigo": "52565", "nombre": "PROVIDENCIA", "departamento": "NARIÑO", "lat": 1.2381, "lon": -77.5964},
+    {"codigo": "52215", "nombre": "CORDOBA", "departamento": "NARIÑO", "lat": 0.8508, "lon": -77.5117},
+    {"codigo": "52215B", "nombre": "CONSACA", "departamento": "NARIÑO", "lat": 1.2100, "lon": -77.4664},
+    {"codigo": "52720", "nombre": "SANDONA", "departamento": "NARIÑO", "lat": 1.2842, "lon": -77.4700},
+    {"codigo": "52838", "nombre": "TUQUERRES", "departamento": "NARIÑO", "lat": 1.0864, "lon": -77.6169},
+    {"codigo": "52418B", "nombre": "MAGUI", "departamento": "NARIÑO", "lat": 1.7719, "lon": -78.1808},
+    {"codigo": "52621", "nombre": "ROBERTO PAYAN", "departamento": "NARIÑO", "lat": 1.6969, "lon": -78.2600},
+    {"codigo": "52394", "nombre": "LA TOLA", "departamento": "NARIÑO", "lat": 2.4183, "lon": -78.1908},
+    {"codigo": "52393", "nombre": "LA CRUZ", "departamento": "NARIÑO", "lat": 1.6006, "lon": -76.9744},
+    {"codigo": "52585", "nombre": "PUPIALES", "departamento": "NARIÑO", "lat": 0.8700, "lon": -77.6408},
+    {"codigo": "52788", "nombre": "TABLON DE GOMEZ", "departamento": "NARIÑO", "lat": 1.4342, "lon": -77.0925},
+    {"codigo": "52573B", "nombre": "PUERRES", "departamento": "NARIÑO", "lat": 0.8836, "lon": -77.5000},
+    {"codigo": "52233B", "nombre": "CUMBITARA", "departamento": "NARIÑO", "lat": 1.6497, "lon": -77.5789},
+    {"codigo": "52260", "nombre": "EL TAMBO", "departamento": "NARIÑO", "lat": 1.4083, "lon": -77.3906},
+
+    # CAUCA
+    {"codigo": "19256", "nombre": "EL TAMBO", "departamento": "CAUCA", "lat": 2.4508, "lon": -76.8117},
+    {"codigo": "19548", "nombre": "PIENDAMO", "departamento": "CAUCA", "lat": 2.6394, "lon": -76.5297},
+    {"codigo": "19473", "nombre": "MORALES", "departamento": "CAUCA", "lat": 2.7550, "lon": -76.6314},
+    {"codigo": "19807", "nombre": "TIMBIO", "departamento": "CAUCA", "lat": 2.3547, "lon": -76.6822},
+    {"codigo": "19130", "nombre": "CAJIBIO", "departamento": "CAUCA", "lat": 2.6236, "lon": -76.5722},
+    {"codigo": "19743", "nombre": "SILVIA", "departamento": "CAUCA", "lat": 2.6108, "lon": -76.3781},
+    {"codigo": "19318", "nombre": "GUAPI", "departamento": "CAUCA", "lat": 2.5722, "lon": -77.8853},
+    {"codigo": "19698", "nombre": "SANTANDER DE QUILICHAO", "departamento": "CAUCA", "lat": 3.0100, "lon": -76.4839},
+    {"codigo": "19137", "nombre": "CALDONO", "departamento": "CAUCA", "lat": 2.7975, "lon": -76.4844},
+    {"codigo": "19022", "nombre": "ALMAGUER", "departamento": "CAUCA", "lat": 1.9142, "lon": -76.8547},
+    {"codigo": "19533", "nombre": "PATIA", "departamento": "CAUCA", "lat": 2.1078, "lon": -77.0450},
+    {"codigo": "19142", "nombre": "CALOTO", "departamento": "CAUCA", "lat": 3.0361, "lon": -76.4064},
+    {"codigo": "19824", "nombre": "TIMBIQUI", "departamento": "CAUCA", "lat": 2.7767, "lon": -77.6797},
+    {"codigo": "19845", "nombre": "VILLA RICA", "departamento": "CAUCA", "lat": 3.1697, "lon": -76.4444},
+    {"codigo": "19392", "nombre": "JAMBALO", "departamento": "CAUCA", "lat": 2.7797, "lon": -76.3244},
+    {"codigo": "19533B", "nombre": "PAEZ", "departamento": "CAUCA", "lat": 2.6558, "lon": -75.9769},
+    {"codigo": "19585", "nombre": "PURACE", "departamento": "CAUCA", "lat": 2.3392, "lon": -76.3986},
+    {"codigo": "19760", "nombre": "SOTARA", "departamento": "CAUCA", "lat": 2.2506, "lon": -76.6017},
+    {"codigo": "19075", "nombre": "BALBOA", "departamento": "CAUCA", "lat": 2.0417, "lon": -77.2178},
+
+    # ANTIOQUIA
+    {"codigo": "05237", "nombre": "DON MATIAS", "departamento": "ANTIOQUIA", "lat": 6.4864, "lon": -75.3906},
+    {"codigo": "05042", "nombre": "SANTA FE DE ANTIOQUIA", "departamento": "ANTIOQUIA", "lat": 6.5567, "lon": -75.8256},
+    {"codigo": "05664", "nombre": "PUEBLORRICO", "departamento": "ANTIOQUIA", "lat": 5.7908, "lon": -75.8378},
+    {"codigo": "05576", "nombre": "PUEBLO RICO", "departamento": "ANTIOQUIA", "lat": 5.7908, "lon": -75.8378},  # alias
+
+    # CORDOBA
+    {"codigo": "23580", "nombre": "PUERTO LIBERTADOR", "departamento": "CORDOBA", "lat": 7.8886, "lon": -75.6717},
+    {"codigo": "23417", "nombre": "LOS CORDOBAS", "departamento": "CORDOBA", "lat": 8.8931, "lon": -76.3556},
+    {"codigo": "23555", "nombre": "PLANETA RICA", "departamento": "CORDOBA", "lat": 8.4128, "lon": -75.5854},
+    {"codigo": "23068", "nombre": "AYAPEL", "departamento": "CORDOBA", "lat": 8.3131, "lon": -75.1394},
+    {"codigo": "23660", "nombre": "SAHAGUN", "departamento": "CORDOBA", "lat": 8.9500, "lon": -75.4494},
+    {"codigo": "23162", "nombre": "CERETE", "departamento": "CORDOBA", "lat": 8.8853, "lon": -75.7906},
+    {"codigo": "23670", "nombre": "SAN PELAYO", "departamento": "CORDOBA", "lat": 8.9581, "lon": -75.8339},
+    {"codigo": "23182", "nombre": "CHINU", "departamento": "CORDOBA", "lat": 9.1050, "lon": -75.4022},
+    {"codigo": "23574", "nombre": "PUERTO ESCONDIDO", "departamento": "CORDOBA", "lat": 9.0083, "lon": -76.2606},
+    {"codigo": "23350", "nombre": "LA APARTADA", "departamento": "CORDOBA", "lat": 8.0489, "lon": -75.3350},
+    {"codigo": "23855", "nombre": "TUCHIN", "departamento": "CORDOBA", "lat": 9.1856, "lon": -75.5525},
+    {"codigo": "23090", "nombre": "CANALETE", "departamento": "CORDOBA", "lat": 8.7889, "lon": -76.2417},
+    {"codigo": "23189", "nombre": "CHIMA", "departamento": "CORDOBA", "lat": 9.1481, "lon": -75.6289},
+    {"codigo": "23570", "nombre": "PUEBLO NUEVO", "departamento": "CORDOBA", "lat": 8.5081, "lon": -75.5100},
+    {"codigo": "23466", "nombre": "MOMIL", "departamento": "CORDOBA", "lat": 9.2372, "lon": -75.6742},
+    {"codigo": "23586", "nombre": "PURISIMA", "departamento": "CORDOBA", "lat": 9.2364, "lon": -75.7233},
+    {"codigo": "23682", "nombre": "SAN JOSE DE URE", "departamento": "CORDOBA", "lat": 7.7844, "lon": -75.5333},
+    {"codigo": "23090B", "nombre": "BUENAVISTA", "departamento": "CORDOBA", "lat": 8.2244, "lon": -75.4783},
+
+    # BOLIVAR
+    {"codigo": "13657", "nombre": "SAN JUAN NEPOMUCENO", "departamento": "BOLIVAR", "lat": 9.9528, "lon": -75.0808},
+    {"codigo": "13654", "nombre": "SAN JACINTO", "departamento": "BOLIVAR", "lat": 9.8317, "lon": -75.1219},
+    {"codigo": "13473", "nombre": "MORALES", "departamento": "BOLIVAR", "lat": 8.2761, "lon": -73.8697},
+    {"codigo": "13683", "nombre": "SANTA CATALINA", "departamento": "BOLIVAR", "lat": 10.6047, "lon": -75.2864},
+    {"codigo": "13468", "nombre": "MOMPOS", "departamento": "BOLIVAR", "lat": 9.2411, "lon": -74.4269},
+    {"codigo": "13052", "nombre": "ARJONA", "departamento": "BOLIVAR", "lat": 10.2544, "lon": -75.3439},
+    {"codigo": "13188", "nombre": "CLEMENCIA", "departamento": "BOLIVAR", "lat": 10.5678, "lon": -75.3306},
+    {"codigo": "13744", "nombre": "SIMITI", "departamento": "BOLIVAR", "lat": 7.9558, "lon": -73.9450},
+    {"codigo": "13549", "nombre": "PINILLOS", "departamento": "BOLIVAR", "lat": 8.9161, "lon": -74.4664},
+    {"codigo": "13655", "nombre": "SANTA ROSA DEL SUR", "departamento": "BOLIVAR", "lat": 7.9639, "lon": -74.0533},
+    {"codigo": "13440", "nombre": "MARIA LA BAJA", "departamento": "BOLIVAR", "lat": 9.9819, "lon": -75.3011},
+    {"codigo": "13580", "nombre": "RIO VIEJO", "departamento": "BOLIVAR", "lat": 8.5872, "lon": -74.1500},
+    {"codigo": "13650", "nombre": "SAN PABLO", "departamento": "BOLIVAR", "lat": 7.4750, "lon": -73.9247},
+    {"codigo": "13160", "nombre": "CICUCO", "departamento": "BOLIVAR", "lat": 9.2764, "lon": -74.6478},
+    {"codigo": "13268", "nombre": "EL PEÑON", "departamento": "BOLIVAR", "lat": 8.9925, "lon": -73.9603},
+
+    # MAGDALENA
+    {"codigo": "47170", "nombre": "CHIVOLO", "departamento": "MAGDALENA", "lat": 10.0272, "lon": -74.6250},
+    {"codigo": "47605", "nombre": "REMOLINO", "departamento": "MAGDALENA", "lat": 10.7025, "lon": -74.7178},
+    {"codigo": "47030", "nombre": "ALGARROBO", "departamento": "MAGDALENA", "lat": 10.1875, "lon": -74.0653},
+
+    # SUCRE
+    {"codigo": "70235", "nombre": "GALERAS", "departamento": "SUCRE", "lat": 9.1608, "lon": -75.0500},
+    {"codigo": "70670", "nombre": "SAN BENITO ABAD", "departamento": "SUCRE", "lat": 8.9317, "lon": -75.0264},
+    {"codigo": "70508", "nombre": "OVEJAS", "departamento": "SUCRE", "lat": 9.5236, "lon": -75.2286},
+    {"codigo": "70429", "nombre": "MAJAGUAL", "departamento": "SUCRE", "lat": 8.5411, "lon": -74.6242},
+    {"codigo": "70678", "nombre": "SAN PEDRO", "departamento": "SUCRE", "lat": 9.3958, "lon": -75.0603},
+
+    # GUAJIRA
+    {"codigo": "44847", "nombre": "URIBIA", "departamento": "GUAJIRA", "lat": 11.7132, "lon": -72.2653},
+    {"codigo": "44378", "nombre": "HATO NUEVO", "departamento": "GUAJIRA", "lat": 11.0700, "lon": -72.7561},
+    {"codigo": "44650", "nombre": "SAN JUAN DEL CESAR", "departamento": "GUAJIRA", "lat": 10.7708, "lon": -73.0028},
+    {"codigo": "44090", "nombre": "DIBULLA", "departamento": "GUAJIRA", "lat": 11.2725, "lon": -73.3086},
+    {"codigo": "44430", "nombre": "MANAURE", "departamento": "GUAJIRA", "lat": 11.7742, "lon": -72.4436},
+    {"codigo": "44855", "nombre": "URUMITA", "departamento": "GUAJIRA", "lat": 10.5583, "lon": -73.0069},
+    {"codigo": "44874", "nombre": "VILLANUEVA", "departamento": "GUAJIRA", "lat": 10.6072, "lon": -72.9781},
+    {"codigo": "44279", "nombre": "FONSECA", "departamento": "GUAJIRA", "lat": 10.8869, "lon": -72.8478},
+
+    # ATLANTICO
+    {"codigo": "08078", "nombre": "BARANOA", "departamento": "ATLANTICO", "lat": 10.7942, "lon": -74.9161},
+    {"codigo": "08606", "nombre": "REPELON", "departamento": "ATLANTICO", "lat": 10.4939, "lon": -75.1256},
+    {"codigo": "08296", "nombre": "GALAPA", "departamento": "ATLANTICO", "lat": 10.8969, "lon": -74.8836},
+    {"codigo": "08560", "nombre": "PONEDERA", "departamento": "ATLANTICO", "lat": 10.6417, "lon": -74.7514},
+    {"codigo": "08549", "nombre": "PALMAR DE VARELA", "departamento": "ATLANTICO", "lat": 10.7386, "lon": -74.7550},
+    {"codigo": "08685", "nombre": "SANTO TOMAS", "departamento": "ATLANTICO", "lat": 10.7597, "lon": -74.7561},
+    {"codigo": "08832", "nombre": "TUBARA", "departamento": "ATLANTICO", "lat": 10.8792, "lon": -74.9764},
+    {"codigo": "08549B", "nombre": "PIOJO", "departamento": "ATLANTICO", "lat": 10.7500, "lon": -75.1097},
+    {"codigo": "08573", "nombre": "USIACURI", "departamento": "ATLANTICO", "lat": 10.7439, "lon": -74.9764},
+    {"codigo": "08421", "nombre": "LURUACO", "departamento": "ATLANTICO", "lat": 10.6122, "lon": -75.1425},
+    {"codigo": "08436", "nombre": "MANATI", "departamento": "ATLANTICO", "lat": 10.4442, "lon": -74.9539},
+    {"codigo": "08137", "nombre": "CAMPO DE LA CRUZ", "departamento": "ATLANTICO", "lat": 10.3803, "lon": -74.8825},
+    {"codigo": "08634", "nombre": "SABANAGRANDE", "departamento": "ATLANTICO", "lat": 10.7911, "lon": -74.7594},
+    {"codigo": "08558", "nombre": "POLONUEVO", "departamento": "ATLANTICO", "lat": 10.7789, "lon": -74.8578},
+
+    # CESAR
+    {"codigo": "20250", "nombre": "EL PASO", "departamento": "CESAR", "lat": 9.6689, "lon": -73.7472},
+    {"codigo": "20238", "nombre": "EL COPEY", "departamento": "CESAR", "lat": 10.1503, "lon": -73.9600},
+    {"codigo": "20621", "nombre": "LA PAZ", "departamento": "CESAR", "lat": 10.3878, "lon": -73.1717},
+    {"codigo": "20443", "nombre": "MANAURE", "departamento": "CESAR", "lat": 10.3908, "lon": -73.0331},
+    {"codigo": "20517", "nombre": "PAILITAS", "departamento": "CESAR", "lat": 8.9631, "lon": -73.6250},
+    {"codigo": "20550", "nombre": "PELAYA", "departamento": "CESAR", "lat": 8.6867, "lon": -73.6656},
+    {"codigo": "20614", "nombre": "RIO DE ORO", "departamento": "CESAR", "lat": 8.2925, "lon": -73.3878},
+    {"codigo": "20787", "nombre": "TAMALAMEQUE", "departamento": "CESAR", "lat": 8.8617, "lon": -73.8100},
+    {"codigo": "20178", "nombre": "CHIRIGUANA", "departamento": "CESAR", "lat": 9.3611, "lon": -73.6008},
+    {"codigo": "20060", "nombre": "BECERRIL", "departamento": "CESAR", "lat": 9.7089, "lon": -73.2764},
+    {"codigo": "20400", "nombre": "LA GLORIA", "departamento": "CESAR", "lat": 8.6144, "lon": -73.8022},
+
+    # NORTE DE SANTANDER
+    {"codigo": "54206", "nombre": "CONVENCION", "departamento": "NORTE DE SANTANDER", "lat": 8.4700, "lon": -73.3378},
+    {"codigo": "54810", "nombre": "TIBU", "departamento": "NORTE DE SANTANDER", "lat": 8.6408, "lon": -72.7361},
+    {"codigo": "54520", "nombre": "PAMPLONA", "departamento": "NORTE DE SANTANDER", "lat": 7.3778, "lon": -72.6483},
+    {"codigo": "54003", "nombre": "ABREGO", "departamento": "NORTE DE SANTANDER", "lat": 8.0806, "lon": -73.2153},
+    {"codigo": "54800", "nombre": "TEORAMA", "departamento": "NORTE DE SANTANDER", "lat": 8.4342, "lon": -73.2861},
+    {"codigo": "54810B", "nombre": "EL TARRA", "departamento": "NORTE DE SANTANDER", "lat": 8.5769, "lon": -73.1000},
+    {"codigo": "54405", "nombre": "LA PLAYA", "departamento": "NORTE DE SANTANDER", "lat": 8.2211, "lon": -73.2333},
+    {"codigo": "54680", "nombre": "SARDINATA", "departamento": "NORTE DE SANTANDER", "lat": 8.0819, "lon": -72.8000},
+
+    # SANTANDER
+    {"codigo": "68679", "nombre": "SAN GIL", "departamento": "SANTANDER", "lat": 6.5567, "lon": -73.1361},
+    {"codigo": "68432", "nombre": "MALAGA", "departamento": "SANTANDER", "lat": 6.7000, "lon": -72.7333},
+    {"codigo": "68861", "nombre": "VELEZ", "departamento": "SANTANDER", "lat": 6.0089, "lon": -73.6717},
+    {"codigo": "68190", "nombre": "CIMITARRA", "departamento": "SANTANDER", "lat": 6.3122, "lon": -73.9481},
+    {"codigo": "68207", "nombre": "CONCEPCION", "departamento": "SANTANDER", "lat": 6.7681, "lon": -72.6939},
+    {"codigo": "68245", "nombre": "EL CARMEN DE CHUCURI", "departamento": "SANTANDER", "lat": 6.6944, "lon": -73.5058},
+    {"codigo": "68276", "nombre": "FLORIDABLANCA", "departamento": "SANTANDER", "lat": 7.0678, "lon": -73.0864},
+    {"codigo": "68575", "nombre": "PUERTO PARRA", "departamento": "SANTANDER", "lat": 6.6497, "lon": -74.0578},
+    {"codigo": "68655", "nombre": "SABANA DE TORRES", "departamento": "SANTANDER", "lat": 7.3906, "lon": -73.4972},
+    {"codigo": "68229", "nombre": "CURITI", "departamento": "SANTANDER", "lat": 6.6103, "lon": -73.0658},
+    {"codigo": "68318", "nombre": "GUAPOTA", "departamento": "SANTANDER", "lat": 6.3072, "lon": -73.3211},
+    {"codigo": "68502", "nombre": "OIBA", "departamento": "SANTANDER", "lat": 6.2664, "lon": -73.2986},
+    {"codigo": "68498", "nombre": "OCAMONTE", "departamento": "SANTANDER", "lat": 6.3453, "lon": -73.1233},
+    {"codigo": "68549", "nombre": "PIEDECUESTA", "departamento": "SANTANDER", "lat": 6.9878, "lon": -73.0500},
+    {"codigo": "68522", "nombre": "PALMAR", "departamento": "SANTANDER", "lat": 6.5361, "lon": -73.2919},
+    {"codigo": "68533", "nombre": "PAEZ", "departamento": "SANTANDER", "lat": 6.1908, "lon": -73.7156},
+    {"codigo": "68344", "nombre": "HATO", "departamento": "SANTANDER", "lat": 6.5478, "lon": -73.3067},
+    {"codigo": "68686", "nombre": "SANTA HELENA DEL OPON", "departamento": "SANTANDER", "lat": 6.3364, "lon": -73.6142},
+    {"codigo": "68872", "nombre": "VILLANUEVA", "departamento": "SANTANDER", "lat": 6.6725, "lon": -73.1728},
+    {"codigo": "68820", "nombre": "TONA", "departamento": "SANTANDER", "lat": 7.2069, "lon": -72.9700},
+    {"codigo": "68172", "nombre": "CHIPATA", "departamento": "SANTANDER", "lat": 6.0653, "lon": -73.6383},
+    {"codigo": "68296", "nombre": "GALAN", "departamento": "SANTANDER", "lat": 6.6383, "lon": -73.2953},
+    {"codigo": "68464", "nombre": "MOGOTES", "departamento": "SANTANDER", "lat": 6.4756, "lon": -72.9722},
+    {"codigo": "68572", "nombre": "PUENTE NACIONAL", "departamento": "SANTANDER", "lat": 5.8783, "lon": -73.6797},
+
+    # CHOCO
+    {"codigo": "27615", "nombre": "RIOSUCIO", "departamento": "CHOCO", "lat": 7.4306, "lon": -77.1150},
+    {"codigo": "27077", "nombre": "BAJIRA", "departamento": "CHOCO", "lat": 7.3672, "lon": -76.7906},
+    {"codigo": "27361", "nombre": "ISTMINA", "departamento": "CHOCO", "lat": 5.1614, "lon": -76.6842},
+    {"codigo": "27075", "nombre": "BAGADO", "departamento": "CHOCO", "lat": 5.4103, "lon": -76.4189},
+    {"codigo": "27245", "nombre": "EL CARMEN DE ATRATO", "departamento": "CHOCO", "lat": 5.9033, "lon": -76.1436},
+    {"codigo": "27800", "nombre": "UNGUIA", "departamento": "CHOCO", "lat": 8.0417, "lon": -77.0900},
+    {"codigo": "27006", "nombre": "ACANDI", "departamento": "CHOCO", "lat": 8.5142, "lon": -77.2794},
+    {"codigo": "27160", "nombre": "CERTEGUI", "departamento": "CHOCO", "lat": 5.3597, "lon": -76.6039},
+    {"codigo": "27250", "nombre": "EL LITORAL DEL SAN JUAN", "departamento": "CHOCO", "lat": 4.2503, "lon": -77.3792},
+    {"codigo": "27099", "nombre": "BOJAYA", "departamento": "CHOCO", "lat": 6.5644, "lon": -76.8828},
+    {"codigo": "27050", "nombre": "ATRATO", "departamento": "CHOCO", "lat": 5.5261, "lon": -76.6386},
+    {"codigo": "27150", "nombre": "CARMEN DEL DARIEN", "departamento": "CHOCO", "lat": 7.1567, "lon": -77.1497},
+    {"codigo": "27205", "nombre": "CONDOTO", "departamento": "CHOCO", "lat": 5.0908, "lon": -76.6503},
+    {"codigo": "27372", "nombre": "JURADO", "departamento": "CHOCO", "lat": 7.1039, "lon": -77.7614},
+    {"codigo": "27660", "nombre": "SAN JOSE DEL PALMAR", "departamento": "CHOCO", "lat": 4.8961, "lon": -76.2367},
+    {"codigo": "27810", "nombre": "UNION PANAMERICANA", "departamento": "CHOCO", "lat": 5.2989, "lon": -76.6294},
+    {"codigo": "27135", "nombre": "EL CANTON DE SAN PABLO", "departamento": "CHOCO", "lat": 5.4108, "lon": -76.7364},
+    {"codigo": "27025", "nombre": "ALTO BAUDO", "departamento": "CHOCO", "lat": 5.5147, "lon": -76.9722},
+    {"codigo": "27077B", "nombre": "BAJO BAUDO", "departamento": "CHOCO", "lat": 4.9497, "lon": -77.3625},
+
+    # CALDAS
+    {"codigo": "17380", "nombre": "LA DORADA", "departamento": "CALDAS", "lat": 5.4497, "lon": -74.6633},
+    {"codigo": "17662", "nombre": "SAMANA", "departamento": "CALDAS", "lat": 5.4128, "lon": -74.9922},
+    {"codigo": "17614", "nombre": "RIOSUCIO", "departamento": "CALDAS", "lat": 5.4225, "lon": -75.7017},
+    {"codigo": "17174", "nombre": "CHINCHINA", "departamento": "CALDAS", "lat": 4.9789, "lon": -75.6072},
+    {"codigo": "17777", "nombre": "SUPIA", "departamento": "CALDAS", "lat": 5.4517, "lon": -75.6503},
+    {"codigo": "17013", "nombre": "AGUADAS", "departamento": "CALDAS", "lat": 5.6122, "lon": -75.4550},
+    {"codigo": "17877", "nombre": "VITERBO", "departamento": "CALDAS", "lat": 5.0653, "lon": -75.8703},
+    {"codigo": "17495", "nombre": "NEIRA", "departamento": "CALDAS", "lat": 5.1667, "lon": -75.5197},
+
+    # HUILA
+    {"codigo": "41013", "nombre": "AGRADO", "departamento": "HUILA", "lat": 2.2603, "lon": -75.7708},
+    {"codigo": "41306", "nombre": "GIGANTE", "departamento": "HUILA", "lat": 2.3856, "lon": -75.5453},
+    {"codigo": "41359", "nombre": "GARZON", "departamento": "HUILA", "lat": 2.1953, "lon": -75.6272},
+    {"codigo": "41615", "nombre": "RIVERA", "departamento": "HUILA", "lat": 2.7767, "lon": -75.2586},
+    {"codigo": "41551", "nombre": "PALERMO", "departamento": "HUILA", "lat": 2.8964, "lon": -75.4342},
+    {"codigo": "41872", "nombre": "VILLAVIEJA", "departamento": "HUILA", "lat": 3.2181, "lon": -75.2178},
+    {"codigo": "41530", "nombre": "PAICOL", "departamento": "HUILA", "lat": 2.4497, "lon": -75.7758},
+    {"codigo": "41660", "nombre": "SALADOBLANCO", "departamento": "HUILA", "lat": 1.9942, "lon": -76.0447},
+
+    # TOLIMA
+    {"codigo": "73043", "nombre": "ANZOATEGUI", "departamento": "TOLIMA", "lat": 4.6300, "lon": -75.0908},
+    {"codigo": "73678", "nombre": "SALDAÑA", "departamento": "TOLIMA", "lat": 3.9308, "lon": -75.0158},
+
+    # META
+    {"codigo": "50573", "nombre": "PUERTO GAITAN", "departamento": "META", "lat": 4.3122, "lon": -72.0844},
+    {"codigo": "50450", "nombre": "MAPIRIPAN", "departamento": "META", "lat": 2.8875, "lon": -72.1300},
+    {"codigo": "50226", "nombre": "CUMARAL", "departamento": "META", "lat": 4.2711, "lon": -73.2911},
+    {"codigo": "50006", "nombre": "ACACIAS", "departamento": "META", "lat": 3.9911, "lon": -73.7597},
+
+    # CASANARE
+    {"codigo": "85263", "nombre": "PAZ DE ARIPORO", "departamento": "CASANARE", "lat": 5.8792, "lon": -71.8919},
+    {"codigo": "85410", "nombre": "OROCUE", "departamento": "CASANARE", "lat": 4.7906, "lon": -71.3383},
+    {"codigo": "85440", "nombre": "TRINIDAD", "departamento": "CASANARE", "lat": 5.4111, "lon": -71.6608},
+    {"codigo": "85162", "nombre": "TAURAMENA", "departamento": "CASANARE", "lat": 5.0189, "lon": -72.7461},
+    {"codigo": "85400", "nombre": "MONTERREY", "departamento": "CASANARE", "lat": 4.8783, "lon": -72.8942},
+    {"codigo": "85440B", "nombre": "VILLANUEVA", "departamento": "CASANARE", "lat": 4.6108, "lon": -72.9283},
+    {"codigo": "85300", "nombre": "HATO COROZAL", "departamento": "CASANARE", "lat": 6.1567, "lon": -71.7647},
+    {"codigo": "85139", "nombre": "CHAMEZA", "departamento": "CASANARE", "lat": 5.2131, "lon": -72.8828},
+
+    # PUTUMAYO
+    {"codigo": "86568", "nombre": "ORITO", "departamento": "PUTUMAYO", "lat": 0.6683, "lon": -76.8722},
+    {"codigo": "86571", "nombre": "PUERTO ASIS", "departamento": "PUTUMAYO", "lat": 0.5083, "lon": -76.4972},
+    {"codigo": "86749", "nombre": "SIBUNDOY", "departamento": "PUTUMAYO", "lat": 1.2036, "lon": -76.9203},
+    {"codigo": "86755", "nombre": "SAN FRANCISCO", "departamento": "PUTUMAYO", "lat": 1.1717, "lon": -76.8797},
+    {"codigo": "86865", "nombre": "VILLAGARZON", "departamento": "PUTUMAYO", "lat": 1.0289, "lon": -76.6153},
+
+    # CAQUETA
+    {"codigo": "18785", "nombre": "SOLANO", "departamento": "CAQUETA", "lat": 0.6989, "lon": -75.2531},
+    {"codigo": "18592", "nombre": "PAUJIL", "departamento": "CAQUETA", "lat": 1.5714, "lon": -75.3272},
+    {"codigo": "18410", "nombre": "MILAN", "departamento": "CAQUETA", "lat": 1.2867, "lon": -75.5019},
+    {"codigo": "18479", "nombre": "MORELIA", "departamento": "CAQUETA", "lat": 1.4864, "lon": -75.7239},
+    {"codigo": "18785B", "nombre": "SOLITA", "departamento": "CAQUETA", "lat": 0.8778, "lon": -75.6142},
+    {"codigo": "18256", "nombre": "EL DONCELLO", "departamento": "CAQUETA", "lat": 1.6797, "lon": -75.2842},
+
+    # ARAUCA
+    {"codigo": "81736", "nombre": "SARAVENA", "departamento": "ARAUCA", "lat": 6.9564, "lon": -71.8747},
+    {"codigo": "81220", "nombre": "CRAVO NORTE", "departamento": "ARAUCA", "lat": 6.3025, "lon": -70.2028},
+
+    # VICHADA
+    {"codigo": "99773", "nombre": "CUMARIBO", "departamento": "VICHADA", "lat": 4.4425, "lon": -69.7967},
+    {"codigo": "99524", "nombre": "LA PRIMAVERA", "departamento": "VICHADA", "lat": 5.4933, "lon": -70.4106},
+
+    # GUAINIA
+    {"codigo": "94663", "nombre": "BARRANCO MINA", "departamento": "GUAINIA", "lat": 3.4917, "lon": -69.8028},
+    {"codigo": "94886", "nombre": "MORICHAL NUEVO", "departamento": "GUAINIA", "lat": 2.2611, "lon": -69.9433},
+
+    # AMAZONAS
+    {"codigo": "91540", "nombre": "PUERTO NARIÑO", "departamento": "AMAZONAS", "lat": -3.7728, "lon": -70.3653},
+
+    # SAN ANDRES Y PROVIDENCIA
+    {"codigo": "88564", "nombre": "PROVIDENCIA Y SANTA CATALINA", "departamento": "SAN ANDRES Y PROVIDENCIA", "lat": 13.3814, "lon": -81.3833},
+
+    # QUINDIO extra
+    {"codigo": "63594", "nombre": "PIJAO", "departamento": "QUINDIO", "lat": 4.3339, "lon": -75.7050},
+    {"codigo": "63594B", "nombre": "QUIMBAYA", "departamento": "QUINDIO", "lat": 4.6231, "lon": -75.7628},
+
+    # BOYACA extra
+    {"codigo": "15469", "nombre": "MONIQUIRA", "departamento": "BOYACA", "lat": 5.8767, "lon": -73.5744},
+    {"codigo": "15600", "nombre": "RAMIRIQUI", "departamento": "BOYACA", "lat": 5.4008, "lon": -73.3339},
+    {"codigo": "15693", "nombre": "SANTA ROSA DE VITERBO", "departamento": "BOYACA", "lat": 5.8747, "lon": -72.9825},
+    {"codigo": "15516", "nombre": "PAIPA", "departamento": "BOYACA", "lat": 5.7797, "lon": -73.1178},
+    {"codigo": "15759", "nombre": "SOMONDOCO", "departamento": "BOYACA", "lat": 4.9856, "lon": -73.4392},
+    {"codigo": "15776", "nombre": "SUTATENZA", "departamento": "BOYACA", "lat": 5.0261, "lon": -73.4531},
+    {"codigo": "15810", "nombre": "TIBASOSA", "departamento": "BOYACA", "lat": 5.7492, "lon": -72.9992},
+    {"codigo": "15862", "nombre": "VENTAQUEMADA", "departamento": "BOYACA", "lat": 5.3703, "lon": -73.5211},
+    {"codigo": "15272", "nombre": "FIRAVITOBA", "departamento": "BOYACA", "lat": 5.6672, "lon": -72.9950},
+    {"codigo": "15676", "nombre": "SAN MIGUEL DE SEMA", "departamento": "BOYACA", "lat": 5.5183, "lon": -73.7167},
+    {"codigo": "15522", "nombre": "PANQUEBA", "departamento": "BOYACA", "lat": 6.4433, "lon": -72.4544},
+    {"codigo": "15511", "nombre": "PACHAVITA", "departamento": "BOYACA", "lat": 5.1361, "lon": -73.4842},
+    {"codigo": "15537", "nombre": "PAZ DE RIO", "departamento": "BOYACA", "lat": 5.9878, "lon": -72.7500},
+    {"codigo": "15542", "nombre": "PESCA", "departamento": "BOYACA", "lat": 5.5578, "lon": -72.9061},
+    {"codigo": "15550", "nombre": "PISBA", "departamento": "BOYACA", "lat": 6.0217, "lon": -72.4842},
+    {"codigo": "15667", "nombre": "SAMACA", "departamento": "BOYACA", "lat": 5.4864, "lon": -73.4842},
+
+    # RISARALDA extra
+    {"codigo": "66682", "nombre": "SANTA ROSA DE CABAL", "departamento": "RISARALDA", "lat": 4.8722, "lon": -75.6231},
+    {"codigo": "66170", "nombre": "DOS QUEBRADAS", "departamento": "RISARALDA", "lat": 4.8339, "lon": -75.6717},
+    {"codigo": "66594", "nombre": "PUEBLO RICO", "departamento": "RISARALDA", "lat": 5.2214, "lon": -76.0311},
+    {"codigo": "66440", "nombre": "MARSELLA", "departamento": "RISARALDA", "lat": 4.9350, "lon": -75.7369},
+    {"codigo": "66318", "nombre": "GUATICA", "departamento": "RISARALDA", "lat": 5.3103, "lon": -75.8006},
+
+    # CUNDINAMARCA extra
+    {"codigo": "25269", "nombre": "FUSAGASUGA", "departamento": "CUNDINAMARCA", "lat": 4.3378, "lon": -74.3644},
+    {"codigo": "25120", "nombre": "CARMEN DE CARUPA", "departamento": "CUNDINAMARCA", "lat": 5.3494, "lon": -73.9017},
+    {"codigo": "25299", "nombre": "GACHETA", "departamento": "CUNDINAMARCA", "lat": 4.8172, "lon": -73.6303},
+    {"codigo": "25022", "nombre": "ANAPOIMA", "departamento": "CUNDINAMARCA", "lat": 4.5497, "lon": -74.5372},
+    {"codigo": "25513", "nombre": "PAIME", "departamento": "CUNDINAMARCA", "lat": 5.3714, "lon": -74.1517},
+    {"codigo": "25662", "nombre": "SAN JUAN DE RIOSECO", "departamento": "CUNDINAMARCA", "lat": 4.8442, "lon": -74.6222},
+
+    # INTERNACIONALES adicionales
+    {"codigo": "MEX02", "nombre": "MONTERREY", "departamento": "MEXICO", "lat": 25.6866, "lon": -100.3161},  # ciudad de méxico
+    {"codigo": "ESP02", "nombre": "GETAFE", "departamento": "MADRID", "lat": 40.3057, "lon": -3.7328},
+    {"codigo": "CAN03", "nombre": "SURREY", "departamento": "BRITISH COLOMBIA", "lat": 49.1913, "lon": -122.8490},
+    {"codigo": "CAN04", "nombre": "BURNABY", "departamento": "BRITISH COLOMBIA", "lat": 49.2488, "lon": -122.9805},
+    {"codigo": "CAN05", "nombre": "ABBOTSFORD", "departamento": "BRITISH COLOMBIA", "lat": 49.0504, "lon": -122.3045},
+    {"codigo": "CAN06", "nombre": "DELTA", "departamento": "BRITISH COLOMBIA", "lat": 49.0847, "lon": -123.0587},
+    {"codigo": "CAN07", "nombre": "SAANICH", "departamento": "BRITISH COLOMBIA", "lat": 48.4842, "lon": -123.3811},
+    {"codigo": "USA02", "nombre": "PORTLAND", "departamento": "OREGON", "lat": 45.5152, "lon": -122.6784},
+    {"codigo": "ARG02", "nombre": "MORENO", "departamento": "BUENOS AIRES", "lat": -34.6494, "lon": -58.7906},
+    {"codigo": "BRA02", "nombre": "SANTA MARIA", "departamento": "RIO GRANDE DO SUL", "lat": -29.6842, "lon": -53.8069},
+    {"codigo": "AFG01", "nombre": "HERAT", "departamento": "HERAT", "lat": 34.3529, "lon": 62.2040},
+    {"codigo": "AFG02", "nombre": "MAZAR-E-SHARIF", "departamento": "BALKH", "lat": 36.7061, "lon": 67.1147},
+    {"codigo": "USA03", "nombre": "SAN LUIS", "departamento": "SAN LUIS", "lat": 38.6270, "lon": -90.1994},
 ]

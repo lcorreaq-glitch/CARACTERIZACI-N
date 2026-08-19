@@ -259,10 +259,16 @@ except Exception:
 
 def _normalize(s: str) -> str:
     import unicodedata
+    import re
     if s is None:
         return ""
     s = str(s).strip().upper()
     s = "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+    # Los datos institucionales suelen escribir "NARINIO" (INIO) en vez de "NARIÑO":
+    # normalizamos Ñ → N y el dígrafo "INIO" → "INO" (solo al final o antes de espacio),
+    # para que ambos matcheen sin afectar palabras como ANTONIO.
+    s = s.replace("Ñ", "N")
+    s = re.sub(r"INIO(\b|$)", r"INO\1", s)
     return s
 
 
